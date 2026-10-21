@@ -1,3 +1,4 @@
+import 'overlay_editor_controller.dart';
 import 'overlay_editor_toolbar.dart';
 import 'overlay_widget_palette.dart';
 import 'overlay_widget_rename_dialog.dart';
@@ -15,7 +16,6 @@ import 'package:showrunner_flutter/design_system/tokens/tokens.dart';
 import 'package:showrunner_flutter/plugins/obs/overlay_source_service.dart';
 import 'package:showrunner_flutter/schema/json.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
-import 'package:showrunner_flutter/features/resources/overlay/overlay_document.dart';
 import 'package:showrunner_flutter/features/resources/overlay/overlay_snapping.dart';
 import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
 import 'package:showrunner_flutter/plugins/overlays/overlay_widget_icons.dart';
@@ -57,17 +57,24 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   late final TextEditingController _previewSource;
   late final TextEditingController _previewOffsetX;
   late final TextEditingController _previewOffsetY;
-  late List<JsonMap> _widgets;
-  late OverlayDocument _document;
+  late OverlayEditorController _editor;
+  final _canvasFocus = FocusNode(debugLabel: 'Overlay canvas');
+  List<JsonMap> get _widgets => _editor.widgets;
+  int? get _selectedWidgetIndex => _editor.selectedIndex;
+  set _selectedWidgetIndex(int? value) {
+    _canvasFocus.requestFocus();
+    _editor.selectIndex(value);
+  }
+
   late bool _previewEnabled;
   late bool _previewFromObs;
   List<GeneratedOverlayWidget> _overlayWidgetCatalog =
       GeneratedOverlayWidgetCatalog.widgets;
-  int? _selectedWidgetIndex;
   int _inspectorPaneFlex = 55;
-  bool _dirty = false;
-  bool _saving = false;
-  int _editRevision = 0;
+  bool get _dirty => _editor.dirty;
+  bool get _saving => _editor.saving;
+  int _reportedRevision = 0;
+  bool _reportedDirty = false;
   OverlayPresenceReader? _presenceReader;
   late OverlayPresence _presence;
   List<ObsConnectionChoice> _obsConnections = const [];
@@ -81,7 +88,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   final _widgetMenuLink = LayerLink();
   final _widgetMenuAnchorKey = GlobalKey();
   OverlayEntry? _widgetMenuEntry;
-  JsonMap? _canvasTransformItem;
+  Object? _canvasTransformItem;
   JsonMap _canvasTransformPosition = const {};
   JsonMap _canvasTransformSize = const {};
   Offset _canvasTransformDelta = Offset.zero;
@@ -92,24 +99,13 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   @override
   void initState() {
     super.initState();
-    final overlay = OverlayResource.fromResource(widget.resource);
-    _name = TextEditingController(text: overlay.name);
-    _width = TextEditingController(text: '${overlay.width}');
-    _height = TextEditingController(text: '${overlay.height}');
-    final preview = widget.resource.config['preview'] is Map
-        ? Map<String, dynamic>.from(widget.resource.config['preview'] as Map)
-        : const <String, dynamic>{};
-    _previewEnabled = widget.resource.config['preview'] is Map;
-    _previewFromObs = preview['source']?.toString() == 'obs';
-    _previewSource = TextEditingController(
-      text: _previewFromObs ? '' : '${preview['source'] ?? ''}',
-    );
-    _previewOffsetX = TextEditingController(text: '${preview['offsetX'] ?? 0}');
-    _previewOffsetY = TextEditingController(text: '${preview['offsetY'] ?? 0}');
-    _document = OverlayDocument(widget.resource);
-    _widgets = _document.initialWidgets
-        .map((widget) => <String, dynamic>{...widget})
-        .toList();
+    _name = TextEditingController();
+    _width = TextEditingController();
+    _height = TextEditingController();
+    _previewSource = TextEditingController();
+    _previewOffsetX = TextEditingController();
+    _previewOffsetY = TextEditingController();
+    _installDocument();
     _presence = OverlayPresence.disconnected(widget.resource.id);
     unawaited(_loadPresenceReader());
     unawaited(_loadObsConnections());
@@ -123,9 +119,55 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     });
   }
 
+  void _installDocument() {
+    _editor = OverlayEditorController(widget.resource)
+      ..addListener(_editorChanged);
+    _reportedRevision = 0;
+    _reportedDirty = false;
+    _loadInputFields(widget.resource);
+    _scheduleSnapshot();
+  }
+
+  void _loadInputFields(ResourceData resource) {
+    final overlay = OverlayResource.fromResource(resource);
+    _name.text = overlay.name;
+    _width.text = '${overlay.width}';
+    _height.text = '${overlay.height}';
+    final preview = resource.config['preview'] as Map? ?? const {};
+    _previewEnabled = resource.config['preview'] is Map;
+    _previewFromObs = preview['source'] == 'obs';
+    _previewSource.text = _previewFromObs ? '' : '${preview['source'] ?? ''}';
+    _previewOffsetX.text = '${preview['offsetX'] ?? 0}';
+    _previewOffsetY.text = '${preview['offsetY'] ?? 0}';
+  }
+
+  void _editorChanged() {
+    if (!mounted) return;
+    setState(() {});
+    final changed =
+        _reportedRevision != _editor.revision || _reportedDirty != _dirty;
+    if (_reportedDirty != _dirty) widget.onDirtyChanged?.call(_dirty);
+    _reportedRevision = _editor.revision;
+    _reportedDirty = _dirty;
+    if (changed) _scheduleSnapshot();
+  }
+
   @override
   void didUpdateWidget(covariant OverlayEditorPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.resource.id != widget.resource.id) {
+      _closeWidgetMenu();
+      _editor.dispose();
+      _installDocument();
+      _canvasTransformItem = null;
+      _verticalGuides = const [];
+      _horizontalGuides = const [];
+      _obsRefreshDebounce?.cancel();
+      _obsSourceStatus = null;
+      _obsSourceError = null;
+      _obsSourceLoading = false;
+      _scheduleObsSourceRefresh();
+    }
     if (oldWidget.resource.id != widget.resource.id ||
         oldWidget.presenceReaderFuture != widget.presenceReaderFuture) {
       _presenceReader = null;
@@ -145,6 +187,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _closeWidgetMenu();
     _presenceTimer?.cancel();
     _obsRefreshDebounce?.cancel();
+    _editor.dispose();
+    _canvasFocus.dispose();
     _name.dispose();
     _width.dispose();
     _height.dispose();
@@ -163,184 +207,209 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       352.0,
       math.max(280.0, MediaQuery.sizeOf(context).width * .34),
     );
-    return Material(
-      key: const ValueKey('overlay-editor-root'),
-      color: ShowRunnerColors.surfaceB,
-      child: Column(
-        children: [
-          OverlayEditorToolbar(
-            nameController: _name,
-            widthController: _width,
-            heightController: _height,
-            snapEnabled: _snapEnabled,
-            onSnapToggle: () => setState(() {
-              _snapEnabled = !_snapEnabled;
-              _verticalGuides = const [];
-              _horizontalGuides = const [];
-            }),
-            onNameChanged: _markDirty,
-            onSizeChanged: () {
-              _markDirty();
-              setState(() {});
-              _scheduleObsSourceRefresh();
-            },
-            onSizePreset: _setSizePreset,
-            onPreviewSettings: () => _showPreviewSettings(context),
-            obsConnections: _obsConnections,
-            obsConnectionsLoading: _obsConnectionsLoading,
-            selectedObsConnectionId: _selectedObsConnectionId,
-            onSelectObsConnection: _selectObsConnection,
-            obsSourceControl: widget.obsSourceService == null
-                ? null
-                : _overlayObsSourceControl(context),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: OverlayCanvas(
-                    width: canvasWidth,
-                    height: canvasHeight,
-                    widgets: _widgets,
-                    selectedIndex: _selectedWidgetIndex,
-                    catalog: _overlayWidgetCatalog,
-                    onTransformStart: _beginCanvasTransform,
-                    onTransformEnd: _endCanvasTransform,
-                    verticalGuides: _verticalGuides,
-                    horizontalGuides: _horizontalGuides,
-                    onSelect: (index) =>
-                        setState(() => _selectedWidgetIndex = index),
-                    onDeselect: () => setState(() {
-                      _selectedWidgetIndex = null;
-                      _verticalGuides = const [];
-                      _horizontalGuides = const [];
-                    }),
-                    onMove: (index, delta, tolerance) => _moveWidgetOnCanvas(
-                      index,
-                      delta,
-                      canvasWidth,
-                      canvasHeight,
-                      tolerance,
-                    ),
-                    onResize: (index, handle, delta, tolerance) =>
-                        _resizeWidgetOnCanvas(
-                          index,
-                          handle,
-                          delta,
-                          canvasWidth,
-                          canvasHeight,
-                          tolerance,
-                        ),
-                  ),
-                ),
-                const VerticalDivider(width: 1),
-                SizedBox(
-                  key: const ValueKey('overlay-widget-sidebar'),
-                  width: inspectorWidth,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        flex: _inspectorPaneFlex,
-                        child: KeyedSubtree(
-                          key: const ValueKey('overlay-widget-inspector-pane'),
-                          child: Material(
-                            color: const Color(0xff202020),
-                            child: _overlayInspector(context),
-                          ),
-                        ),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ): _redo,
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
+            unawaited(_saveOverlay()),
+      },
+      child: Focus(
+        focusNode: _canvasFocus,
+        autofocus: true,
+        child: Material(
+          key: const ValueKey('overlay-editor-root'),
+          color: ShowRunnerColors.surfaceB,
+          child: Column(
+            children: [
+              OverlayEditorToolbar(
+                nameController: _name,
+                widthController: _width,
+                heightController: _height,
+                snapEnabled: _snapEnabled,
+                onSnapToggle: () => setState(() {
+                  _snapEnabled = !_snapEnabled;
+                  _verticalGuides = const [];
+                  _horizontalGuides = const [];
+                }),
+                onNameChanged: _markDirty,
+                onSizeChanged: () {
+                  _markDirty();
+                  setState(() {});
+                  _scheduleObsSourceRefresh();
+                },
+                onSizePreset: _setSizePreset,
+                onPreviewSettings: () => _showPreviewSettings(context),
+                obsConnections: _obsConnections,
+                obsConnectionsLoading: _obsConnectionsLoading,
+                selectedObsConnectionId: _selectedObsConnectionId,
+                onSelectObsConnection: _selectObsConnection,
+                obsSourceControl: widget.obsSourceService == null
+                    ? null
+                    : _overlayObsSourceControl(context),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OverlayCanvas(
+                        width: canvasWidth,
+                        height: canvasHeight,
+                        widgets: _widgets,
+                        selectedIndex: _selectedWidgetIndex,
+                        catalog: _overlayWidgetCatalog,
+                        onTransformStart: _beginCanvasTransform,
+                        onTransformEnd: _endCanvasTransform,
+                        verticalGuides: _verticalGuides,
+                        horizontalGuides: _horizontalGuides,
+                        onSelect: (index) {
+                          _canvasFocus.requestFocus();
+                          setState(() => _selectedWidgetIndex = index);
+                        },
+                        onDeselect: () => setState(() {
+                          _canvasFocus.requestFocus();
+                          _selectedWidgetIndex = null;
+                          _verticalGuides = const [];
+                          _horizontalGuides = const [];
+                        }),
+                        onMove: (index, delta, tolerance) =>
+                            _moveWidgetOnCanvas(
+                              index,
+                              delta,
+                              canvasWidth,
+                              canvasHeight,
+                              tolerance,
+                            ),
+                        onResize: (index, handle, delta, tolerance) =>
+                            _resizeWidgetOnCanvas(
+                              index,
+                              handle,
+                              delta,
+                              canvasWidth,
+                              canvasHeight,
+                              tolerance,
+                            ),
                       ),
-                      MouseRegion(
-                        cursor: SystemMouseCursors.resizeUpDown,
-                        child: GestureDetector(
-                          key: const ValueKey('overlay-inspector-splitter'),
-                          behavior: HitTestBehavior.opaque,
-                          onVerticalDragUpdate: (details) {
-                            setState(() {
-                              _inspectorPaneFlex =
-                                  (_inspectorPaneFlex +
-                                          (details.delta.dy / 8).round())
-                                      .clamp(25, 75)
-                                      .toInt();
-                            });
-                          },
-                          child: SizedBox(
-                            height: 7,
-                            child: Center(
-                              child: Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.outlineVariant,
+                    ),
+                    const VerticalDivider(width: 1),
+                    SizedBox(
+                      key: const ValueKey('overlay-widget-sidebar'),
+                      width: inspectorWidth,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            flex: _inspectorPaneFlex,
+                            child: KeyedSubtree(
+                              key: const ValueKey(
+                                'overlay-widget-inspector-pane',
+                              ),
+                              child: Material(
+                                color: const Color(0xff202020),
+                                child: _overlayInspector(context),
                               ),
                             ),
                           ),
-                        ),
+                          MouseRegion(
+                            cursor: SystemMouseCursors.resizeUpDown,
+                            child: GestureDetector(
+                              key: const ValueKey('overlay-inspector-splitter'),
+                              behavior: HitTestBehavior.opaque,
+                              onVerticalDragUpdate: (details) {
+                                setState(() {
+                                  _inspectorPaneFlex =
+                                      (_inspectorPaneFlex +
+                                              (details.delta.dy / 8).round())
+                                          .clamp(25, 75)
+                                          .toInt();
+                                });
+                              },
+                              child: SizedBox(
+                                height: 7,
+                                child: Center(
+                                  child: Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outlineVariant,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 100 - _inspectorPaneFlex,
+                            child: KeyedSubtree(
+                              key: const ValueKey('overlay-widget-list-pane'),
+                              child: _overlayWidgetList(context),
+                            ),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        flex: 100 - _inspectorPaneFlex,
-                        child: KeyedSubtree(
-                          key: const ValueKey('overlay-widget-list-pane'),
-                          child: _overlayWidgetList(context),
-                        ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _previewEnabled
+                            ? 'Preview enabled'
+                            : 'No live preview configured',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
-                    ],
-                  ),
+                    ),
+                    FilledButton(
+                      onPressed: _saving
+                          ? null
+                          : () async {
+                              await _saveOverlay();
+                            },
+                      child: Text(_saving ? 'Saving…' : 'Save'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _previewEnabled
-                        ? 'Preview enabled'
-                        : 'No live preview configured',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-                FilledButton(
-                  onPressed: _saving
-                      ? null
-                      : () async {
-                          await _saveOverlay();
-                        },
-                  child: Text(_saving ? 'Saving…' : 'Save'),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  bool _snapshotScheduled = false;
-  void _markDirty() {
-    _editRevision++;
-    if (!_snapshotScheduled && widget.onDocumentChanged != null) {
-      _snapshotScheduled = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _snapshotScheduled = false;
-        if (mounted) widget.onDocumentChanged?.call(_snapshot(), _dirty);
-      });
-    }
-    if (!_dirty) {
-      _dirty = true;
-      widget.onDirtyChanged?.call(true);
-    }
+  void _undo() {
+    _editor.undo();
+    _loadInputFields(_editor.resource);
   }
 
-  void _clearDirty() {
-    if (_dirty) {
-      _dirty = false;
-      widget.onDirtyChanged?.call(false);
-    }
+  void _redo() {
+    _editor.redo();
+    _loadInputFields(_editor.resource);
+  }
+
+  bool _snapshotScheduled = false;
+  void _markDirty() => _editor.replace(_snapshot());
+
+  void _scheduleSnapshot() {
+    if (_snapshotScheduled || widget.onDocumentChanged == null) return;
+    _snapshotScheduled = true;
+    final owner = _editor;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _snapshotScheduled = false;
+      if (mounted && identical(owner, _editor)) {
+        widget.onDocumentChanged?.call(_snapshot(), _dirty);
+      }
+    });
   }
 
   Widget _overlayObsSourceControl(BuildContext context) {
@@ -623,6 +692,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       return const Center(child: Text('Select a widget to edit it.'));
     }
     final selected = _widgets[index];
+    final layerKey = _editor.keyAt(index);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
       child: Theme(
@@ -646,8 +716,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
           key: ValueKey('overlay-widget-inspector-${selected['id']}'),
           widgetConfig: selected,
           onChanged: (key, value) {
+            _editor.updateWidget(layerKey, {key: value});
             _markDirty();
-            setState(() => selected[key] = value);
           },
           catalog: _overlayWidgetCatalog,
           templateSuggestions: widget.templateSuggestions,
@@ -719,6 +789,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                     onReorderItem: _reorderWidgets,
                     itemBuilder: (context, index) {
                       final item = _widgets[index];
+                      final layerKey = _editor.keyAt(index);
                       final selected = index == _selectedWidgetIndex;
                       return Material(
                         key: ValueKey(
@@ -791,7 +862,10 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                                             ),
                                             onRenamed: (name) {
                                               setState(
-                                                () => item['name'] = name,
+                                                () => _editor.updateWidget(
+                                                  layerKey,
+                                                  {'name': name},
+                                                ),
                                               );
                                               _markDirty();
                                             },
@@ -1117,8 +1191,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                   title: const Text('Enable preview'),
                   value: _previewEnabled,
                   onChanged: (value) {
-                    _markDirty();
                     setState(() => _previewEnabled = value);
+                    _markDirty();
                     setDialogState(() {});
                   },
                 ),
@@ -1128,8 +1202,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                     title: const Text('Preview OBS output'),
                     value: _previewFromObs,
                     onChanged: (value) {
-                      _markDirty();
                       setState(() => _previewFromObs = value);
+                      _markDirty();
                       setDialogState(() {});
                     },
                   ),
@@ -1190,11 +1264,10 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     );
   }
 
-  ResourceData _snapshot() => _document.snapshot(
+  ResourceData _snapshot() => _editor.compose(
     name: _name.text.trim(),
     width: _canvasDimension(_width, 1920),
     height: _canvasDimension(_height, 1080),
-    widgets: _widgets,
     preview: _previewEnabled
         ? {
             'offsetX': num.tryParse(_previewOffsetX.text) ?? 0,
@@ -1209,23 +1282,17 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
 
   Future<void> _saveOverlay() async {
     if (_saving) return;
-    final revision = _editRevision;
-    final snapshot = _snapshot();
-    setState(() => _saving = true);
+    final owner = _editor;
+    _markDirty();
     try {
-      await widget.onSave(snapshot);
-      if (!mounted) return;
-      if (revision == _editRevision) _clearDirty();
-      widget.onDocumentChanged?.call(_snapshot(), _dirty);
-    } on Object catch (error) {
-      if (!mounted) return;
+      await owner.save(widget.onSave);
+    } on Object {
+      if (!mounted || !identical(owner, _editor)) return;
       showShowRunnerFeedback(
         context,
-        'Could not save overlay: $error',
+        'Could not save overlay: your draft is retained. Check storage access and reload if another editor changed it.',
         severity: ShowRunnerFeedbackSeverity.error,
       );
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -1237,7 +1304,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   void _beginCanvasTransform(int index) {
     if (index < 0 || index >= _widgets.length) return;
     final item = _widgets[index];
-    _canvasTransformItem = item;
+    _editor.beginTransaction();
+    _canvasTransformItem = _editor.keyAt(index);
     _canvasTransformPosition = item['position'] is Map
         ? Map<String, dynamic>.from(item['position'] as Map)
         : {};
@@ -1248,6 +1316,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   }
 
   void _endCanvasTransform() {
+    _editor.endTransaction();
     _canvasTransformItem = null;
     _canvasTransformDelta = Offset.zero;
     if (mounted &&
@@ -1302,7 +1371,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   }
 
   Offset _accumulateCanvasTransform(int index, Offset delta) {
-    if (!identical(_canvasTransformItem, _widgets[index])) {
+    if (_canvasTransformItem != _editor.keyAt(index)) {
       _beginCanvasTransform(index);
     }
     return _canvasTransformDelta += delta;
@@ -1340,7 +1409,9 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
         canvasHeight,
         tolerance,
       );
-      item['position'] = {'x': snapped.left.round(), 'y': snapped.top.round()};
+      _editor.updateWidget(_editor.keyAt(index), {
+        'position': {'x': snapped.left.round(), 'y': snapped.top.round()},
+      });
     });
     _markDirty();
   }
@@ -1409,25 +1480,22 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
         tolerance,
         handle: handle,
       );
-      item['position'] = {'x': snapped.left.round(), 'y': snapped.top.round()};
-      item['size'] = {
-        'width': snapped.width.round(),
-        'height': snapped.height.round(),
-      };
+      _editor.updateWidget(_editor.keyAt(index), {
+        'position': {'x': snapped.left.round(), 'y': snapped.top.round()},
+      });
+      _editor.updateWidget(_editor.keyAt(index), {
+        'size': {
+          'width': snapped.width.round(),
+          'height': snapped.height.round(),
+        },
+      });
     });
     _markDirty();
   }
 
   void _deleteWidget(int index) {
     if (index < 0 || index >= _widgets.length) return;
-    setState(() {
-      _widgets.removeAt(index);
-      if (_widgets.isEmpty) {
-        _selectedWidgetIndex = null;
-      } else {
-        _selectedWidgetIndex = math.min(index, _widgets.length - 1);
-      }
-    });
+    setState(() => _editor.deleteWidget(index));
     _markDirty();
   }
 
@@ -1487,11 +1555,11 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   }
 
   void _setSizePreset(int width, int height) {
-    _markDirty();
     setState(() {
       _width.text = '$width';
       _height.text = '$height';
     });
+    _markDirty();
     _scheduleObsSourceRefresh();
   }
 
@@ -1511,8 +1579,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     }
     widgetConfig['name'] = name;
     setState(() {
-      _widgets.add(widgetConfig);
-      _selectedWidgetIndex = _widgets.length - 1;
+      _editor.addWidget(widgetConfig);
     });
     _markDirty();
   }
@@ -1530,27 +1597,16 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     if (oldIndex == newIndex) return;
     if (oldIndex < 0 || oldIndex >= _widgets.length) return;
     if (newIndex < 0 || newIndex >= _widgets.length) return;
-    final selectedIndex = _selectedWidgetIndex;
-    final selectedWidget =
-        selectedIndex != null &&
-            selectedIndex >= 0 &&
-            selectedIndex < _widgets.length
-        ? _widgets[selectedIndex]
-        : null;
-    setState(() {
-      final movedWidget = _widgets.removeAt(oldIndex);
-      _widgets.insert(newIndex, movedWidget);
-      _selectedWidgetIndex = selectedWidget == null
-          ? null
-          : _widgets.indexOf(selectedWidget);
-    });
+    setState(() => _editor.reorder(oldIndex, newIndex));
     _markDirty();
   }
 
   void _toggleWidgetFlag(int index, String key) {
     if (index < 0 || index >= _widgets.length) return;
     setState(() {
-      _widgets[index][key] = _widgets[index][key] != true;
+      _editor.updateWidget(_editor.keyAt(index), {
+        key: _widgets[index][key] != true,
+      });
     });
     _markDirty();
   }
@@ -1558,6 +1614,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   Future<void> _renameWidget(int index) async {
     if (index < 0 || index >= _widgets.length) return;
     final widgetConfig = _widgets[index];
+    final layerKey = _editor.keyAt(index);
+    final owner = _editor;
     final name = await showDialog<String>(
       context: context,
       builder: (_) => OverlayWidgetRenameDialog(
@@ -1568,10 +1626,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     final normalizedName = name?.trim();
     if (normalizedName == null || normalizedName.isEmpty) return;
     if (!mounted) return;
-    if (index >= _widgets.length || !identical(_widgets[index], widgetConfig)) {
-      return;
-    }
-    setState(() => widgetConfig['name'] = normalizedName);
+    if (!identical(owner, _editor)) return;
+    setState(() => _editor.updateWidget(layerKey, {'name': normalizedName}));
     _markDirty();
   }
 
