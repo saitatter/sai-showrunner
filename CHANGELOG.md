@@ -7,10 +7,12 @@
 ### Fixes
 
 ### Refactors
+- Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
 
 ### CI & Build
+- Add isolated persistence failure probes for mixed credential/config generations, hidden decryption failures, unsupported envelopes and resource identity confusion.
 
 ## 2.1.0 - 2026-10-21
 
