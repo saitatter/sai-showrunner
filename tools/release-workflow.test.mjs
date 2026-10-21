@@ -58,6 +58,28 @@ describe("Manual release policy", () => {
     expect(release.jobs.prepare.if).toContain("needs.plan.result == 'success'")
     expect(release.jobs.prepare.if).toContain("(needs.plan.outputs.ci_reuse == 'true' || needs.validate.result == 'success')")
   })
+  it("packages after reused CI skips validation, but never after failed preparation or dry runs", async () => {
+    const release = parse(await readFile(workflowPath, "utf8"))
+    const condition = release.jobs["package-windows"].if
+    // GitHub implicitly applies success() to job conditions without a status
+    // function; a skipped transitive dependency then skips packaging as well.
+    const hasStatusFunction = /\b(always|success|failure|cancelled)\s*\(/.test(condition)
+    for (const [validation, preparation, dryRun, publish, expected] of [
+      ["skipped", "success", false, "true", true],
+      ["success", "success", false, "true", true],
+      ["success", "failure", false, "true", false],
+      ["skipped", "cancelled", false, "true", false],
+      ["skipped", "skipped", false, "true", false],
+      ["success", "success", true, "true", false],
+      ["success", "success", false, "false", false],
+    ]) {
+      const needs = { plan: { result: "success", outputs: { publish } }, prepare: { result: preparation } }
+      const implicitSuccess = [validation, preparation].every(result => result === "success")
+      const evaluate = new Function("needs", "inputs", "always", `return (${condition})`)
+      const runnable = (hasStatusFunction || implicitSuccess) && evaluate(needs, { dry_run: dryRun }, () => true)
+      expect(runnable, `validate=${validation}, prepare=${preparation}, dryRun=${dryRun}, publish=${publish}`).toBe(expected)
+    }
+  })
   it("separates production startup from integration and requires both Windows gates", async () => {
     const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"))
     const steps = ci.jobs["windows-build"].steps

@@ -11,6 +11,7 @@
 ### Docs
 
 ### CI & Build
+- Run Windows packaging after successful release preparation when exact-commit CI reuse skips fresh validation; keep failed preparation and dry runs blocked.
 
 ## 2.1.0 - 2026-10-21
 
