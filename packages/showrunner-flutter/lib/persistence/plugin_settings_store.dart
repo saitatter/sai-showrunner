@@ -79,10 +79,11 @@ final class FilePluginSettingsStore implements PluginSettingsStore {
     final transaction = _transaction(plugin);
     return transaction.locked(() async {
       await transaction.recover();
-      return {
-        ...await _readPublic(plugin),
-        ...await secrets.load(plugin.value),
-      };
+      return _visible(
+        plugin,
+        await _readPublic(plugin),
+        await secrets.load(plugin.value),
+      );
     });
   }
 
@@ -107,7 +108,7 @@ final class FilePluginSettingsStore implements PluginSettingsStore {
       await transaction.recover();
       final public = await _readPublic(plugin);
       final sealed = await secrets.load(plugin.value);
-      _verify(plugin, {...public, ...sealed}, expectedRevision);
+      _verify(plugin, _visible(plugin, public, sealed), expectedRevision);
       await _save(plugin, snapshot, sealed, transaction);
     });
   }
@@ -123,10 +124,20 @@ final class FilePluginSettingsStore implements PluginSettingsStore {
       await transaction.recover();
       final public = await _readPublic(plugin);
       final sealed = await secrets.load(plugin.value);
-      _verify(plugin, {...public, ...sealed}, expectedRevision);
-      final values = _snapshot(transform({...public, ...sealed}));
+      _verify(plugin, _visible(plugin, public, sealed), expectedRevision);
+      final values = _snapshot(transform(_visible(plugin, public, sealed)));
       await _save(plugin, values, sealed, transaction);
     });
+  }
+
+  JsonMap _visible(PluginId plugin, JsonMap public, JsonMap sealed) {
+    final declared = secretSettingIdsFor(plugin.value);
+    return {
+      for (final entry in public.entries)
+        if (!sealed.containsKey(entry.key)) entry.key: entry.value,
+      for (final entry in sealed.entries)
+        if (declared.contains(entry.key)) entry.key: entry.value,
+    };
   }
 
   void _verify(PluginId plugin, JsonMap current, DocumentRevision? expected) {
@@ -153,7 +164,8 @@ final class FilePluginSettingsStore implements PluginSettingsStore {
     final sealed = <String, dynamic>{
       ...existingSecrets,
       for (final entry in values.entries)
-        if (keys.contains(entry.key)) entry.key: entry.value,
+        if (secretSettingIdsFor(plugin.value).contains(entry.key))
+          entry.key: entry.value,
     };
     final mutations = <FileMutation>[
       if (sealed.isNotEmpty)

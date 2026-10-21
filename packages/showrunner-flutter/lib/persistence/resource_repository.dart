@@ -204,7 +204,7 @@ class ResourceRepository {
     };
     if (secretFields.isNotEmpty && secretSettings != null) {
       final secrets = <String, dynamic>{
-        for (final key in secretFields)
+        for (final key in secretResourceFieldIdsFor(resourceType ?? ''))
           if (resource.config.containsKey(key)) key: resource.config[key],
       };
       if (secrets.isNotEmpty) {
@@ -337,12 +337,16 @@ class ResourceRepository {
   Future<ResourceData> _withSecretResourceConfig(ResourceData resource) async {
     if (resourceType == null || secretSettings == null) return resource;
     final secretFields = secretResourceFieldIdsFor(resourceType!);
-    if (secretFields.isEmpty) return resource;
     final secrets = await _loadSecretResource(resource.id);
     if (secrets.isEmpty) return resource;
     return ResourceData(
       id: resource.id,
-      config: {...resource.config, ...secrets},
+      config: {
+        for (final entry in resource.config.entries)
+          if (!secrets.containsKey(entry.key)) entry.key: entry.value,
+        for (final entry in secrets.entries)
+          if (secretFields.contains(entry.key)) entry.key: entry.value,
+      },
       state: resource.state,
     );
   }

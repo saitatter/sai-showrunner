@@ -116,6 +116,7 @@ void main() {
     () async {
       await secrets.save('obs', {'futureCredential': 'confidential-marker'});
       final values = await store().load(plugin);
+      expect(jsonEncode(values), isNot(contains('confidential-marker')));
       values['host'] = 'localhost';
       await store().save(plugin, values);
       expect(
@@ -125,10 +126,7 @@ void main() {
       expect(await secrets.load('obs'), {
         'futureCredential': 'confidential-marker',
       });
-      expect(await store().load(plugin), {
-        'host': 'localhost',
-        'futureCredential': 'confidential-marker',
-      });
+      expect(await store().load(plugin), {'host': 'localhost'});
     },
   );
 
@@ -148,7 +146,12 @@ void main() {
         resourceType: 'OBSConnection',
         secretSettings: secrets,
       );
-      await repository.save((await repository.load('studio'))!);
+      final visible = (await repository.load('studio'))!;
+      expect(
+        jsonEncode(visible.toJson()),
+        isNot(contains('confidential-marker')),
+      );
+      await repository.save(visible);
       expect(
         await File('${resources.path}/studio.yaml').readAsString(),
         isNot(contains('confidential-marker')),
@@ -156,6 +159,30 @@ void main() {
       expect(await secrets.loadResource('OBSConnection', 'studio'), {
         'futureCredential': 'confidential-marker',
       });
+    },
+  );
+
+  test(
+    'opaque encrypted fields cannot shadow metadata or be overwritten by transforms',
+    () async {
+      await secrets.save('obs', {
+        'host': 'hidden-host',
+        'password': 'declared',
+      });
+      expect(await store().load(plugin), {'password': 'declared'});
+      await store().transform(
+        plugin,
+        (values) => {...values, 'host': 'attempted'},
+      );
+      expect(await secrets.load('obs'), {
+        'host': 'hidden-host',
+        'password': 'declared',
+      });
+      expect(await store().load(plugin), {'password': 'declared'});
+      expect(
+        await File('${directory.path}/obs.yaml').readAsString(),
+        isNot(contains('hidden-host')),
+      );
     },
   );
 

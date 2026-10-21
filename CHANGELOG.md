@@ -14,7 +14,7 @@
 - Keep resource form drafts open after failed saves and prevent duplicate submissions without exposing credential-bearing errors.
 - Reject stale resource, automation, profile and queue editor saves/deletes and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
 - Reject dangling filesystem redirects and recursive YAML aliases, handle secret roots with trailing separators and clear native DPAPI buffers after use.
-- Recover plugin settings and encrypted credentials together after interrupted saves, reject stale settings forms, serialize independent owners and keep unknown encrypted fields out of public settings/resource files; publish dock registration and its token together.
+- Recover plugin settings and encrypted credentials together after interrupted saves, reject stale settings forms, serialize independent owners and keep unknown encrypted fields opaque to editors and public settings/resource files; publish dock registration and its token together.
 - Recover resource config, runtime state and encrypted credentials as one generation after interrupted saves/deletes; serialize repository owners across processes and preserve externally changed files on recovery conflicts.
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
