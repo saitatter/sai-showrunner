@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yaml/yaml.dart';
 import 'package:showrunner_flutter/features/support/support_workspaces.dart';
 import 'package:showrunner_flutter/services/update_check_service.dart';
 
@@ -13,7 +14,10 @@ void main() {
     );
 
     expect(find.text('About ShowRunner'), findsOneWidget);
-    expect(find.text('v2.0.0'), findsOneWidget);
+    final package =
+        loadYaml(File('pubspec.yaml').readAsStringSync()) as YamlMap;
+    final version = (package['version'] as String).split('+').first;
+    expect(find.text('v$version'), findsOneWidget);
     expect(find.text('ShowRunner GitHub'), findsOneWidget);
     expect(find.text('Upstream Project'), findsOneWidget);
     expect(find.text('Help Discord'), findsNothing);

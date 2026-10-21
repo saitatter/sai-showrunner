@@ -11,6 +11,7 @@
 ### Docs
 
 ### CI & Build
+- Verify the About screen against the declared package version so release version bumps preserve the UI test contract.
 - Run Windows packaging after successful release preparation when exact-commit CI reuse skips fresh validation; keep failed preparation and dry runs blocked.
 
 ## 2.1.0 - 2026-10-21
