@@ -45,7 +45,7 @@ final class QueueConfigRepository {
       throw ArgumentError('Queue file leaves the repository.');
     }
     file = await containedFile(directory, [file.uri.pathSegments.last]);
-    final parsed = _yamlToDart(loadYaml(await file.readAsString()));
+    final parsed = decodeYamlValue(loadYaml(await file.readAsString()));
     if (parsed is! Map) {
       throw const FormatException('Queue config must contain an object.');
     }
@@ -63,15 +63,4 @@ final class QueueConfigRepository {
     final file = await containedFile(directory, [fileName]);
     if (await file.exists()) await file.delete();
   }
-}
-
-dynamic _yamlToDart(dynamic value) {
-  if (value is YamlMap) {
-    return <String, dynamic>{
-      for (final entry in value.entries)
-        entry.key.toString(): _yamlToDart(entry.value),
-    };
-  }
-  if (value is YamlList) return value.map(_yamlToDart).toList();
-  return value;
 }

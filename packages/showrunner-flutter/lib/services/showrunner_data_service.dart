@@ -112,7 +112,7 @@ final class ShowRunnerDataService {
         entity.uri.pathSegments.last,
       ]);
       final parsed = loadYaml(await safeFile.readAsString());
-      if (parsed is YamlMap) resources[id] = _toMap(parsed);
+      if (parsed is YamlMap) resources[id] = decodeYamlValue(parsed) as JsonMap;
     }
     return resources;
   }
@@ -141,14 +141,4 @@ final class ShowRunnerDataService {
     files.sort();
     return files;
   }
-}
-
-JsonMap _toMap(YamlMap value) => {
-  for (final entry in value.entries) entry.key.toString(): _toDart(entry.value),
-};
-
-dynamic _toDart(dynamic value) {
-  if (value is YamlMap) return _toMap(value);
-  if (value is YamlList) return value.map(_toDart).toList();
-  return value;
 }

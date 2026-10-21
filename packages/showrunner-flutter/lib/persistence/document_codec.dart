@@ -30,13 +30,27 @@ String encodeYaml(Map<String, dynamic> value) {
   return '${lines.join('\n')}\n';
 }
 
+/// Reject recursive aliases before they can recurse in repositories or logs.
+/// Shared non-recursive aliases retain their YAML values without migration.
 dynamic decodeYamlValue(dynamic value) {
-  if (value is YamlMap) {
-    return <String, dynamic>{
-      for (final entry in value.entries)
-        entry.key.toString(): decodeYamlValue(entry.value),
-    };
+  final active = Set<Object>.identity();
+  dynamic decode(dynamic node) {
+    if (node is! YamlMap && node is! YamlList) return node;
+    if (!active.add(node as Object)) {
+      throw const FormatException('Recursive YAML aliases are unsupported.');
+    }
+    try {
+      if (node is YamlMap) {
+        return <String, dynamic>{
+          for (final entry in node.entries)
+            entry.key.toString(): decode(entry.value),
+        };
+      }
+      return (node as YamlList).map(decode).toList();
+    } finally {
+      active.remove(node);
+    }
   }
-  if (value is YamlList) return value.map(decodeYamlValue).toList();
-  return value;
+
+  return decode(value);
 }

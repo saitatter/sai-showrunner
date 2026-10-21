@@ -5,6 +5,7 @@ import 'dart:ffi';
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
+import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 import '../schema/json.dart';
@@ -91,10 +92,9 @@ final class SecretSettingsStore {
       _contained(_resourceFile(type, id));
 
   Future<File> _contained(File file) async {
-    final relative = file.absolute.path
-        .substring(directory.absolute.path.length + 1)
-        .replaceAll('\\', '/')
-        .split('/');
+    final relative = p.split(
+      p.relative(file.absolute.path, from: directory.absolute.path),
+    );
     return containedFile(directory, relative);
   }
 
@@ -114,19 +114,17 @@ final class SecretSettingsStore {
 
   Future<void> deleteResource(String resourceType, String resourceId) async {
     var file = _resourceFile(resourceType, resourceId);
-    final relative = file.absolute.path
-        .substring(directory.absolute.path.length + 1)
-        .replaceAll('\\', '/')
-        .split('/');
+    final relative = p.split(
+      p.relative(file.absolute.path, from: directory.absolute.path),
+    );
     file = await containedFile(directory, relative);
     if (await file.exists()) await file.delete();
   }
 
   Future<JsonMap> _loadFile(File file, String label) async {
-    final relative = file.absolute.path
-        .substring(directory.absolute.path.length + 1)
-        .replaceAll('\\', '/')
-        .split('/');
+    final relative = p.split(
+      p.relative(file.absolute.path, from: directory.absolute.path),
+    );
     file = await containedFile(directory, relative);
     if (!await file.exists()) return <String, dynamic>{};
     try {
@@ -136,7 +134,7 @@ final class SecretSettingsStore {
       if (parsed is! YamlMap) {
         throw const FormatException('Secrets must contain a map.');
       }
-      final values = _yamlMap(parsed);
+      final values = decodeYamlValue(parsed) as JsonMap;
       ShowRunnerLogger.instance.registerSecrets(values);
       return values;
     } catch (_) {
@@ -148,10 +146,9 @@ final class SecretSettingsStore {
   }
 
   Future<void> _saveFile(File file, JsonMap values) async {
-    final relative = file.absolute.path
-        .substring(directory.absolute.path.length + 1)
-        .replaceAll('\\', '/')
-        .split('/');
+    final relative = p.split(
+      p.relative(file.absolute.path, from: directory.absolute.path),
+    );
     file = await containedFile(directory, relative);
     final encrypted = await sealValues(values, owner: relative.join('/'));
     await writeAtomicBytes(file, encrypted);
@@ -258,23 +255,16 @@ List<int> _protectWindowsDpapi(List<int> bytes, {required bool unprotect}) {
     return output.ref.pbData.asTypedList(output.ref.cbData).toList();
   } finally {
     if (output.ref.pbData.address != 0) {
+      output.ref.pbData
+          .asTypedList(output.ref.cbData)
+          .fillRange(0, output.ref.cbData, 0);
       localFree(output.ref.pbData.cast());
     }
     calloc.free(output);
+    inputBytes.asTypedList(bytes.length).fillRange(0, bytes.length, 0);
     calloc.free(inputBytes);
     calloc.free(input);
   }
-}
-
-JsonMap _yamlMap(YamlMap value) => {
-  for (final entry in value.entries)
-    entry.key.toString(): _yamlValue(entry.value),
-};
-
-dynamic _yamlValue(dynamic value) {
-  if (value is YamlMap) return _yamlMap(value);
-  if (value is YamlList) return value.map(_yamlValue).toList();
-  return value;
 }
 
 bool _isSafePluginId(String value) =>

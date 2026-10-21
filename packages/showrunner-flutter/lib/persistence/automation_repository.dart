@@ -1,3 +1,4 @@
+import 'document_codec.dart';
 import '../graph/domain/automation_document.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -35,7 +36,7 @@ final class AutomationRepository {
     try {
       decoded = jsonDecode(contents);
     } on FormatException {
-      decoded = _yamlToDart(loadYaml(contents));
+      decoded = decodeYamlValue(loadYaml(contents));
     }
     if (decoded is! Map) {
       throw const FormatException(
@@ -79,15 +80,4 @@ final class AutomationRepository {
   Future<void> delete() async {
     if (await file.exists()) await file.delete();
   }
-}
-
-dynamic _yamlToDart(dynamic value) {
-  if (value is YamlMap) {
-    return <String, dynamic>{
-      for (final entry in value.entries)
-        entry.key.toString(): _yamlToDart(entry.value),
-    };
-  }
-  if (value is YamlList) return value.map(_yamlToDart).toList();
-  return value;
 }
