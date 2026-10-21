@@ -5,6 +5,7 @@
 ### Features
 
 ### Fixes
+- Keep unreadable resources visible with safe diagnostics instead of hiding them, and prevent malformed parser source from reaching resource errors/logs.
 - Serialize viewer updates across repository owners, reject stale definition edits and report corrupt viewer data instead of silently skipping it; preserve provider-qualified identities and group membership.
 - Keep resource form drafts open after failed saves and prevent duplicate submissions without exposing credential-bearing errors.
 - Reject stale resource, automation, profile and queue editor saves/deletes and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
@@ -14,6 +15,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers.
 - Share typed single-document storage across automation/profile/queue repositories, with explicit domain store contracts and validation under the same owner lock as atomic publication.
 - Split resource editors into provider-owned Flutter libraries and contribution packs, with shared form controls, explicit editing capabilities and safe read-only fallbacks for unavailable or malformed resources.
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.

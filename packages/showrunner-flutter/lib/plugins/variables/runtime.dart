@@ -42,7 +42,13 @@ final class DartVariableDefinition {
 /// Flutter stores one resource per variable so the resource editor and runtime
 /// share the same persistence boundary.
 final class DartVariableRuntime extends ChangeNotifier {
-  DartVariableRuntime({required this.directory, this.onChanged});
+  DartVariableRuntime({
+    required this.directory,
+    ResourceRepository? repository,
+    this.onChanged,
+  }) : _repository = repository ?? ResourceRepository(directory);
+
+  final ResourceRepository _repository;
 
   final Directory directory;
   final DartVariableChanged? onChanged;
@@ -156,8 +162,7 @@ final class DartVariableRuntime extends ChangeNotifier {
 
   Future<void> _loadFromDisk() async {
     final next = <String, DartVariableDefinition>{};
-    final repository = ResourceRepository(directory);
-    for (final resource in await repository.list()) {
+    for (final resource in await _repository.list()) {
       if (resource.id == 'variables' && resource.config['type'] == null) {
         continue;
       }
@@ -208,7 +213,7 @@ final class DartVariableRuntime extends ChangeNotifier {
 
   Future<void> _persist(DartVariableDefinition definition) async {
     if (!definition.persistent) return;
-    await ResourceRepository(directory).save(definition.toResource());
+    await _repository.save(definition.toResource());
   }
 
   void _publishAll() {

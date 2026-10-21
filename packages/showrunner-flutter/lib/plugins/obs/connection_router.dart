@@ -1,7 +1,5 @@
-import 'dart:io';
+import '../../schema/identifiers.dart';
 
-import '../../persistence/resource_repository.dart';
-import '../../persistence/secret_settings_store.dart';
 import '../../schema/resource.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
@@ -77,13 +75,9 @@ final class ObsConnectionRouter implements ObsTransport, ObsReplayTransport {
 
   Future<List<ResourceData>> listConnections() async =>
       resourceLoader?.call() ??
-      ResourceRepository(
-        Directory('${dataService.userDirectory.path}/obs/connections'),
-        resourceType: 'OBSConnection',
-        secretSettings: SecretSettingsStore(
-          directory: Directory('${dataService.userDirectory.path}/secrets'),
-        ),
-      ).list();
+      dataService.storage
+          .resource(const ResourceTypeId('OBSConnection'))
+          .list();
 
   @override
   Future<RuntimeMap> call(String request, RuntimeMap data) async {

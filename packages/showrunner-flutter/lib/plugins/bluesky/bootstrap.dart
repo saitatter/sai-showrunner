@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-import '../../persistence/resource_repository.dart';
 import '../../runtime/expression.dart';
 import '../../services/showrunner_data_service.dart';
 import '../registry/plugin_registry.dart';
@@ -19,10 +17,8 @@ Future<void> registerConfiguredBluesky(
         ? blueskyServiceUrl!
         : 'https://bsky.social',
   );
-  final blueskyAccountRepository = ResourceRepository(
-    Directory('${dataService.userDirectory.path}/accounts/bluesky'),
-    resourceType: 'BlueSkyAccount',
-    secretSettings: dataService.secretSettingsStore,
+  final blueskyAccountRepository = dataService.storage.resource(
+    const ResourceTypeId('BlueSkyAccount'),
   );
   registry.register(
     createBlueskyPlugin(

@@ -1,4 +1,3 @@
-import 'dart:io';
 import '../../persistence/viewer_data_repository.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
@@ -11,7 +10,8 @@ DartVariableRuntime createPluginVariableRuntime({
   required ShowRunnerDataService dataService,
   required DartPluginRegistry registry,
 }) => DartVariableRuntime(
-  directory: Directory('${dataService.userDirectory.path}/variables'),
+  directory: dataService.storage.location('variables').directory,
+  repository: dataService.storage.resource(const ResourceTypeId('Variable')),
   onChanged: (id, value) => registry.updateDynamicState('variables', id, value),
 );
 

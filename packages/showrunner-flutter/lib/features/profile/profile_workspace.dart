@@ -1,6 +1,5 @@
 import '../../persistence/document_revision.dart';
 import '../../graph/domain/automation_document.dart';
-import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -12,7 +11,6 @@ import '../../graph/domain/automation_factories.dart';
 import '../../graph/ui/inline_automation_graph.dart';
 import 'package:sai_nodes_core/sai_nodes_core.dart';
 
-import '../../persistence/profile_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/registry/plugin_bootstrap.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
@@ -203,9 +201,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final entries = await ProfileRepository.loadDirectory(
-        Directory('${widget.dataService.userDirectory.path}/profiles'),
-      );
+      final entries = await widget.dataService.storage.listProfiles();
       _entries = [
         for (final entry in entries)
           (
@@ -386,9 +382,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       activationAutomation: _emptyAutomation(),
       deactivationAutomation: _emptyAutomation(),
     );
-    final repo = ProfileRepository(
-      File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
-    );
+    final repo = widget.dataService.storage.profile(fileName);
     await repo.save(profile, requireAbsent: true);
     await _load();
     final index = _entries.indexWhere((entry) => entry.fileName == fileName);
@@ -419,11 +413,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         deactivationAutomation: _deactivationEditor.document,
         extra: original?.extra ?? const {},
       );
-      final repo = ProfileRepository(
-        File(
-          '${widget.dataService.userDirectory.path}/profiles/${entry.fileName}',
-        ),
-      );
+      final repo = widget.dataService.storage.profile(entry.fileName);
       await repo.save(
         updated,
         expectedRevision: original == null
@@ -478,9 +468,9 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     if (original == null) {
       throw StateError('Cannot delete an unreadable profile.');
     }
-    await ProfileRepository(
-      File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
-    ).delete(expectedRevision: DocumentRevision.of(original.toJson()));
+    await widget.dataService.storage
+        .profile(fileName)
+        .delete(expectedRevision: DocumentRevision.of(original.toJson()));
     _selectedIndex = null;
     _markClean();
     await _load();

@@ -27,9 +27,11 @@ final class DartProfileLifecycleManager {
     required this.directory,
     required this.runtime,
     this.onActivityChanged,
+    this.loadProfiles,
   });
 
   final Directory directory;
+  final Future<List<ProfileCatalogEntry>> Function()? loadProfiles;
   final DartProfileRuntime runtime;
   final DartProfileActivityChanged? onActivityChanged;
   final Map<String, ShowRunnerProfile> _profiles = {};
@@ -119,7 +121,9 @@ final class DartProfileLifecycleManager {
   Future<void> _refreshLoop() async {
     do {
       _refreshRequested = false;
-      final entries = await ProfileRepository.loadDirectory(directory);
+      final entries =
+          await (loadProfiles?.call() ??
+              ProfileRepository.loadDirectory(directory));
       _profiles
         ..clear()
         ..addEntries(

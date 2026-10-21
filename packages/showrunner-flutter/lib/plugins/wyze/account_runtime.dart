@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:showrunner_flutter/schema/identifiers.dart';
 
 import '../../persistence/resource_repository.dart';
 import '../../schema/json.dart';
@@ -56,11 +56,8 @@ final class WyzeAccountAuthService {
 
   Future<void> deleteAccount() => _repository.delete('main');
 
-  ResourceRepository get _repository => ResourceRepository(
-    Directory('${dataService.userDirectory.path}/accounts/wyze'),
-    resourceType: 'WyzeAccount',
-    secretSettings: dataService.secretSettingsStore,
-  );
+  ResourceRepository get _repository =>
+      dataService.storage.resource(const ResourceTypeId('WyzeAccount'));
 }
 
 Future<JsonMap> loadWyzeAccountSettings(
@@ -110,10 +107,6 @@ Future<void> saveWyzeAccountTokens(
 }
 
 ResourceRepository _repository(ShowRunnerDataService dataService) =>
-    ResourceRepository(
-      Directory('${dataService.userDirectory.path}/accounts/wyze'),
-      resourceType: 'WyzeAccount',
-      secretSettings: dataService.secretSettingsStore,
-    );
+    dataService.storage.resource(const ResourceTypeId('WyzeAccount'));
 
 bool _isText(Object? value) => value?.toString().trim().isNotEmpty == true;

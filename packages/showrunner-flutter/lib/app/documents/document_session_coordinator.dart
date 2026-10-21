@@ -1,9 +1,8 @@
 import '../../persistence/document_revision.dart';
 import '../../services/structured_logger.dart';
 import 'dart:async';
-import 'dart:io';
 
-import '../../features/resources/resource_editor_registry.dart';
+import '../../schema/identifiers.dart';
 import '../../graph/controller/automation_document_sessions.dart';
 import '../../graph/controller/automation_editor_controller.dart';
 import '../../graph/domain/automation_document.dart';
@@ -58,22 +57,11 @@ final class DocumentSessionCoordinator {
     if (!WorkspaceNavigationSnapshot.isSafeAutomationFileName(fileName)) {
       throw ArgumentError.value(fileName, 'fileName');
     }
-    return AutomationRepository(
-      File('${dataService.userDirectory.path}/automations/$fileName'),
-    );
+    return dataService.storage.automation(fileName);
   }
 
-  ResourceRepository resourceRepository(String type) {
-    final definition = createDefaultResourceEditorRegistry().find(type);
-    if (definition == null) throw ArgumentError.value(type, 'type');
-    return ResourceRepository(
-      Directory(
-        '${dataService.userDirectory.path}/${definition.storageDirectory}',
-      ),
-      resourceType: type,
-      secretSettings: dataService.secretSettingsStore,
-    );
-  }
+  ResourceRepository resourceRepository(String type) =>
+      dataService.storage.resource(ResourceTypeId(type));
 
   Future<void> restore(
     WorkspaceNavigationSnapshot saved, {

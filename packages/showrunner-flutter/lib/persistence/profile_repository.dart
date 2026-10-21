@@ -1,3 +1,4 @@
+import 'filesystem/persistence_directory.dart';
 import 'document_revision.dart';
 import 'filesystem/typed_document_file.dart';
 import 'dart:io';
@@ -25,13 +26,16 @@ abstract interface class ProfileStore {
 }
 
 final class ProfileRepository implements ProfileStore {
-  const ProfileRepository(this.file);
+  const ProfileRepository(this.file, {this.location});
 
   final File file;
+  final PersistenceDirectory? location;
 
   static Future<List<ProfileCatalogEntry>> loadDirectory(
-    Directory directory,
-  ) async {
+    Directory directory, {
+    PersistenceDirectory? location,
+  }) async {
+    await location?.resolve();
     if (!await directory.exists()) return const <ProfileCatalogEntry>[];
     final entries = <ProfileCatalogEntry>[];
     await for (final entity in directory.list()) {
@@ -41,7 +45,7 @@ final class ProfileRepository implements ProfileStore {
         entries.add(
           ProfileCatalogEntry(
             fileName: fileName,
-            profile: await ProfileRepository(entity).load(),
+            profile: await ProfileRepository(entity, location: location).load(),
           ),
         );
       } catch (error) {
@@ -58,6 +62,7 @@ final class ProfileRepository implements ProfileStore {
 
   TypedDocumentFile<ShowRunnerProfile> get _store => TypedDocumentFile(
     file: file,
+    location: location,
     kind: 'profile',
     decode: ShowRunnerProfile.fromJson,
     encode: (document) => document.toJson(),

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:showrunner_flutter/schema/identifiers.dart';
 
 import '../../persistence/resource_repository.dart';
 import '../../runtime/expression.dart';
@@ -68,9 +68,6 @@ final class BlueskyAccountAuthService {
   Future<void> deleteAccount(String accountId) =>
       _repository.delete(accountId.trim());
 
-  ResourceRepository get _repository => ResourceRepository(
-    Directory('${dataService.userDirectory.path}/accounts/bluesky'),
-    resourceType: 'BlueSkyAccount',
-    secretSettings: dataService.secretSettingsStore,
-  );
+  ResourceRepository get _repository =>
+      dataService.storage.resource(const ResourceTypeId('BlueSkyAccount'));
 }

@@ -1,3 +1,4 @@
+import 'filesystem/persistence_directory.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -22,22 +23,26 @@ final class FilePluginSettingsStore implements PluginSettingsStore {
   const FilePluginSettingsStore({
     required this.directory,
     required this.secrets,
+    this.location,
     this.operations = const TransactionFileOperations(),
   });
 
   final Directory directory;
+  final PersistenceDirectory? location;
   final SecretSettingsStore secrets;
   final TransactionFileOperations operations;
 
   Future<File> _public(PluginId plugin) {
     validateFileIdentifier(plugin.value);
-    return containedFile(directory, ['${plugin.value}.yaml']);
+    return location?.file(['${plugin.value}.yaml']) ??
+        containedFile(directory, ['${plugin.value}.yaml']);
   }
 
   FileTransaction _transaction(PluginId plugin) => FileTransaction(
     directory: directory,
     id: plugin.value,
     operations: operations,
+    location: location,
     targets: {
       'public': () => _public(plugin),
       'secrets': () => secrets.settingsStorageFile(plugin.value),

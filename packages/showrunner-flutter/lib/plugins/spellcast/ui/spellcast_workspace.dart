@@ -1,5 +1,5 @@
+import 'package:showrunner_flutter/schema/identifiers.dart';
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -41,8 +41,8 @@ class _SpellcastWorkspaceState extends State<SpellcastWorkspace> {
   @override
   void initState() {
     super.initState();
-    _repository = ResourceRepository(
-      Directory('${widget.dataService.userDirectory.path}/spellcast/spells'),
+    _repository = widget.dataService.storage.resource(
+      const ResourceTypeId('SpellHook'),
     );
     _service = SpellcastService(dataService: widget.dataService);
     _cloudPubSub = SpellcastCloudPubSubController(

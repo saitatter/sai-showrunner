@@ -16,7 +16,7 @@ void main() {
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await queue.dispose();
-      await directory.delete(recursive: true);
+      await tester.runAsync(() => directory.delete(recursive: true));
     });
     queue.enqueue({'name': 'Alert'}, {});
 
@@ -30,10 +30,7 @@ void main() {
         ),
       ),
     );
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
+    await _untilLoaded(tester);
 
     await tester.tap(find.byTooltip('Open runtime queue'));
     await tester.pump(const Duration(milliseconds: 300));
@@ -57,7 +54,7 @@ void main() {
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await queue.dispose();
-      await directory.delete(recursive: true);
+      await tester.runAsync(() => directory.delete(recursive: true));
     });
 
     await tester.pumpWidget(
@@ -70,10 +67,7 @@ void main() {
         ),
       ),
     );
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
-    );
-    await tester.pump(const Duration(milliseconds: 100));
+    await _untilLoaded(tester);
 
     for (final heading in const [
       'Status',
@@ -88,4 +82,18 @@ void main() {
     expect(find.text('No queues configured'), findsNothing);
     expect(find.text('Runtime queue'), findsNothing);
   });
+}
+
+Future<void> _untilLoaded(WidgetTester tester) async {
+  for (var i = 0; i < 200; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    if (find.text('Status').evaluate().isNotEmpty &&
+        !tester.binding.hasScheduledFrame) {
+      return;
+    }
+  }
+  throw TestFailure('Queue catalog did not finish loading.');
 }

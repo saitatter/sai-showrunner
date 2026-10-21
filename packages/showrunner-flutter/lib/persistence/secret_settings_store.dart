@@ -1,3 +1,4 @@
+import 'filesystem/persistence_directory.dart';
 import 'secret_storage_exception.dart';
 import 'document_codec.dart';
 import 'dart:convert';
@@ -56,9 +57,15 @@ Set<String> secretResourceFieldIdsFor(String resourceType) =>
 /// boundary lets tests use an in-memory cipher while the packaged Windows app
 /// can read the existing `user/secrets/*.yaml` files.
 final class SecretSettingsStore {
-  SecretSettingsStore({required this.directory, this.encrypt, this.decrypt});
+  SecretSettingsStore({
+    required this.directory,
+    this.encrypt,
+    this.decrypt,
+    this.location,
+  });
 
   final Directory directory;
+  final PersistenceDirectory? location;
   final SecretSettingsCipher? encrypt;
   final SecretSettingsCipher? decrypt;
 
@@ -95,7 +102,7 @@ final class SecretSettingsStore {
     final relative = p.split(
       p.relative(file.absolute.path, from: directory.absolute.path),
     );
-    return containedFile(directory, relative);
+    return location?.file(relative) ?? containedFile(directory, relative);
   }
 
   /// Prepared bytes can participate in a resource/settings redo transaction.
@@ -114,10 +121,7 @@ final class SecretSettingsStore {
 
   Future<void> deleteResource(String resourceType, String resourceId) async {
     var file = _resourceFile(resourceType, resourceId);
-    final relative = p.split(
-      p.relative(file.absolute.path, from: directory.absolute.path),
-    );
-    file = await containedFile(directory, relative);
+    file = await _contained(file);
     if (await file.exists()) await file.delete();
   }
 
@@ -125,7 +129,7 @@ final class SecretSettingsStore {
     final relative = p.split(
       p.relative(file.absolute.path, from: directory.absolute.path),
     );
-    file = await containedFile(directory, relative);
+    file = await _contained(file);
     if (!await file.exists()) return <String, dynamic>{};
     try {
       final encrypted = await file.readAsBytes();
@@ -149,7 +153,7 @@ final class SecretSettingsStore {
     final relative = p.split(
       p.relative(file.absolute.path, from: directory.absolute.path),
     );
-    file = await containedFile(directory, relative);
+    file = await _contained(file);
     final encrypted = await sealValues(values, owner: relative.join('/'));
     await writeAtomicBytes(file, encrypted);
   }

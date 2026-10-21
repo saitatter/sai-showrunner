@@ -1,3 +1,4 @@
+import '../../persistence/persistence_issue.dart';
 import '../../persistence/document_revision.dart';
 import 'dart:async';
 import 'dart:io';
@@ -19,6 +20,11 @@ import '../../schema/resource.dart';
 import '../../services/showrunner_data_service.dart';
 import 'media_picker.dart';
 import 'resource_options.dart';
+
+typedef _ResourceWorkspaceCatalog = ({
+  Map<String, List<ResourceData>> values,
+  List<PersistenceIssue> issues,
+});
 
 class ResourcesWorkspace extends StatefulWidget {
   const ResourcesWorkspace({
@@ -54,7 +60,7 @@ class ResourcesWorkspace extends StatefulWidget {
 }
 
 class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
-  Future<Map<String, List<ResourceData>>>? _resourcesFuture;
+  Future<_ResourceWorkspaceCatalog>? _resourcesFuture;
   String? _lastOpenedResourceId;
 
   ShowRunnerDataService get dataService => widget.dataService;
@@ -82,27 +88,59 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     if (oldWidget.revision != widget.revision) _reload();
   }
 
-  Future<Map<String, List<ResourceData>>> _loadAll() async {
+  Future<_ResourceWorkspaceCatalog> _loadAll() async {
     final resources = <String, List<ResourceData>>{};
+    final issues = <PersistenceIssue>[];
     for (final def in editorRegistry.definitions) {
-      resources[def.resourceType] = await ResourceRepository(
-        Directory('${dataService.userDirectory.path}/${def.storageDirectory}'),
-        resourceType: def.resourceType,
-        secretSettings: secretSettings,
-      ).list();
+      try {
+        final entries = await dataService.storage
+            .resource(def.resourceTypeId)
+            .listWithErrors();
+        resources[def.resourceType] = [
+          for (final entry in entries)
+            if (entry.resource != null && entry.error == null) entry.resource!,
+        ];
+        for (final entry in entries) {
+          if (entry.error != null) {
+            issues.add(
+              PersistenceIssue.fromError(
+                entry.error!,
+                owner: def.resourceType,
+                document: entry.fileName,
+              ),
+            );
+          }
+        }
+      } catch (error) {
+        issues.add(
+          PersistenceIssue.fromError(
+            error,
+            owner: def.resourceType,
+            document: def.storageDirectory,
+          ),
+        );
+      }
     }
-    return resources;
+    return (values: resources, issues: issues);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, List<ResourceData>>>(
+    return FutureBuilder<_ResourceWorkspaceCatalog>(
       future: _resourcesFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final data = snapshot.data ?? {};
+        if (snapshot.hasError) {
+          return const Center(
+            child: Text(
+              'Resource catalog could not be read. Check storage access and retry.',
+            ),
+          );
+        }
+        final data = snapshot.data?.values ?? {};
+        final issues = snapshot.data?.issues ?? const <PersistenceIssue>[];
         final overlays = data['Overlay'] ?? [];
         final variables = data['Variable'] ?? [];
         final focusedType = widget.resourceType;
@@ -163,6 +201,14 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
                 ),
               ],
             ),
+            for (final issue in issues.where(
+              (issue) => focusedType == null || issue.owner == focusedType,
+            ))
+              ListTile(
+                leading: const Icon(Icons.warning_amber),
+                title: Text('${issue.owner} / ${issue.document}'),
+                subtitle: Text(issue.message),
+              ),
             const SizedBox(height: 8),
             if (focusedType == null && widget.resourceTypes == null)
               const Text(
@@ -272,15 +318,12 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     if (resourceType == 'Overlay') return;
     final editor = editorRegistry.find(resourceType);
     if (editor == null) return;
-    final directory = Directory(
-      '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
-    );
     var storageRevision = DocumentRevision.of(resource.toJson());
     await showDialog<void>(
       context: context,
       builder: (context) {
         Future<void> save(ResourceData updated) async {
-          final repository = _repository(resourceType, directory);
+          final repository = _repository(resourceType);
           await repository.save(updated, expectedRevision: storageRevision);
           storageRevision = DocumentRevision.of(updated.toJson());
           if (resourceType == 'Dashboard') {
@@ -338,12 +381,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       id: 'resource-${DateTime.now().microsecondsSinceEpoch}',
       config: _defaultConfig(resourceType, name),
     );
-    await _repository(
-      resourceType,
-      Directory(
-        '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
-      ),
-    ).save(resource, requireAbsent: true);
+    await _repository(resourceType).save(resource, requireAbsent: true);
     if (resourceType == 'Variable') {
       await widget.variableRuntime?.reload();
     }
@@ -373,12 +411,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       ),
     );
     if (confirmed != true) return;
-    final repository = _repository(
-      resourceType,
-      Directory(
-        '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
-      ),
-    );
+    final repository = _repository(resourceType);
     if (resourceType == 'Dashboard') {
       // Remove the public share before the local dashboard file. Keep the
       // ordering so a failed cloud request never leaves an orphaned share.
@@ -586,18 +619,8 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     }
   }
 
-  String _resourceDirectory(String resourceType) {
-    final def = editorRegistry.find(resourceType);
-    if (def != null) return def.storageDirectory;
-    return resourceType.toLowerCase();
-  }
-
-  ResourceRepository _repository(String resourceType, Directory directory) =>
-      ResourceRepository(
-        directory,
-        resourceType: resourceType,
-        secretSettings: secretSettings,
-      );
+  ResourceRepository _repository(String resourceType) =>
+      dataService.storage.resource(ResourceTypeId(resourceType));
 
   String _descriptionFor(String resourceType) => switch (resourceType) {
     'OBSConnection' =>

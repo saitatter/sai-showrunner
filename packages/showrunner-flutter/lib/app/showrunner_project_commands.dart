@@ -133,13 +133,9 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
       id: 'resource-${DateTime.now().microsecondsSinceEpoch}',
       config: definition.defaultConfig(name),
     );
-    await ResourceRepository(
-      Directory(
-        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
-      ),
-      resourceType: resourceType,
-      secretSettings: widget.dataService.secretSettingsStore,
-    ).save(resource, requireAbsent: true);
+    await widget.dataService.storage
+        .resource(ResourceTypeId(resourceType), contract: definition)
+        .save(resource, requireAbsent: true);
     if (resourceType == 'Variable') await _variableRuntime.reload();
     if (!mounted) return;
     _onProjectCatalogChanged();
@@ -225,12 +221,9 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
       config: {...resource.config, 'name': name},
       state: resource.state,
     );
-    final repository = ResourceRepository(
-      Directory(
-        '${widget.dataService.userDirectory.path}/${definition.storageDirectory}',
-      ),
-      resourceType: resourceType,
-      secretSettings: widget.dataService.secretSettingsStore,
+    final repository = widget.dataService.storage.resource(
+      ResourceTypeId(resourceType),
+      contract: definition,
     );
     await repository.save(
       updated,

@@ -2,14 +2,12 @@ import '../../runtime/automation_invocation_service.dart';
 import '../../runtime/graph_invocation.dart';
 import '../../plugins/stream_plans/manifest.dart';
 import 'dart:async';
-import 'dart:io';
 
 import '../lifecycle/application_runtime.dart';
 import '../execution/profile_activation_workflow.dart';
 import '../../plugins/registry/plugin_host_context.dart';
 import '../../services/structured_logger.dart';
 import '../../app/startup_health.dart';
-import '../../persistence/queue_config_repository.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/viewer_data_sync.dart';
 import '../../plugins/registry/plugin_bootstrap.dart';
@@ -30,10 +28,7 @@ import '../../services/showrunner_data_service.dart';
 import '../../plugins/variables/runtime.dart';
 import '../../features/chat/unified_chat_runtime.dart';
 import '../../features/chat/command_manager.dart';
-import '../../persistence/automation_repository.dart';
-import '../../persistence/filesystem/safe_path.dart';
 import '../../features/chat/chat_dock_service.dart';
-import '../../persistence/resource_repository.dart';
 
 /// The application-owned runtime composition.
 ///
@@ -76,15 +71,16 @@ final class ShowRunnerServices {
     final actionQueue = DartActionQueue();
     final eventHub = DartPluginEventHub();
     final commandManagerReady = Completer<ChatCommandManager>();
-    final viewerDataRepository = FileViewerDataRepository(
-      Directory('${dataService.userDirectory.path}/viewer-data'),
-    );
+    final viewerDataRepository = dataService.storage.viewerData;
     final viewerDataSynchronizer = ViewerDataSynchronizer(
       repository: viewerDataRepository,
       eventHub: eventHub,
     );
     final variableRuntime = DartVariableRuntime(
-      directory: Directory('${dataService.userDirectory.path}/variables'),
+      directory: dataService.storage.location('variables').directory,
+      repository: dataService.storage.resource(
+        const ResourceTypeId('Variable'),
+      ),
       onChanged: onVariableChanged,
     );
     final providerEvents = ProviderEventRuntime(
@@ -101,9 +97,7 @@ final class ShowRunnerServices {
       dataService: dataService,
       router: ObsConnectionRouter(dataService: dataService),
     );
-    final queueRepository = QueueConfigRepository(
-      Directory('${dataService.userDirectory.path}/queues'),
-    );
+    final queueRepository = dataService.storage.queueConfigs;
     late final Future<DartPluginRegistry> pluginRegistryFuture;
     late final Future<DartProfileRuntime> profileRuntimeFuture;
     late final AutomationInvocationService invocations;
@@ -112,9 +106,7 @@ final class ShowRunnerServices {
       loadConfig: (queueId) async {
         if (queueId.contains('/') || queueId.contains('\\')) return null;
         final fileName = queueId.endsWith('.yaml') ? queueId : '$queueId.yaml';
-        final file = File('${dataService.userDirectory.path}/queues/$fileName');
-        if (!await file.exists()) return null;
-        return queueRepository.load(file);
+        return queueRepository.find(fileName);
       },
       execute: (automation, context, item) =>
           invocations.executeQueued(automation, context, item),
@@ -124,11 +116,7 @@ final class ShowRunnerServices {
       registry: () => pluginRegistryFuture,
       queues: queueManager,
       loadDocument: (fileName) async {
-        final file = await containedFile(dataService.userDirectory, [
-          'automations',
-          fileName,
-        ]);
-        return AutomationRepository(file).load();
+        return dataService.storage.automation(fileName).load();
       },
     );
     pluginRegistryFuture =
@@ -194,7 +182,8 @@ final class ShowRunnerServices {
         ),
       );
       final manager = DartProfileLifecycleManager(
-        directory: Directory('${dataService.userDirectory.path}/profiles'),
+        directory: dataService.storage.profiles.directory,
+        loadProfiles: dataService.storage.listProfiles,
         runtime: runtime,
         onActivityChanged: providerEvents.updateProfileActivity,
       );
@@ -233,8 +222,8 @@ final class ShowRunnerServices {
       isEnabled: () async =>
           (await pluginRegistryFuture).isPluginEnabled('chatCommands'),
       groupMemberships: (message, groups) async {
-        final repository = ResourceRepository(
-          Directory('${dataService.userDirectory.path}/twitch/groups'),
+        final repository = dataService.storage.resource(
+          const ResourceTypeId('CustomTwitchViewerGroup'),
         );
         final memberships = <String>{};
         for (final id in groups) {

@@ -1,6 +1,6 @@
+import '../../services/structured_logger.dart';
 import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
-import 'dart:io';
 import '../../runtime/expression.dart';
 import '../../services/showrunner_data_service.dart';
 import '../registry/plugin_registry.dart';
@@ -48,15 +48,19 @@ Future<void> registerConfiguredPhilipsHue(
       if (hueTransport != null) {
         try {
           await PhilipsHueResourceSynchronizer(
-            lightDirectory: Directory(
-              '${dataService.userDirectory.path}/iot/lights',
+            lightRepository: dataService.storage.resource(
+              const ResourceTypeId('Light'),
             ),
-            plugDirectory: Directory(
-              '${dataService.userDirectory.path}/iot/plugs',
+            plugRepository: dataService.storage.resource(
+              const ResourceTypeId('Plug'),
             ),
-            secretSettings: dataService.secretSettingsStore,
           ).sync(configuredHueTransport);
-        } catch (_) {
+        } catch (error) {
+          ShowRunnerLogger.instance.warning(
+            'persistence',
+            'Hue resource discovery could not be persisted.',
+            details: {'errorType': error.runtimeType.toString()},
+          );
           // Resource discovery is best effort; actions can still use manually
           // configured Hue resources when the bridge is temporarily offline.
         }

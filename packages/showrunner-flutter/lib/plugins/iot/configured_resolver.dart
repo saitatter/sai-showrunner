@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import '../../persistence/resource_repository.dart';
 import '../../services/showrunner_data_service.dart';
 import 'manifest.dart';
 import '../registry/plugin_registry.dart';
@@ -9,12 +6,9 @@ IotResourceActionResolver createConfiguredIotResolver({
   required DartPluginRegistry registry,
   required ShowRunnerDataService dataService,
 }) => (resourceType, resourceId, actionConfig, context) async {
-  final directory = resourceType == 'Light' ? 'iot/lights' : 'iot/plugs';
-  final resource = await ResourceRepository(
-    Directory('${dataService.userDirectory.path}/$directory'),
-    resourceType: resourceType,
-    secretSettings: dataService.secretSettingsStore,
-  ).load(resourceId);
+  final resource = await dataService.storage
+      .resource(ResourceTypeId(resourceType))
+      .load(resourceId);
   if (resource == null) {
     throw StateError('$resourceType resource "$resourceId" was not found.');
   }

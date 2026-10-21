@@ -5,7 +5,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import '../../persistence/resource_repository.dart';
 import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import '../../services/plugin_event_hub.dart';
@@ -397,9 +396,9 @@ final class RemoteDashboardHost extends ChangeNotifier {
     if (!_safeId(id)) {
       return null;
     }
-    final resource = await ResourceRepository(
-      Directory('${dataService.userDirectory.path}/dashboards'),
-    ).load(id);
+    final resource = await dataService.storage
+        .resource(const ResourceTypeId('Dashboard'))
+        .load(id);
     if (resource == null) {
       return null;
     }
@@ -410,9 +409,9 @@ final class RemoteDashboardHost extends ChangeNotifier {
   }
 
   Future<bool> _hasSharedDashboard() async {
-    final resources = await ResourceRepository(
-      Directory('${dataService.userDirectory.path}/dashboards'),
-    ).list();
+    final resources = await dataService.storage
+        .resource(const ResourceTypeId('Dashboard'))
+        .list();
     return resources.any((resource) => _isShared(resource));
   }
 
