@@ -1,3 +1,4 @@
+import '../schema/resource_codec.dart';
 import 'viewer_data_repository.dart';
 import 'dart:io';
 import '../plugins/registry/builtin_resource_specs.dart';
@@ -35,6 +36,7 @@ final class ProjectStorage {
       owned.directory,
       location: owned,
       resourceType: type.value,
+      codec: ResourceDataCodec(definition.configurationCodec),
       secretSettings: secrets,
     );
   }

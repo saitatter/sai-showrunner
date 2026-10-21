@@ -1,3 +1,4 @@
+import '../domain/errors/unsupported_document_exception.dart';
 import 'dart:io';
 import 'filesystem/file_transaction.dart';
 import 'secret_storage_exception.dart';
@@ -29,6 +30,8 @@ final class PersistenceIssue {
     owner: owner,
     document: document,
     kind: switch (error) {
+      UnsupportedDocumentException() =>
+        PersistenceIssueKind.unsupportedDocument,
       SecretStorageException() => PersistenceIssueKind.secretUnavailable,
       PersistenceConflictException() => PersistenceIssueKind.conflict,
       FileSystemException() => PersistenceIssueKind.io,

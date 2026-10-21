@@ -41,6 +41,11 @@ dynamic decodeYamlValue(dynamic value) {
     }
     try {
       if (node is YamlMap) {
+        if (node.keys.any((key) => key is! String)) {
+          throw const FormatException(
+            'YAML document object keys must be strings.',
+          );
+        }
         return <String, dynamic>{
           for (final entry in node.entries)
             entry.key.toString(): decode(entry.value),

@@ -1,3 +1,4 @@
+import '../../schema/resource_codec.dart';
 import '../../runtime/expression.dart';
 import 'package:flutter/material.dart';
 import '../../components/data_inputs/resource_schema.dart';
@@ -33,7 +34,8 @@ final class ResourceEditorContribution implements DartResourceContract {
        resourceType = contract.resourceTypeId.value,
        displayName = contract.displayName,
        storageDirectory = contract.storageDirectory,
-       defaultConfig = contract.createDefaultConfig;
+       defaultConfig = contract.createDefaultConfig,
+       configurationCodec = contract.configurationCodec;
 
   final String pluginId;
   final String resourceType;
@@ -42,6 +44,8 @@ final class ResourceEditorContribution implements DartResourceContract {
   @override
   final String storageDirectory;
   final JsonMap Function(String name) defaultConfig;
+  @override
+  final ResourceConfigurationCodec configurationCodec;
   final DartResourceEditorBuilder builder;
   final DartResourceEditorRuntimeBuilder? runtimeBuilder;
   final String? Function(ResourceData resource)? validate;
@@ -61,14 +65,7 @@ final class ResourceEditorContribution implements DartResourceContract {
     Future<DartPluginRegistry>? registryFuture,
     ResourceOptionsLoader? resourceOptionsLoader,
   }) {
-    String? reason;
-    try {
-      reason = !enabled
-          ? 'The owning plugin is disabled.'
-          : validate?.call(resource);
-    } catch (_) {
-      reason = 'The resource configuration is unsupported or malformed.';
-    }
+    final reason = readOnlyReason(resource, enabled: enabled);
     if (reason != null || !capabilities.canSave) {
       final message = reason ?? 'This resource is read-only.';
       return readOnlyBuilder?.call(context, resource, message) ??
@@ -91,6 +88,17 @@ final class ResourceEditorContribution implements DartResourceContract {
       );
     }
     return builder(context, resource, onSave);
+  }
+
+  String? readOnlyReason(ResourceData resource, {bool enabled = true}) {
+    if (!enabled) return 'The owning plugin is disabled.';
+    if (!capabilities.canSave) return 'This resource is read-only.';
+    try {
+      configurationCodec.validate(resource.config);
+      return validate?.call(resource);
+    } catch (_) {
+      return 'The resource configuration is unsupported or malformed.';
+    }
   }
 
   @override

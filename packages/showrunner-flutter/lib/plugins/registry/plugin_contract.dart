@@ -1,3 +1,4 @@
+import '../../schema/resource_codec.dart';
 import '../../runtime/expression.dart';
 import '../../schema/data_input.dart';
 import '../../schema/identifiers.dart';
@@ -195,6 +196,7 @@ abstract interface class DartResourceContract {
   String get displayName;
   String get storageDirectory;
   RuntimeMap createDefaultConfig(String name);
+  ResourceConfigurationCodec get configurationCodec;
 }
 
 final class ResourceSpec implements DartResourceContract {
@@ -204,6 +206,7 @@ final class ResourceSpec implements DartResourceContract {
     required this.displayName,
     required this.storageDirectory,
     required this.defaultConfigFactory,
+    this.configurationCodec = const ResourceConfigurationCodec(),
   });
 
   @override
@@ -215,6 +218,8 @@ final class ResourceSpec implements DartResourceContract {
   @override
   final String storageDirectory;
   final RuntimeMap Function(String name) defaultConfigFactory;
+  @override
+  final ResourceConfigurationCodec configurationCodec;
 
   @override
   RuntimeMap createDefaultConfig(String name) => defaultConfigFactory(name);
