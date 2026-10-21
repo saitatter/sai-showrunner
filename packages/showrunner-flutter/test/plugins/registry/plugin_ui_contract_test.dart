@@ -1,3 +1,4 @@
+import 'package:path/path.dart' as p;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -66,7 +67,13 @@ void main() {
         const ResourceTypeId('TestResource'),
       );
       expect(repository, isNotNull);
-      expect(repository!.directory.path, endsWith('test/resources'));
+      expect(
+        p.equals(
+          repository!.directory.path,
+          p.join(root.path, 'test', 'resources'),
+        ),
+        isTrue,
+      );
       await host.runCommand('test.command');
       host.openWorkspace(WorkspaceIds.settings);
       expect(commandRuns, 1);

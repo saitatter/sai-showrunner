@@ -1,3 +1,4 @@
+import '../../domain/errors/unsupported_document_exception.dart';
 import 'persistence_directory.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -40,19 +41,25 @@ final class TypedDocumentFile<T> {
     final source = await _checked();
     if (!await source.exists()) return null;
     final contents = await source.readAsString();
+    Object? value;
     try {
-      Object? value;
       try {
         value = jsonDecode(contents);
       } on FormatException {
         value = decodeYamlValue(loadYaml(contents));
       }
-      if (value is! Map) throw const FormatException();
-      return decode(Map<String, dynamic>.from(value));
     } catch (_) {
-      throw FormatException(
-        'Unsupported or malformed $kind document; check its schema version.',
-      );
+      throw FormatException('Malformed $kind document syntax.');
+    }
+    if (value is! Map) {
+      throw FormatException('Malformed $kind document: an object is required.');
+    }
+    try {
+      return decode(Map<String, dynamic>.from(value));
+    } on UnsupportedDocumentException {
+      throw UnsupportedDocumentException('Unsupported $kind document schema.');
+    } catch (_) {
+      throw FormatException('Malformed $kind document fields.');
     }
   }
 

@@ -83,6 +83,7 @@ class StreamPlanSegmentEditorState extends State<StreamPlanSegmentEditor> {
     final segment = widget.segment;
     return StreamPlanSegmentData(
       id: segment.id,
+      extra: segment.extra,
       name: segment.name,
       components: segment.components,
       activationAutomation:

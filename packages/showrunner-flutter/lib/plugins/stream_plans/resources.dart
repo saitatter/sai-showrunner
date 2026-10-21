@@ -1,3 +1,4 @@
+import 'resource_codec.dart';
 import '../../schema/stream_plan.dart';
 import '../registry/plugin_contract.dart';
 
@@ -6,6 +7,7 @@ final _streamPlanResource = ResourceSpec(
   resourceTypeId: const ResourceTypeId('StreamPlan'),
   displayName: 'Stream Plan',
   storageDirectory: 'stream-plans',
+  configurationCodec: const StreamPlanConfigurationCodec(),
   defaultConfigFactory: (name) => {
     'name': name,
     'activationAutomation': emptyInlineAutomation(),

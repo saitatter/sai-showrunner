@@ -1,3 +1,4 @@
+import '../../domain/errors/unsupported_document_exception.dart';
 import 'package:sai_nodes_core/sai_nodes_core.dart';
 
 const mainAutomationSpace = 'space:main';
@@ -183,6 +184,11 @@ final class AutomationDocument {
   }
 
   factory AutomationDocument.fromJson(GraphJson json) {
+    if (json['schemaVersion'] is int && json['schemaVersion'] != 1) {
+      throw const UnsupportedDocumentException(
+        'Automation requires schemaVersion 1.',
+      );
+    }
     if (json['schemaVersion'] is! int || json['schemaVersion'] != 1) {
       throw const FormatException('Automation requires schemaVersion 1.');
     }
@@ -196,7 +202,9 @@ final class AutomationDocument {
         'metadata',
       }.contains(key),
     )) {
-      throw const FormatException('Unsupported automation fields.');
+      throw const UnsupportedDocumentException(
+        'Unsupported automation fields.',
+      );
     }
     final graph = GraphDocument.fromJson(_object(json['graph'], 'graph'));
     if (_string(json, 'id') != graph.id) {
@@ -274,6 +282,6 @@ List<GraphJson> _objects(Object? value, String label) {
 
 void _fields(GraphJson json, Set<String> allowed, String label) {
   if (json.keys.any((key) => !allowed.contains(key))) {
-    throw FormatException('Unsupported $label fields.');
+    throw UnsupportedDocumentException('Unsupported $label fields.');
   }
 }

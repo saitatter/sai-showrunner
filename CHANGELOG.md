@@ -5,6 +5,7 @@
 ### Features
 
 ### Fixes
+- Preserve unbounded queue timeouts and unknown Stream Plan segment fields across restart/editing; reject malformed nested resource data before overwriting it.
 - Preserve unrelated settings during OAuth refresh and save verified YouTube credentials/channel identity together; reject outdated login/account writes.
 - Keep the project catalog cached across unrelated UI rebuilds, refresh it through an owned storage watcher and report unreadable directories without discarding healthy project entries.
 - Keep unreadable resources visible with safe diagnostics instead of hiding them, and prevent malformed parser source from reaching resource errors/logs.
@@ -17,6 +18,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Validate resource configurations through provider-owned codecs shared by storage and editors, with distinct unsupported-schema diagnostics and semantic JSON/YAML round-trip coverage for every resource family.
 - Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers.
 - Share typed single-document storage across automation/profile/queue repositories, with explicit domain store contracts and validation under the same owner lock as atomic publication.
 - Split resource editors into provider-owned Flutter libraries and contribution packs, with separate overlay toolbar/palette/rename controls and dashboard creation forms, shared inputs, explicit editing capabilities and safe read-only fallbacks.

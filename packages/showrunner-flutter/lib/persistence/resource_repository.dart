@@ -1,3 +1,4 @@
+import '../schema/resource_codec.dart';
 import 'filesystem/persistence_directory.dart';
 import 'document_revision.dart';
 import 'document_codec.dart';
@@ -31,12 +32,14 @@ class ResourceRepository {
     this.directory, {
     this.resourceType,
     this.location,
+    this.codec = const ResourceDataCodec(),
     this.secretSettings,
     this.fileOperations = const TransactionFileOperations(),
   });
 
   final Directory directory;
   final PersistenceDirectory? location;
+  final ResourceDataCodec codec;
   Future<File> _file(List<String> names) =>
       location?.file(names) ?? containedFile(directory, names);
   final String? resourceType;
@@ -134,14 +137,13 @@ class ResourceRepository {
   }) {
     validateFileIdentifier(resource.id);
     // Freeze accepted input before the first asynchronous filesystem operation.
-    final ResourceData snapshot;
+    final _JsonMap snapshotJson;
     try {
-      snapshot = ResourceData.fromJson(
-        jsonDecode(jsonEncode(resource.toJson())) as _JsonMap,
-      );
+      snapshotJson = jsonDecode(jsonEncode(resource.toJson())) as _JsonMap;
     } catch (_) {
       throw const FormatException('Resource values must be JSON serializable.');
     }
+    final snapshot = codec.decode(snapshotJson);
     final transaction = _transaction(resource.id);
     return transaction.locked(() async {
       await transaction.recover();
@@ -210,7 +212,7 @@ class ResourceRepository {
       mutations.add(
         FileMutation.write(
           'json',
-          utf8.encode(encoder.convert(publicResource.toJson())),
+          utf8.encode(encoder.convert(codec.encode(publicResource))),
         ),
       );
     }
@@ -270,7 +272,7 @@ class ResourceRepository {
       if (decoded is! Map) {
         throw const FormatException('Resource JSON must contain an object.');
       }
-      resource = ResourceData.fromJson(Map<String, dynamic>.from(decoded));
+      resource = codec.decode(Map<String, dynamic>.from(decoded));
       final fileId = file.uri.pathSegments.last.replaceFirst(
         RegExp(r'\.json$'),
         '',
@@ -302,9 +304,7 @@ class ResourceRepository {
         state: Map<String, dynamic>.from(state),
       );
     }
-    if (resource.config['name'] != null && resource.config['name'] is! String) {
-      throw const FormatException('Resource name must be text.');
-    }
+    codec.configuration.validate(resource.config);
     return _withSecretResourceConfig(resource);
   }
 

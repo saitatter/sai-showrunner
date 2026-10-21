@@ -10,6 +10,7 @@ final class StreamPlanSegmentData {
     required this.components,
     required this.activationAutomation,
     required this.deactivationAutomation,
+    this.extra = const {},
   });
 
   final String id;
@@ -17,6 +18,7 @@ final class StreamPlanSegmentData {
   final JsonMap components;
   final JsonMap activationAutomation;
   final JsonMap deactivationAutomation;
+  final JsonMap extra;
 
   factory StreamPlanSegmentData.fromJson(JsonMap json) => StreamPlanSegmentData(
     id: json['id']?.toString() ?? '',
@@ -24,9 +26,21 @@ final class StreamPlanSegmentData {
     components: _map(json['components']),
     activationAutomation: _automation(json['activationAutomation']),
     deactivationAutomation: _automation(json['deactivationAutomation']),
+    extra: {
+      for (final entry in json.entries)
+        if (!const {
+          'id',
+          'name',
+          'components',
+          'activationAutomation',
+          'deactivationAutomation',
+        }.contains(entry.key))
+          entry.key: entry.value,
+    },
   );
 
   JsonMap toJson() => {
+    ...extra,
     'id': id,
     'name': name,
     'components': components,

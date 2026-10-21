@@ -1,3 +1,4 @@
+import '../domain/errors/unsupported_document_exception.dart';
 import 'json.dart';
 
 class ResourceData {
@@ -17,7 +18,9 @@ class ResourceData {
     if (json.keys.any(
       (key) => !const {'id', 'config', 'state'}.contains(key),
     )) {
-      throw const FormatException('Unsupported resource envelope fields.');
+      throw const UnsupportedDocumentException(
+        'Unsupported resource envelope fields.',
+      );
     }
 
     final id = json['id'];
