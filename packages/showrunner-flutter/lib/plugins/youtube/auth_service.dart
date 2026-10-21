@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -90,7 +91,7 @@ final class YouTubeAuthService {
       clientSecret: clientSecret.isEmpty ? null : clientSecret,
       callbackPath: '/oauth/youtube/callback',
     );
-    var next = <String, dynamic>{
+    final next = <String, dynamic>{
       ...settings,
       'clientId': clientId,
       'accessToken': token.accessToken,
@@ -98,16 +99,20 @@ final class YouTubeAuthService {
       if (token.expiresAt != null)
         'expiresAt': token.expiresAt!.toIso8601String(),
     };
-    await dataService.savePluginSettings('youtube', next);
     final profile = await (loadProfile ?? _loadYouTubeProfile)(
       token.accessToken,
     );
-    next = {
-      ...next,
-      'channelId': profile.channelId,
-      'channelName': profile.title,
-    };
-    await dataService.savePluginSettings('youtube', next);
+    if (profile.channelId.trim().isEmpty) {
+      throw const FormatException(
+        'YouTube profile did not provide a channel identity.',
+      );
+    }
+    next.addAll({'channelId': profile.channelId, 'channelName': profile.title});
+    await dataService.savePluginSettings(
+      'youtube',
+      next,
+      expectedRevision: DocumentRevision.of(settings),
+    );
     return next;
   }
 

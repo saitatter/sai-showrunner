@@ -1,3 +1,5 @@
+import 'package:showrunner_flutter/persistence/document_revision.dart';
+import 'package:showrunner_flutter/persistence/filesystem/file_transaction.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
@@ -153,6 +155,73 @@ void main() {
       );
       expect(await secrets.loadResource('OBSConnection', 'studio'), {
         'futureCredential': 'confidential-marker',
+      });
+    },
+  );
+
+  test('stale settings saves preserve public and encrypted bytes', () async {
+    await store().save(plugin, {
+      'host': 'original',
+      'password': 'secret-original',
+    });
+    final values = await store().load(plugin);
+    final revision = DocumentRevision.of(values);
+    await store().transform(
+      plugin,
+      (current) => {...current, 'host': 'external'},
+    );
+    final public = File('${directory.path}/obs.yaml');
+    final sealed = await secrets.settingsStorageFile('obs');
+    final publicBytes = await public.readAsBytes(),
+        secretBytes = await sealed.readAsBytes();
+    await expectLater(
+      store().save(plugin, {
+        ...values,
+        'password': 'stale-replacement',
+      }, expectedRevision: revision),
+      throwsA(isA<PersistenceConflictException>()),
+    );
+    expect(await public.readAsBytes(), publicBytes);
+    expect(await sealed.readAsBytes(), secretBytes);
+    var transformed = false;
+    await expectLater(
+      store().transform(plugin, (current) {
+        transformed = true;
+        return current;
+      }, expectedRevision: revision),
+      throwsA(isA<PersistenceConflictException>()),
+    );
+    expect(transformed, isFalse);
+  });
+
+  test(
+    'background patches preserve accepted editor values in either writer order',
+    () async {
+      await store().save(plugin, {'host': 'original', 'password': 'secret'});
+      final revision = DocumentRevision.of(await store().load(plugin));
+      Future<bool> saveEditor() async {
+        try {
+          await store().save(plugin, {
+            'host': 'edited',
+            'password': 'secret',
+          }, expectedRevision: revision);
+          return true;
+        } on PersistenceConflictException {
+          return false;
+        }
+      }
+
+      final edited = saveEditor();
+      final patched = store().transform(
+        plugin,
+        (current) => {...current, 'background': true},
+      );
+      final accepted = await edited;
+      await patched;
+      expect(await store().load(plugin), {
+        'host': accepted ? 'edited' : 'original',
+        'password': 'secret',
+        'background': true,
       });
     },
   );

@@ -1,3 +1,4 @@
+import '../persistence/document_revision.dart';
 import '../persistence/project_storage.dart';
 import '../persistence/filesystem/persistence_directory.dart';
 import 'dart:convert';
@@ -78,8 +79,15 @@ final class ShowRunnerDataService {
   Future<bool> pluginSettingsExist(String pluginId) =>
       pluginSettingsStore.exists(PluginId(pluginId));
 
-  Future<void> savePluginSettings(String pluginId, JsonMap settings) =>
-      pluginSettingsStore.save(PluginId(pluginId), settings);
+  Future<void> savePluginSettings(
+    String pluginId,
+    JsonMap settings, {
+    DocumentRevision? expectedRevision,
+  }) => pluginSettingsStore.save(
+    PluginId(pluginId),
+    settings,
+    expectedRevision: expectedRevision,
+  );
 
   Future<void> updatePluginSetting(
     String pluginId,
@@ -87,18 +95,28 @@ final class ShowRunnerDataService {
     dynamic value,
   ) => updatePluginSettings(pluginId, {settingId: value});
 
-  Future<void> updatePluginSettings(String pluginId, JsonMap patch) {
+  Future<void> updatePluginSettings(
+    String pluginId,
+    JsonMap patch, {
+    DocumentRevision? expectedRevision,
+  }) {
     final snapshot = jsonDecode(jsonEncode(patch)) as JsonMap;
     return transformPluginSettings(
       pluginId,
       (settings) => {...settings, ...snapshot},
+      expectedRevision: expectedRevision,
     );
   }
 
   Future<void> transformPluginSettings(
     String pluginId,
-    JsonMap Function(JsonMap settings) transform,
-  ) => pluginSettingsStore.transform(PluginId(pluginId), transform);
+    JsonMap Function(JsonMap settings) transform, {
+    DocumentRevision? expectedRevision,
+  }) => pluginSettingsStore.transform(
+    PluginId(pluginId),
+    transform,
+    expectedRevision: expectedRevision,
+  );
 
   ProjectStorage get storage =>
       ProjectStorage(userDirectory, secrets: secretSettingsStore);

@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import 'package:showrunner_flutter/schema/identifiers.dart';
 import 'dart:io';
 import 'dart:convert';
@@ -79,16 +80,19 @@ final class TwitchAccountAuthService {
       if (token.expiresAt != null)
         'expiresAt': token.expiresAt!.toIso8601String(),
     };
-    await dataService.savePluginSettings('twitch', {
-      ...settings,
-      'clientId': clientId,
-    });
+    await dataService.updatePluginSetting('twitch', 'clientId', clientId);
     final updated = ResourceData(
       id: normalizedId,
       config: config,
       state: {...?account?.state, 'authenticated': true},
     );
-    await _repository.save(updated);
+    await _repository.save(
+      updated,
+      expectedRevision: account == null
+          ? null
+          : DocumentRevision.of(account.toJson()),
+      requireAbsent: account == null,
+    );
     return updated;
   }
 

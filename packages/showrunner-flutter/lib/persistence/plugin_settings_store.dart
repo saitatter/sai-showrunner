@@ -1,3 +1,4 @@
+import 'document_revision.dart';
 import 'filesystem/persistence_directory.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -14,8 +15,16 @@ import 'secret_settings_store.dart';
 abstract interface class PluginSettingsStore {
   Future<JsonMap> load(PluginId plugin);
   Future<bool> exists(PluginId plugin);
-  Future<void> save(PluginId plugin, JsonMap values);
-  Future<void> transform(PluginId plugin, JsonMap Function(JsonMap) transform);
+  Future<void> save(
+    PluginId plugin,
+    JsonMap values, {
+    DocumentRevision? expectedRevision,
+  });
+  Future<void> transform(
+    PluginId plugin,
+    JsonMap Function(JsonMap) transform, {
+    DocumentRevision? expectedRevision,
+  });
 }
 
 /// Settings and sealed credentials share one durable generation and owner lock.
@@ -87,31 +96,43 @@ final class FilePluginSettingsStore implements PluginSettingsStore {
   }
 
   @override
-  Future<void> save(PluginId plugin, JsonMap values) {
+  Future<void> save(
+    PluginId plugin,
+    JsonMap values, {
+    DocumentRevision? expectedRevision,
+  }) {
     final snapshot = _snapshot(values);
-    final transaction = _transaction(plugin);
-    return transaction.locked(() async {
-      await transaction.recover();
-      await _readPublic(plugin);
-      await _save(
-        plugin,
-        snapshot,
-        await secrets.load(plugin.value),
-        transaction,
-      );
-    });
-  }
-
-  @override
-  Future<void> transform(PluginId plugin, JsonMap Function(JsonMap) transform) {
     final transaction = _transaction(plugin);
     return transaction.locked(() async {
       await transaction.recover();
       final public = await _readPublic(plugin);
       final sealed = await secrets.load(plugin.value);
+      _verify(plugin, {...public, ...sealed}, expectedRevision);
+      await _save(plugin, snapshot, sealed, transaction);
+    });
+  }
+
+  @override
+  Future<void> transform(
+    PluginId plugin,
+    JsonMap Function(JsonMap) transform, {
+    DocumentRevision? expectedRevision,
+  }) {
+    final transaction = _transaction(plugin);
+    return transaction.locked(() async {
+      await transaction.recover();
+      final public = await _readPublic(plugin);
+      final sealed = await secrets.load(plugin.value);
+      _verify(plugin, {...public, ...sealed}, expectedRevision);
       final values = _snapshot(transform({...public, ...sealed}));
       await _save(plugin, values, sealed, transaction);
     });
+  }
+
+  void _verify(PluginId plugin, JsonMap current, DocumentRevision? expected) {
+    if (expected != null && DocumentRevision.of(current) != expected) {
+      throw PersistenceConflictException('settings/${plugin.value}');
+    }
   }
 
   Future<void> _save(

@@ -36,6 +36,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   final _portController = TextEditingController();
   final _passwordController = TextEditingController();
   final _settings = <String, Map<String, dynamic>>{};
+  final _settingsRevisions = <String, DocumentRevision>{};
   final _obsPersistence = const ObsSetupPersistence();
   String? _obsResourceId;
   DocumentRevision? _obsResourceRevision;
@@ -84,6 +85,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
     try {
       final settings = await widget.dataService.loadPluginSettings(_pluginId);
       _settings[_pluginId] = settings;
+      _settingsRevisions[_pluginId] = DocumentRevision.of(settings);
       if (_pluginId == 'obs') {
         _obsTestPassed = null;
         _obsTestError = null;
@@ -173,7 +175,12 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
     try {
       final current = <String, dynamic>{...?_settings['twitch']};
       current['clientId'] = twitchPublicClientId;
-      await widget.dataService.savePluginSettings('twitch', current);
+      await widget.dataService.savePluginSettings(
+        'twitch',
+        current,
+        expectedRevision: _settingsRevisions['twitch'],
+      );
+      _settingsRevisions['twitch'] = DocumentRevision.of(current);
       _settings['twitch'] = current;
       await TwitchAccountAuthService(
         dataService: widget.dataService,
@@ -195,11 +202,17 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
       final current = <String, dynamic>{...?_settings['youtube']};
       current['clientId'] = _clientIdController.text.trim();
       current['clientSecret'] = _clientSecretController.text;
-      await widget.dataService.savePluginSettings('youtube', current);
+      await widget.dataService.savePluginSettings(
+        'youtube',
+        current,
+        expectedRevision: _settingsRevisions['youtube'],
+      );
+      _settingsRevisions['youtube'] = DocumentRevision.of(current);
       final connected = await YouTubeAuthService(
         dataService: widget.dataService,
       ).connect();
       _settings['youtube'] = connected;
+      _settingsRevisions['youtube'] = DocumentRevision.of(connected);
     } catch (error) {
       if (mounted) setState(() => _youtubeAuthError = error);
     } finally {
@@ -237,7 +250,12 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
         current['clientId'] = _clientIdController.text.trim();
         current['clientSecret'] = _clientSecretController.text;
       }
-      await widget.dataService.savePluginSettings(_pluginId, current);
+      await widget.dataService.savePluginSettings(
+        _pluginId,
+        current,
+        expectedRevision: _settingsRevisions[_pluginId],
+      );
+      _settingsRevisions[_pluginId] = DocumentRevision.of(current);
       _settings[_pluginId] = current;
       _stepIndex++;
       if (_isDone) await _markComplete();
@@ -293,11 +311,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   }
 
   Future<void> _markComplete() async {
-    final settings = await widget.dataService.loadPluginSettings(
-      'showrunner-flutter',
-    );
-    await widget.dataService.savePluginSettings('showrunner-flutter', {
-      ...settings,
+    await widget.dataService.updatePluginSettings('showrunner-flutter', {
       'setupCompleted': true,
     });
   }

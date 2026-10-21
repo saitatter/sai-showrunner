@@ -5,13 +5,14 @@
 ### Features
 
 ### Fixes
+- Preserve unrelated settings during OAuth refresh and save verified YouTube credentials/channel identity together; reject outdated login/account writes.
 - Keep the project catalog cached across unrelated UI rebuilds, refresh it through an owned storage watcher and report unreadable directories without discarding healthy project entries.
 - Keep unreadable resources visible with safe diagnostics instead of hiding them, and prevent malformed parser source from reaching resource errors/logs.
 - Serialize viewer updates across repository owners, reject stale definition edits and report corrupt viewer data instead of silently skipping it; preserve provider-qualified identities and group membership.
 - Keep resource form drafts open after failed saves and prevent duplicate submissions without exposing credential-bearing errors.
 - Reject stale resource, automation, profile and queue editor saves/deletes and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
 - Reject dangling filesystem redirects and recursive YAML aliases, handle secret roots with trailing separators and clear native DPAPI buffers after use.
-- Recover plugin settings and encrypted credentials together after interrupted saves, serialize independent settings owners and keep unknown encrypted fields out of public settings/resource files.
+- Recover plugin settings and encrypted credentials together after interrupted saves, reject stale settings forms, serialize independent owners and keep unknown encrypted fields out of public settings/resource files; publish dock registration and its token together.
 - Recover resource config, runtime state and encrypted credentials as one generation after interrupted saves/deletes; serialize repository owners across processes and preserve externally changed files on recovery conflicts.
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
