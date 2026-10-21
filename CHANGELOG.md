@@ -5,6 +5,7 @@
 ### Features
 
 ### Fixes
+- Recover resource config, runtime state and encrypted credentials as one generation after interrupted saves/deletes; serialize repository owners across processes and preserve externally changed files on recovery conflicts.
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
