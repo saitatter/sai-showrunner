@@ -5,6 +5,7 @@
 ### Features
 
 ### Fixes
+- Keep the project catalog cached across unrelated UI rebuilds, refresh it through an owned storage watcher and report unreadable directories without discarding healthy project entries.
 - Keep unreadable resources visible with safe diagnostics instead of hiding them, and prevent malformed parser source from reaching resource errors/logs.
 - Serialize viewer updates across repository owners, reject stale definition edits and report corrupt viewer data instead of silently skipping it; preserve provider-qualified identities and group membership.
 - Keep resource form drafts open after failed saves and prevent duplicate submissions without exposing credential-bearing errors.
