@@ -176,6 +176,33 @@ not live Twitch/YouTube privileges, OBS/CEF delivery, hardware compatibility or
 subjective audio quality. No production profiles, credentials or live providers
 are used. Baseline network-security items remain tracked in the trust review.
 
+## Graph invocation, queue and trace contracts
+
+Phase 03 starts from integrated main `ec1435276`. Authoring documents remain immutable, and the compiled VM remains the production engine with the separate interpreter as its oracle. The dispatch inventory and exact queue/direct policies live in [architecture](architecture.md#authoring-and-execution).
+
+| Behavior | Executable proof |
+| --- | --- |
+| Typed direct results versus accepted queue receipts, immutable inputs, original errors and preflight validation | `test/runtime/automation_invocation_service_test.dart`; editor/profile/plan/command/quick-action fixtures |
+| Reserved drain ownership, concurrent waiters, exact snapshot/replay and recovery after load failure | `test/runtime/automation_queue_manager_test.dart` |
+| Timeout cancellation with awaited physical cleanup, no following-action overlap, owned gap timers and shutdown | Queue manager and `test/runtime/action_queue_test.dart` |
+| Session-owned subscriptions/direct work, concurrent activation/replacement, awaited close and retained background failure | `test/runtime/profile_lifecycle_test.dart`, `profile_runtime_test.dart` |
+| Plan transition cancellation, rejected waiting navigation, failed activation state, reverse cleanup and preserved cleanup failures | `test/plugins/stream_plans/stream_plan_lifecycle_test.dart`, existing plan manifest fixtures |
+| Bounded nodes/edges/events/invocation counters, truncation, paused observers and frame-coalesced visuals without dirty authoring | `test/runtime/execution_trace_test.dart`, `test/graph/execution_visual_adapter_test.dart`, `integration_test/visual/editor_workflows_test.dart` |
+| Credentials/private/viewer values omitted by default; safe opt-in fields cannot bypass deny rules; raw error text/stacks omitted | `test/runtime/execution_trace_test.dart` |
+| Deterministic compiler symbols, operand validation before actions, invalid documents/contracts, guarded cycles and independent execution parity | `test/graph/compiler_helpers_test.dart`, `compiled_interpreter_differential_test.dart`, existing execution/edge suites |
+| Semantic cache invalidation, presentation reuse, bounded identity memo/LRU, exact entry choices and fresh contexts | `test/graph/graph_program_cache_test.dart`, existing execution parity fixtures |
+
+Final local gates use Windows 11 x64, Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0. `ci-check.ps1 -Stage All` passes docs/version/release-check/generated registry/build/typechecks, 132 JavaScript tests, parity and the Flutter suite. After the final invalid-input fixtures, `-Stage Flutter` passes formatting, fatal-info analysis and **951 tests with 10 opt-in skips**.
+
+The isolated `-Stage Parity -Integration -Visual` gate passes **98 native scenarios with one opt-in audio skip**, including the real production composition's graph, nested subgraph, queue and profile flows, plan transitions, inline cancellation and editor workflows. Catalog comparison has no gate failures; both reviewed inspector regions have **zero differing pixels**. Graph, diagnostics and inspector captures were inspected at 1440x900/DPR 1. Existing frozen Electron references, reviewed Flutter baselines and thresholds are unchanged. Historical Electron catalog differences remain diagnostic, not a claim of pixel equality across runtimes.
+
+The isolated checkout was synchronized and checked against 1,003 tracked files after newline normalization. The last added cases change unit tests only; native production sources match the final product. Public exported contracts remain identical to main: 34 plugins, 174 actions, 61 triggers, 57 states, 20 resource types and 65 settings. Both lockfiles are unchanged. The lexical inventory contains 795 source/test files and 42 part declarations, with the same existing TypeScript schema cycle and no new import cycle.
+
+A separate temporary comparison checked all instruction operands, edge IDs, slot names and compiled subgraph bindings on 100 seeded graphs against the compiler before extraction: all match. Authoring benchmarks pass load/move/round-trip and undo/redo at 100 through 5,000 nodes. Runtime distributions and allocation-sampling limits are recorded in the benchmark contract below. Ignored logs, reports, comparison probes and captures remain under `.tmp/graph-runtime` and the isolated checkout; no permanent dated QA log is added.
+
+These results use synthetic providers, injected capabilities and loopback services. They establish dispatch, lifecycle, persistence and visual contracts, not live provider permissions or external side-effect rollback. Timeout/close can still wait for a non-cooperative plugin to finish its owned cleanup. Accepted queue work remains queue-owned when a profile session stops. No live accounts, credentials, user OBS profiles or production resources are modified. No new browser shader claim is made: this phase changes no shader/browser rendering code.
+
+
 ## Local checks and CI
 
 ```powershell
@@ -348,17 +375,7 @@ They verify history/serialization, compiler caching, loops and subgraphs as well
 timings. JIT wall-clock results are not GPU frame rates. Large immutable edits can
 exceed one frame; do not claim 60 FPS from these measurements.
 
-## External services and release proof
-
-Use [live-services.md](testing/live-services.md) and [live-nodes.md](testing/live-nodes.md)
-for credentials, eligibility and previously demonstrated limits. Explicitly distinguish
-fixtures, API acceptance and delivered real events. Never auto-enable write scenarios
-or print tokens. The [release checklist](release-checklist.md) remains an
-operator gate. Public packages and the manual Windows release proof are unsigned;
-packaging still exercises installed upgrade/rollback without a signature requirement.
-The separate signing-helper fixture uses a temporary test certificate only.
-
-## Graph runtime measurement contract
+### Graph runtime measurement contract
 
 `tool/graph_execution_benchmark_test.dart` records 21 samples after three warmups for linear 100/500/1,000-node, 100-iteration loop and eight-subgraph fixtures. It separates canonical signature construction, cold compilation including its signature, hot cache lookup, VM execution and VM execution with bounded tracing. Reports include program instruction/action/slot/subgraph/wire counts, executed instructions, signature bytes and cache counters. These structural counts are not retained program byte sizes. The authoring benchmark remains a separate gate.
 
@@ -385,3 +402,14 @@ Same Windows machine/SDK, JIT, 21 samples, before/after bounded identity memoiza
 For the 100-node fixture, the selected allocation sample count for one hot lookup fell from 4,885 to 1. The improvement applies to repeated lookup of the same immutable document and entry choice; a new document instance must still build the full signature. VM timings varied between runs and do not establish an execution-speed improvement. No frame-rate or end-to-end latency guarantee follows from this microbenchmark. Raw before/after reports remain ignored under `.tmp/graph-runtime`; reproducible fixtures and this measurement contract are maintained here.
 
 The independent interpreter differential suite adds 30 bounded synthetic seeds, each with completion, cancellation and failure modes. It covers wired variables, branches/switches, for/foreach/while loops, nested subgraph calls/returns, per-action observations and final results. Failures include the seed and synthetic serialized graph; fixtures contain no credentials. Tests also assert that execution leaves the authoring document unchanged.
+
+
+## External services and release proof
+
+Use [live-services.md](testing/live-services.md) and [live-nodes.md](testing/live-nodes.md)
+for credentials, eligibility and previously demonstrated limits. Explicitly distinguish
+fixtures, API acceptance and delivered real events. Never auto-enable write scenarios
+or print tokens. The [release checklist](release-checklist.md) remains an
+operator gate. Public packages and the manual Windows release proof are unsigned;
+packaging still exercises installed upgrade/rollback without a signature requirement.
+The separate signing-helper fixture uses a temporary test certificate only.
