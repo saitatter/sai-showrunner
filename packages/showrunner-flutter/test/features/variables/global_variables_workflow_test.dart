@@ -100,8 +100,9 @@ Future<void> _until(WidgetTester tester, Finder target) async {
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
     await tester.pump(const Duration(milliseconds: 100));
-    if (target.evaluate().isNotEmpty && !tester.binding.hasScheduledFrame)
+    if (target.evaluate().isNotEmpty && !tester.binding.hasScheduledFrame) {
       return;
+    }
   }
   throw TestFailure('Missing $target');
 }

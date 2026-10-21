@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../domain/automation_document.dart';
 import 'automation_editor_controller.dart';
@@ -5,7 +6,12 @@ import 'automation_editor_controller.dart';
 /// A tab owns its controller, including history, selection and camera. Data is
 /// always read from that controller rather than synchronized into another model.
 final class AutomationEditorSession {
-  AutomationEditorSession({required this.fileName, required this.editor});
+  AutomationEditorSession({
+    required this.fileName,
+    required this.editor,
+    this.storageRevision,
+  });
+  DocumentRevision? storageRevision;
   final String fileName;
   final AutomationEditorController editor;
   AutomationDocument get data => editor.document;
@@ -75,7 +81,11 @@ final class AutomationDocumentSessions {
       registry: _registry,
     );
     if (unsaved) editor.graph.markUnsaved();
-    final session = AutomationEditorSession(fileName: fileName, editor: editor);
+    final session = AutomationEditorSession(
+      fileName: fileName,
+      editor: editor,
+      storageRevision: unsaved ? null : DocumentRevision.of(document.toJson()),
+    );
     _documents.add(session);
     editor.addListener(_sessionChanged);
     _activeFileName = fileName;

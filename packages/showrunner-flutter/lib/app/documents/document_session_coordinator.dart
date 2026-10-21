@@ -158,9 +158,14 @@ final class DocumentSessionCoordinator {
     if (automationWriter case final writer?) {
       await writer(session.fileName, saved);
     } else {
-      await automationRepository(session.fileName).save(saved);
+      await automationRepository(session.fileName).save(
+        saved,
+        expectedRevision: session.storageRevision,
+        requireAbsent: session.storageRevision == null,
+      );
     }
     if (!_disposed && identical(automations.find(session.fileName), session)) {
+      session.storageRevision = DocumentRevision.of(saved.toJson());
       automations.markSaved(session.fileName, revision: revision);
     }
   }
@@ -172,9 +177,11 @@ final class DocumentSessionCoordinator {
     if (resourceWriter case final writer?) {
       await writer(type, resource);
     } else {
-      await resourceRepository(
-        type,
-      ).save(resource, expectedRevision: storageRevision);
+      await resourceRepository(type).save(
+        resource,
+        expectedRevision: storageRevision,
+        requireAbsent: storageRevision == null,
+      );
     }
     if (!_disposed) {
       manager.acceptPersisted(resource, storageRevision);
@@ -295,7 +302,8 @@ final class DocumentSessionCoordinator {
   ) async {
     final wasActive = automations.activeFileName == fileName;
     if (!await confirmAutomation(fileName, prompt)) return false;
-    await automationRepository(fileName).delete();
+    final expected = automations.find(fileName)?.storageRevision;
+    await automationRepository(fileName).delete(expectedRevision: expected);
     automations.close(fileName);
     if (wasActive && automations.active == null) {
       scratch.load(AutomationDocument.empty());

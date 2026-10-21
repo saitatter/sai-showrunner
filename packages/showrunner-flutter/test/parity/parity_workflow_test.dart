@@ -31,7 +31,7 @@ void main() {
     );
     final saved = AutomationRepository(File('${root.path}/automation.json'));
     await saved.save(automation);
-    final reopened = await saved.loadStrict();
+    final reopened = await saved.load();
     expect(reopened?.toJson(), automation.toJson());
 
     final eventHub = DartPluginEventHub();

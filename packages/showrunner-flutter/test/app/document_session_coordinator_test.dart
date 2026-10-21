@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/persistence/filesystem/file_transaction.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -24,6 +25,7 @@ void main() {
       final session = documents.automations.open(
         AutomationDocument.empty(),
         'one.yaml',
+        unsaved: true,
       );
       session.editor.addNode('showrunner.if', GraphPoint.zero);
       final entered = Completer<void>(),
@@ -48,6 +50,33 @@ void main() {
   tearDown(() => root.delete(recursive: true));
 
   test(
+    'an externally changed automation preserves the dirty editor and newer file',
+    () async {
+      final documents = DocumentSessionCoordinator(
+        dataService: data,
+        scratchDocument: AutomationDocument.empty(),
+        streamPlans: DartStreamPlanRuntime(),
+      );
+      addTearDown(documents.dispose);
+      final original = AutomationDocument.empty().withMetadata({
+        'name': 'Original',
+      });
+      final repository = documents.automationRepository('one.yaml');
+      await repository.save(original);
+      final session = documents.automations.open(original, 'one.yaml');
+      session.editor.addNode('showrunner.if', GraphPoint.zero);
+      await repository.save(original.withMetadata({'name': 'External'}));
+      await expectLater(
+        documents.saveAutomation(session),
+        throwsA(isA<PersistenceConflictException>()),
+      );
+      expect(session.dirty, isTrue);
+      expect(session.editor.graph.canUndo, isTrue);
+      expect((await repository.load())!.metadata['name'], 'External');
+    },
+  );
+
+  test(
     'save all writes every dirty session and preserves each history',
     () async {
       final documents = DocumentSessionCoordinator(
@@ -59,11 +88,13 @@ void main() {
       final first = documents.automations.open(
         AutomationDocument.empty(),
         'one.yaml',
+        unsaved: true,
       );
       first.editor.addNode('showrunner.if', GraphPoint.zero);
       final second = documents.automations.open(
         AutomationDocument.empty(),
         'two.yaml',
+        unsaved: true,
       );
       second.editor.addNode('showrunner.return', GraphPoint.zero);
       const overlay = ResourceData(
@@ -110,6 +141,7 @@ void main() {
     final session = documents.automations.open(
       AutomationDocument.empty(),
       'one.yaml',
+      unsaved: true,
     );
     session.editor.addNode('showrunner.if', GraphPoint.zero);
     expect(
@@ -147,6 +179,7 @@ void main() {
       final session = documents.automations.open(
         AutomationDocument.empty(),
         'one.yaml',
+        unsaved: true,
       );
       session.editor.addNode('showrunner.if', GraphPoint.zero);
       final closing = documents.closeAutomation(

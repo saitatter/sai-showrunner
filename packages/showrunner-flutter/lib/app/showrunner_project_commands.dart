@@ -68,7 +68,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     });
     await AutomationRepository(
       File('${widget.dataService.userDirectory.path}/automations/$fileName'),
-    ).save(automation);
+    ).save(automation, requireAbsent: true);
     final session = _automationDocuments.open(automation, fileName);
     _loadAutomationSession(session);
     if (!mounted) return;
@@ -105,7 +105,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     );
     await ProfileRepository(
       File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
-    ).save(profile);
+    ).save(profile, requireAbsent: true);
     if (!mounted) return;
     await _profileWorkspaceController.reloadEntries();
     if (!mounted) return;
@@ -139,7 +139,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
       ),
       resourceType: resourceType,
       secretSettings: widget.dataService.secretSettingsStore,
-    ).save(resource);
+    ).save(resource, requireAbsent: true);
     if (resourceType == 'Variable') await _variableRuntime.reload();
     if (!mounted) return;
     _onProjectCatalogChanged();
@@ -158,9 +158,10 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     );
     final automation = await AutomationRepository(file).load();
     if (automation == null) return;
-    await AutomationRepository(
-      file,
-    ).save(automation.withMetadata({...automation.metadata, 'name': name}));
+    await AutomationRepository(file).save(
+      automation.withMetadata({...automation.metadata, 'name': name}),
+      expectedRevision: DocumentRevision.of(automation.toJson()),
+    );
     if (!mounted) return;
     _updatePageState(() => _projectCatalogRevision++);
   }
@@ -182,6 +183,7 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
         deactivationAutomation: profile.deactivationAutomation,
         extra: profile.extra,
       ),
+      expectedRevision: DocumentRevision.of(profile.toJson()),
     );
     if (!mounted) return;
     _updatePageState(() => _projectCatalogRevision++);
@@ -197,7 +199,12 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
     final file = File(
       '${widget.dataService.userDirectory.path}/profiles/$fileName',
     );
-    if (await file.exists()) await file.delete();
+    final profile = await ProfileRepository(file).load();
+    if (profile != null) {
+      await ProfileRepository(
+        file,
+      ).delete(expectedRevision: DocumentRevision.of(profile.toJson()));
+    }
     if (profileController.activeProfileFile == fileName) {
       await profileController.reloadEntries();
     }
@@ -225,12 +232,16 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
       resourceType: resourceType,
       secretSettings: widget.dataService.secretSettingsStore,
     );
-    await repository.save(updated);
+    await repository.save(
+      updated,
+      expectedRevision: DocumentRevision.of(resource.toJson()),
+    );
     if (resourceType == 'Dashboard') {
       await repository.save(
         await DashboardCloudSyncService(
           dataService: widget.dataService,
         ).synchronize(updated),
+        expectedRevision: DocumentRevision.of(updated.toJson()),
       );
     }
     if (!mounted) return;
