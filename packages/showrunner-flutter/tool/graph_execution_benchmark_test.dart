@@ -1,5 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'benchmark_allocations.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_program_signature.dart';
+import 'package:showrunner_flutter/graph/runtime/graph_vm.dart';
+import 'package:showrunner_flutter/runtime/execution_trace.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
@@ -128,29 +132,103 @@ Future<Map<String, Object>> measure(
   Map<String, int> size,
 ) async {
   final cache = GraphProgramCache();
-  final compile = Stopwatch()..start();
   final program = cache.getOrCompile(document);
-  compile.stop();
-  final lookup = Stopwatch()..start();
-  expect(cache.getOrCompile(document), same(program));
-  lookup.stop();
-  final execution = Stopwatch()..start();
-  final result = await CompiledExecutionEngine(cache: cache)
-      .executeWithRegistry(
-        automation: document,
+  final allocations = await BenchmarkAllocations.connect();
+  try {
+    final signature = <int>[],
+        cold = <int>[],
+        hot = <int>[],
+        vm = <int>[],
+        traced = <int>[];
+    var steps = 0;
+    const samples = 21;
+    // Warm all code paths before recording distributions.
+    for (var sample = -3; sample < samples; sample++) {
+      final signatureWatch = Stopwatch()..start();
+      graphProgramSignature(document);
+      signatureWatch.stop();
+      final coldWatch = Stopwatch()..start();
+      GraphProgramCache().getOrCompile(document);
+      coldWatch.stop();
+      final hotWatch = Stopwatch()..start();
+      final cached = cache.getOrCompile(document);
+      hotWatch.stop();
+      expect(cached, same(program));
+      final vmWatch = Stopwatch()..start();
+      final result = await DartGraphVm(program).execute(
         context: EvaluationContext(),
-        registry: registry,
+        action: (node, config, context) async => {'done': true},
       );
-  execution.stop();
-  expect(result.completed, true);
-  expect(cache.compilationCount, 1);
-  return {
-    'scenario': name,
-    ...size,
-    'compileUs': compile.elapsedMicroseconds,
-    'cachedLookupUs': lookup.elapsedMicroseconds,
-    'executionUs': execution.elapsedMicroseconds,
-    'compiledPrograms': cache.compilationCount,
-    'completed': result.completed,
-  };
+      vmWatch.stop();
+      expect(result.completed, true);
+      steps = result.steps;
+      final traces = ExecutionTraceService();
+      final session = traces.start(
+        mode: ExecutionTraceMode.test,
+        source: const ExecutionTraceSource(type: 'benchmark', id: 'synthetic'),
+      );
+      final traceWatch = Stopwatch()..start();
+      await DartGraphVm(program, traceSink: session).execute(
+        context: EvaluationContext(),
+        action: (node, config, context) async => {'done': true},
+      );
+      traceWatch.stop();
+      session.end(ExecutionTraceRunStatus.completed);
+      await traces.dispose();
+      if (sample >= 0) {
+        signature.add(signatureWatch.elapsedMicroseconds);
+        cold.add(coldWatch.elapsedMicroseconds);
+        hot.add(hotWatch.elapsedMicroseconds);
+        vm.add(vmWatch.elapsedMicroseconds);
+        traced.add(traceWatch.elapsedMicroseconds);
+      }
+    }
+    final lookupSamples = await allocations?.measure(
+      () => cache.getOrCompile(document),
+    );
+    final signatureSamples = await allocations?.measure(
+      () => graphProgramSignature(document),
+    );
+    final coldSamples = await allocations?.measure(
+      () => GraphProgramCache().getOrCompile(document),
+    );
+    expect(cache.compilationCount, 1);
+    return {
+      'scenario': name,
+      ...size,
+      'samples': samples,
+      'signatureP50Us': percentile(signature, .5),
+      'signatureP95Us': percentile(signature, .95),
+      'compileP50Us': percentile(cold, .5),
+      'compileP95Us': percentile(cold, .95),
+      'cachedLookupP50Us': percentile(hot, .5),
+      'cachedLookupP95Us': percentile(hot, .95),
+      'vmP50Us': percentile(vm, .5),
+      'vmP95Us': percentile(vm, .95),
+      'traceVmP50Us': percentile(traced, .5),
+      'traceVmP95Us': percentile(traced, .95),
+      'lookupAllocationSamples': ?lookupSamples,
+      'signatureAllocationSamples': ?signatureSamples,
+      'coldAllocationSamples': ?coldSamples,
+      'programInstructions': program.instructions.length,
+      'executedInstructions': steps,
+      'programActions': program.actionNodes.length,
+      'programSlots': program.localSlotCount,
+      'programSubgraphs': program.subgraphs.length,
+      'programWires': program.wireMap.length,
+      'signatureBytes': utf8.encode(graphProgramSignature(document)).length,
+      'cacheHits': cache.hitCount,
+      'cacheMisses': cache.missCount,
+      'signatureBuilds': cache.signatureBuildCount,
+      'compiledPrograms': cache.compilationCount,
+      'completed': true,
+    };
+  } finally {
+    await allocations?.close();
+  }
+}
+
+int percentile(List<int> values, double fraction) {
+  final sorted = [...values]..sort();
+  return sorted[(fraction * sorted.length).ceil() - 1];
 }

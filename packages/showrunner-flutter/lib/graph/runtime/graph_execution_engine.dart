@@ -1,5 +1,6 @@
+import 'dart:collection';
 import 'automation_contract_validation.dart';
-import 'dart:convert';
+import 'graph_program_signature.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
 import 'automation_runtime_projection.dart';
@@ -190,11 +191,48 @@ ExecutionTraceSource _defaultTraceSource(AutomationDocument automation) =>
 
 /// Bounded in-memory cache matching the reference runtime's program cache.
 final class GraphProgramCache {
-  GraphProgramCache({this.maxEntries = 128});
+  GraphProgramCache({this.maxEntries = 128}) {
+    if (maxEntries < 0) throw ArgumentError.value(maxEntries, 'maxEntries');
+  }
 
   final int maxEntries;
   final Map<String, DartGraphProgram> _entries = {};
   int compilationCount = 0;
+  int hitCount = 0;
+  int missCount = 0;
+  int signatureBuildCount = 0;
+  final _signatures =
+      LinkedHashMap<
+        AutomationDocument,
+        ({String space, String? entry, String payload})
+      >.identity();
+
+  String _signatureFor(
+    AutomationDocument document,
+    String space,
+    String? entry,
+  ) {
+    final previous = _signatures.remove(document);
+    if (previous != null &&
+        previous.space == space &&
+        previous.entry == entry) {
+      _signatures[document] = previous;
+      return previous.payload;
+    }
+    final payload = graphProgramSignature(
+      document,
+      entrySpaceId: space,
+      entryNodeId: entry,
+    );
+    signatureBuildCount++;
+    if (maxEntries > 0) {
+      _signatures[document] = (space: space, entry: entry, payload: payload);
+      while (_signatures.length > maxEntries) {
+        _signatures.remove(_signatures.keys.first);
+      }
+    }
+    return payload;
+  }
 
   int get length => _entries.length;
 
@@ -203,56 +241,14 @@ final class GraphProgramCache {
     String? entryNodeId,
     String entrySpaceId = mainAutomationSpace,
   }) {
-    final signature = jsonEncode(
-      _canonical({
-        'spaces': {
-          for (final space in automation.graph.spaces.values)
-            space.id: {
-              'nodes': {
-                for (final node in space.nodes.values)
-                  node.id: {
-                    'id': node.id,
-                    'type': node.type,
-                    'data': node.data,
-                    'metadata': node.metadata,
-                  },
-              },
-              'connections': {
-                for (final edge in space.connections.values)
-                  edge.id: {
-                    'id': edge.id,
-                    'kind': edge.kind.name,
-                    'from': {
-                      'nodeId': edge.from.nodeId,
-                      'portId': edge.from.portId,
-                    },
-                    'to': {'nodeId': edge.to.nodeId, 'portId': edge.to.portId},
-                    'data': edge.data,
-                  },
-              },
-              'metadata': space.metadata,
-            },
-        },
-        'subgraphs': {
-          for (final entry in automation.subgraphs.entries)
-            entry.key: entry.value.toJson(),
-        },
-        'entrySpaceId': entrySpaceId,
-        'entryNodeId':
-            entryNodeId ??
-            (entrySpaceId == mainAutomationSpace
-                ? automation.entryNodeId
-                : automation.subgraphs.values
-                      .where((signature) => signature.spaceId == entrySpaceId)
-                      .firstOrNull
-                      ?.entryNodeId),
-      }),
-    );
+    final signature = _signatureFor(automation, entrySpaceId, entryNodeId);
     final cached = _entries.remove(signature);
     if (cached != null) {
+      hitCount++;
       _entries[signature] = cached;
       return cached;
     }
+    missCount++;
     final program = DartProductionGraphCompiler().compileAutomation(
       automation,
       entryNodeId: entryNodeId,
@@ -268,14 +264,6 @@ final class GraphProgramCache {
 
   void clear() {
     _entries.clear();
+    _signatures.clear();
   }
-}
-
-Object? _canonical(Object? value) {
-  if (value is Map) {
-    final keys = value.keys.cast<String>().toList()..sort();
-    return {for (final key in keys) key: _canonical(value[key])};
-  }
-  if (value is List) return value.map(_canonical).toList();
-  return value;
 }
