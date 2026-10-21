@@ -1,3 +1,5 @@
+import 'package:showrunner_flutter/app/project_panel.dart';
+import 'package:showrunner_flutter/schema/identifiers.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,6 +16,60 @@ import '../support/showrunner_test_app.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets(
+    'malformed resources remain visible and unchanged after app restart',
+    (tester) async {
+      final root = await createShowRunnerFixtureDirectory();
+      addTearDown(() => root.delete(recursive: true));
+      final dataService = ShowRunnerDataService(root);
+      final directory = await Directory(
+        '${root.path}/overlays',
+      ).create(recursive: true);
+      final malformed = File('${directory.path}/broken.json');
+      const original = '{ private-marker';
+      await malformed.writeAsString(original);
+      final repository = dataService.storage.resource(
+        const ResourceTypeId('Overlay'),
+      );
+      await repository.save(
+        const ResourceData(
+          id: 'healthy',
+          config: {'name': 'Healthy overlay', 'widgets': []},
+        ),
+      );
+      for (var launch = 0; launch < 2; launch++) {
+        await tester.pumpWidget(
+          buildShowRunnerTestApp(dataService: dataService),
+        );
+        await _pumpApplication(tester);
+        await _waitForWidget(tester, find.text('Overlays'));
+        final section = tester.widget<ResourceSection>(
+          find.byWidgetPredicate(
+            (widget) => widget is ResourceSection && widget.id == 'overlays',
+          ),
+        );
+        if (!section.expanded) {
+          await tester.ensureVisible(find.text('Overlays').first);
+          await tester.tap(find.text('Overlays').first);
+        }
+        final unreadable = find.text('broken.json (unreadable)');
+        await _waitForWidget(tester, unreadable);
+        await tester.ensureVisible(unreadable);
+        await tester.tap(unreadable);
+        await _waitForWidget(
+          tester,
+          find.textContaining('Could not read broken:'),
+        );
+        expect(find.textContaining('private-marker'), findsNothing);
+        expect(find.text('Healthy overlay'), findsOneWidget);
+        expect(find.byType(OverlayEditorPage), findsNothing);
+        expect(await malformed.readAsString(), original);
+        await closeShowRunnerTestApp(tester);
+        expect(await malformed.readAsString(), original);
+      }
+    },
+  );
 
   testWidgets('creates, opens, and deletes an overlay from Resources', (
     tester,
