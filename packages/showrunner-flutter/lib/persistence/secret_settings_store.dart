@@ -84,6 +84,34 @@ final class SecretSettingsStore {
     await _saveFile(_resourceFile(resourceType, resourceId), values);
   }
 
+  Future<File> settingsStorageFile(String pluginId) =>
+      _contained(_file(pluginId));
+
+  Future<File> resourceStorageFile(String type, String id) =>
+      _contained(_resourceFile(type, id));
+
+  Future<File> _contained(File file) async {
+    final relative = file.absolute.path
+        .substring(directory.absolute.path.length + 1)
+        .replaceAll('\\', '/')
+        .split('/');
+    return containedFile(directory, relative);
+  }
+
+  /// Prepared bytes can participate in a resource/settings redo transaction.
+  /// They are ciphertext only; the journal never receives decoded values.
+  Future<List<int>> sealValues(JsonMap values, {required String owner}) async {
+    ShowRunnerLogger.instance.registerSecrets(values);
+    try {
+      final plaintext = utf8.encode(encodeYaml(values));
+      return List.unmodifiable(
+        await (encrypt ?? encryptWithWindowsDpapi)(plaintext),
+      );
+    } catch (_) {
+      throw SecretStorageException(owner: owner, operation: 'write');
+    }
+  }
+
   Future<void> deleteResource(String resourceType, String resourceId) async {
     var file = _resourceFile(resourceType, resourceId);
     final relative = file.absolute.path
@@ -125,9 +153,7 @@ final class SecretSettingsStore {
         .replaceAll('\\', '/')
         .split('/');
     file = await containedFile(directory, relative);
-    ShowRunnerLogger.instance.registerSecrets(values);
-    final plaintext = utf8.encode(encodeYaml(values));
-    final encrypted = await (encrypt ?? encryptWithWindowsDpapi)(plaintext);
+    final encrypted = await sealValues(values, owner: relative.join('/'));
     await writeAtomicBytes(file, encrypted);
   }
 

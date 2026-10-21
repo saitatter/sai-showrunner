@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:yaml/yaml.dart';
 
-import 'filesystem/atomic_file.dart';
+import 'filesystem/file_transaction.dart';
 import 'filesystem/safe_path.dart';
 import '../services/structured_logger.dart';
 import '../schema/resource.dart';
@@ -29,11 +29,26 @@ class ResourceRepository {
     this.directory, {
     this.resourceType,
     this.secretSettings,
+    this.fileOperations = const TransactionFileOperations(),
   });
 
   final Directory directory;
   final String? resourceType;
   final SecretSettingsStore? secretSettings;
+  final TransactionFileOperations fileOperations;
+
+  FileTransaction _transaction(String id) => FileTransaction(
+    directory: directory,
+    id: id,
+    operations: fileOperations,
+    targets: {
+      'json': () => containedFile(directory, ['$id.json']),
+      'yaml': () => containedFile(directory, ['$id.yaml']),
+      'state': () => containedFile(directory, ['.state', '$id.json']),
+      if (resourceType != null && secretSettings != null)
+        'secrets': () => secretSettings!.resourceStorageFile(resourceType!, id),
+    },
+  );
 
   Future<List<ResourceData>> list() async => (await listWithErrors())
       .where((entry) => entry.isValid)
@@ -42,35 +57,43 @@ class ResourceRepository {
 
   Future<List<ResourceCatalogEntry>> listWithErrors() async {
     if (!await directory.exists()) return const [];
-    final files = await directory
-        .list()
-        .where(
-          (entity) =>
-              entity is File &&
-              (entity.path.endsWith('.json') || entity.path.endsWith('.yaml')),
-        )
-        .cast<File>()
-        .toList();
-
+    final names = <String, String>{};
+    await for (final entity in directory.list(followLinks: false)) {
+      final name = entity.uri.pathSegments.last;
+      if (entity is! File && entity is! Link) continue;
+      if (!name.endsWith('.json') && !name.endsWith('.yaml')) continue;
+      final id = name.replaceFirst(RegExp(r'\.(json|yaml)$'), '');
+      if (!names.containsKey(id) || name.endsWith('.json')) names[id] = name;
+    }
+    final pending = (await containedFile(directory, [
+      '.transactions',
+      '.scan',
+    ])).parent;
+    if (await pending.exists()) {
+      await for (final entity in pending.list(followLinks: false)) {
+        final name = entity.uri.pathSegments.last;
+        if (name.endsWith('.json')) {
+          final id = name.substring(0, name.length - 5);
+          names.putIfAbsent(id, () => '$id.json');
+        }
+      }
+    }
     final resources = <ResourceCatalogEntry>[];
-    for (final file in files) {
+    for (final entry in names.entries) {
       try {
-        resources.add(
-          ResourceCatalogEntry(
-            fileName: file.uri.pathSegments.last,
-            resource: await _read(file),
-          ),
-        );
+        final resource = await load(entry.key);
+        if (resource != null) {
+          resources.add(
+            ResourceCatalogEntry(fileName: entry.value, resource: resource),
+          );
+        }
       } catch (error, stackTrace) {
         resources.add(
-          ResourceCatalogEntry(
-            fileName: file.uri.pathSegments.last,
-            error: error,
-          ),
+          ResourceCatalogEntry(fileName: entry.value, error: error),
         );
         ShowRunnerLogger.instance.error(
           'persistence',
-          'Could not read resource ${file.path}',
+          'Could not read resource ${entry.value}',
           error: error,
           stackTrace: stackTrace,
         );
@@ -82,6 +105,15 @@ class ResourceRepository {
 
   Future<ResourceData?> load(String id) async {
     validateFileIdentifier(id);
+    if (!await directory.exists()) return null;
+    final transaction = _transaction(id);
+    return transaction.locked(() async {
+      await transaction.recover();
+      return _loadUnlocked(id);
+    });
+  }
+
+  Future<ResourceData?> _loadUnlocked(String id) async {
     final jsonFile = await containedFile(directory, ['$id.json']);
     if (await jsonFile.exists()) return _read(jsonFile);
     final yamlFile = await containedFile(directory, ['$id.yaml']);
@@ -91,19 +123,26 @@ class ResourceRepository {
 
   Future<void> save(ResourceData resource) {
     validateFileIdentifier(resource.id);
-    return withFileLock(
-      '${directory.path}/${resource.id}.transaction',
-      () => _save(resource),
-    );
+    // Freeze accepted input before the first asynchronous filesystem operation.
+    final ResourceData snapshot;
+    try {
+      snapshot = ResourceData.fromJson(
+        jsonDecode(jsonEncode(resource.toJson())) as _JsonMap,
+      );
+    } catch (_) {
+      throw const FormatException('Resource values must be JSON serializable.');
+    }
+    final transaction = _transaction(resource.id);
+    return transaction.locked(() async {
+      await transaction.recover();
+      await _save(snapshot, transaction);
+    });
   }
 
-  Future<void> _save(ResourceData resource) async {
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
-    }
-    // Revalidate existing bytes before any credential/state write. A corrupt
-    // or unsupported file must never be overwritten by a stale editor save.
-    await load(resource.id);
+  Future<void> _save(ResourceData resource, FileTransaction transaction) async {
+    // Reject unsupported existing bytes before staging any replacement.
+    await _loadUnlocked(resource.id);
+    final mutations = <FileMutation>[];
     final secretFields = secretResourceFieldIdsFor(resourceType ?? '');
     if (secretSettings == null &&
         secretFields.any(resource.config.containsKey)) {
@@ -123,10 +162,11 @@ class ResourceRepository {
           if (resource.config.containsKey(key)) key: resource.config[key],
       };
       if (secrets.isNotEmpty) {
-        await secretSettings!.saveResource(resourceType!, resource.id, {
+        final encrypted = await secretSettings!.sealValues({
           ...existing,
           ...secrets,
-        });
+        }, owner: '$resourceType/${resource.id}');
+        mutations.add(FileMutation.write('secrets', encrypted));
       }
     }
     final publicResource = ResourceData(
@@ -137,38 +177,37 @@ class ResourceRepository {
     final jsonFile = await containedFile(directory, ['${resource.id}.json']);
     final yamlFile = await containedFile(directory, ['${resource.id}.yaml']);
     if (!await jsonFile.exists() && await yamlFile.exists()) {
-      final stateFile = await containedFile(directory, [
-        '.state',
-        '${resource.id}.json',
-      ]);
       if (resource.state.isNotEmpty) {
-        await writeAtomicText(stateFile, jsonEncode(resource.state));
-      } else if (await stateFile.exists()) {
-        await stateFile.delete();
+        mutations.add(
+          FileMutation.write('state', utf8.encode(jsonEncode(resource.state))),
+        );
+      } else {
+        mutations.add(const FileMutation.remove('state'));
       }
-      await writeAtomicText(yamlFile, encodeYaml(publicConfig));
-      return;
+      mutations.add(
+        FileMutation.write('yaml', utf8.encode(encodeYaml(publicConfig))),
+      );
+    } else {
+      const encoder = JsonEncoder.withIndent('  ');
+      mutations.add(
+        FileMutation.write(
+          'json',
+          utf8.encode(encoder.convert(publicResource.toJson())),
+        ),
+      );
     }
-    const encoder = JsonEncoder.withIndent('  ');
-    await writeAtomicText(jsonFile, encoder.convert(publicResource.toJson()));
+    await transaction.commit(mutations);
   }
 
   Future<void> delete(String id) {
     validateFileIdentifier(id);
-    return withFileLock('${directory.path}/$id.transaction', () => _delete(id));
-  }
-
-  Future<void> _delete(String id) async {
-    if (resourceType != null && secretSettings != null) {
-      await secretSettings!.deleteResource(resourceType!, id);
-    }
-    for (final file in [
-      await containedFile(directory, ['$id.json']),
-      await containedFile(directory, ['$id.yaml']),
-      await containedFile(directory, ['.state', '$id.json']),
-    ]) {
-      if (await file.exists()) await file.delete();
-    }
+    final transaction = _transaction(id);
+    return transaction.locked(() async {
+      await transaction.recover();
+      await transaction.commit([
+        for (final key in transaction.targets.keys) FileMutation.remove(key),
+      ]);
+    });
   }
 
   Future<ResourceData> _read(File file) async {
