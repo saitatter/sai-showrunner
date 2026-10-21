@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -274,17 +275,23 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     final directory = Directory(
       '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
     );
+    var storageRevision = DocumentRevision.of(resource.toJson());
     await showDialog<void>(
       context: context,
       builder: (context) {
         Future<void> save(ResourceData updated) async {
           final repository = _repository(resourceType, directory);
-          await repository.save(updated);
+          await repository.save(updated, expectedRevision: storageRevision);
+          storageRevision = DocumentRevision.of(updated.toJson());
           if (resourceType == 'Dashboard') {
             final synchronized = await DashboardCloudSyncService(
               dataService: dataService,
             ).synchronize(updated);
-            await repository.save(synchronized);
+            await repository.save(
+              synchronized,
+              expectedRevision: storageRevision,
+            );
+            storageRevision = DocumentRevision.of(synchronized.toJson());
           }
           if (resourceType == 'Variable') {
             await widget.variableRuntime?.reload();
@@ -339,7 +346,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       Directory(
         '${dataService.userDirectory.path}/${_resourceDirectory(resourceType)}',
       ),
-    ).save(resource);
+    ).save(resource, requireAbsent: true);
     if (resourceType == 'Variable') {
       await widget.variableRuntime?.reload();
     }
@@ -386,7 +393,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
         ),
       );
     }
-    await repository.delete(resource.id);
+    await repository.delete(
+      resource.id,
+      expectedRevision: DocumentRevision.of(resource.toJson()),
+    );
     if (resourceType == 'Variable') {
       await widget.variableRuntime?.reload();
     }

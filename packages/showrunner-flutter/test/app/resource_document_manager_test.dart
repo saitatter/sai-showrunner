@@ -5,6 +5,35 @@ import 'package:showrunner_flutter/schema/resource.dart';
 
 void main() {
   test(
+    'saving advances the storage baseline without discarding newer edits',
+    () {
+      final manager = ResourceDocumentManager();
+      const original = ResourceData(
+        id: 'overlay',
+        config: {'name': 'Original'},
+      );
+      const saved = ResourceData(id: 'overlay', config: {'name': 'Saved'});
+      const newer = ResourceData(id: 'overlay', config: {'name': 'Newer'});
+      manager.open(original);
+      final baseline = manager.storageRevisions['overlay'];
+      manager.update(saved, isDirty: true);
+      manager.update(newer, isDirty: true);
+      manager.acceptPersisted(saved, baseline);
+      manager.markSavedIfCurrent(saved, saved);
+      expect(manager.storageRevisions['overlay'], isNot(baseline));
+      expect(manager.resources['overlay'], same(newer));
+      expect(manager.hasUnsavedChanges, isTrue);
+      manager.close('overlay');
+      manager.open(original);
+      final reopened = manager.storageRevisions['overlay'];
+      manager.acceptPersisted(saved, baseline);
+      expect(manager.storageRevisions['overlay'], same(reopened));
+      manager.close('overlay');
+      expect(manager.storageRevisions, isEmpty);
+    },
+  );
+
+  test(
     'existing canvas-sized widgets are repaired using their overlay size',
     () {
       const source = ResourceData(

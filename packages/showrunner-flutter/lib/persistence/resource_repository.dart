@@ -1,3 +1,4 @@
+import 'document_revision.dart';
 import 'document_codec.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -121,7 +122,11 @@ class ResourceRepository {
     return null;
   }
 
-  Future<void> save(ResourceData resource) {
+  Future<void> save(
+    ResourceData resource, {
+    DocumentRevision? expectedRevision,
+    bool requireAbsent = false,
+  }) {
     validateFileIdentifier(resource.id);
     // Freeze accepted input before the first asynchronous filesystem operation.
     final ResourceData snapshot;
@@ -135,6 +140,11 @@ class ResourceRepository {
     final transaction = _transaction(resource.id);
     return transaction.locked(() async {
       await transaction.recover();
+      await _checkRevision(
+        resource.id,
+        expectedRevision,
+        requireAbsent: requireAbsent,
+      );
       await _save(snapshot, transaction);
     });
   }
@@ -202,15 +212,31 @@ class ResourceRepository {
     await transaction.commit(mutations);
   }
 
-  Future<void> delete(String id) {
+  Future<void> delete(String id, {DocumentRevision? expectedRevision}) {
     validateFileIdentifier(id);
     final transaction = _transaction(id);
     return transaction.locked(() async {
       await transaction.recover();
+      await _checkRevision(id, expectedRevision);
       await transaction.commit([
         for (final key in transaction.targets.keys) FileMutation.remove(key),
       ]);
     });
+  }
+
+  Future<void> _checkRevision(
+    String id,
+    DocumentRevision? expected, {
+    bool requireAbsent = false,
+  }) async {
+    if (expected == null && !requireAbsent) return;
+    final current = await _loadUnlocked(id);
+    if (requireAbsent
+        ? current != null
+        : current == null ||
+              DocumentRevision.of(current.toJson()) != expected) {
+      throw PersistenceConflictException(id);
+    }
   }
 
   Future<ResourceData> _read(File file) async {

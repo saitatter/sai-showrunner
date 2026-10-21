@@ -5,6 +5,7 @@
 ### Features
 
 ### Fixes
+- Reject stale resource editor saves/deletes and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
 - Reject dangling filesystem redirects and recursive YAML aliases, handle secret roots with trailing separators and clear native DPAPI buffers after use.
 - Recover plugin settings and encrypted credentials together after interrupted saves, serialize independent settings owners and keep unknown encrypted fields out of public settings/resource files.
 - Recover resource config, runtime state and encrypted credentials as one generation after interrupted saves/deletes; serialize repository owners across processes and preserve externally changed files on recovery conflicts.
