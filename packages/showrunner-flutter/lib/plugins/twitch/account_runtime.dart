@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/schema/identifiers.dart';
 import 'dart:io';
 import 'dart:convert';
 
@@ -94,11 +95,8 @@ final class TwitchAccountAuthService {
   Future<ResourceData?> loadAccount(String accountId) =>
       _repository.load(_accountId(accountId));
 
-  ResourceRepository get _repository => ResourceRepository(
-    Directory('${dataService.userDirectory.path}/accounts/twitch'),
-    resourceType: 'TwitchAccount',
-    secretSettings: dataService.secretSettingsStore,
-  );
+  ResourceRepository get _repository =>
+      dataService.storage.resource(const ResourceTypeId('TwitchAccount'));
 
   Future<OAuthTokenSet> _authorizeWithBrowser({
     required String clientId,
@@ -198,10 +196,8 @@ Future<JsonMap> loadTwitchChannelSettings(
   ShowRunnerDataService dataService,
 ) async {
   final settings = await dataService.loadPluginSettings('twitch');
-  final repository = ResourceRepository(
-    Directory('${dataService.userDirectory.path}/accounts/twitch'),
-    resourceType: 'TwitchAccount',
-    secretSettings: dataService.secretSettingsStore,
+  final repository = dataService.storage.resource(
+    const ResourceTypeId('TwitchAccount'),
   );
   final channel = await repository.load('channel');
   final bot = await repository.load('bot');

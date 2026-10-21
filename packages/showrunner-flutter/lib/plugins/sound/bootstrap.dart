@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-import '../../persistence/resource_repository.dart';
 import '../../services/showrunner_data_service.dart';
 import '../registry/plugin_factory_settings.dart';
 import '../registry/plugin_registry.dart';
@@ -18,12 +16,12 @@ Future<SoundOutputRegistry> registerConfiguredSound(
 }) async {
   final soundSettings = await dataService.loadPluginSettings('sound');
   final defaultOutput = soundSettings['defaultOutput']?.toString().trim();
-  final splitterDirectory = Directory(
-    '${dataService.userDirectory.path}/sound/splitters',
+  final splittersRepository = dataService.storage.resource(
+    const ResourceTypeId('AudioSplitterOutput'),
   );
   late final SoundOutputRegistry configuredSoundOutputs;
   Future<void> refreshSoundSplitters() async {
-    final splitters = await ResourceRepository(splitterDirectory).list();
+    final splitters = await splittersRepository.list();
     for (final splitter in splitters) {
       configuredSoundOutputs.registerSplitterConfig(
         splitter.id,
@@ -50,9 +48,9 @@ Future<SoundOutputRegistry> registerConfiguredSound(
       soundOutputs: configuredSoundOutputs,
       ownsOutputs: soundOutputs == null,
       ttsVoiceResolver: (id) async {
-        final resource = await ResourceRepository(
-          Directory('${dataService.userDirectory.path}/sound/tts'),
-        ).load(id);
+        final resource = await dataService.storage
+            .resource(const ResourceTypeId('TTSVoice'))
+            .load(id);
         return resource?.config;
       },
       globalVolume: pluginPercentage(soundSettings['globalVolume'], 100),

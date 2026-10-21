@@ -1,3 +1,5 @@
+import 'package:showrunner_flutter/services/showrunner_data_service.dart';
+import 'package:showrunner_flutter/schema/identifiers.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -9,20 +11,23 @@ void main() {
     () async {
       final root = await Directory.systemTemp.createTemp('showrunner-setup-');
       addTearDown(() => root.delete(recursive: true));
-      final directory = Directory('${root.path}/obs/connections');
+      final repository = ShowRunnerDataService(
+        root,
+      ).storage.resource(const ResourceTypeId('OBSConnection'));
       const persistence = ObsSetupPersistence();
 
-      final id = await persistence.save(
-        directory: directory,
+      final saved = await persistence.save(
+        repository: repository,
         resourceId: null,
         host: '127.0.0.1',
         port: 4455,
         password: 'first',
       );
+      final id = saved.id;
       expect(id, startsWith('obs-main-'));
       expect(
         (await persistence.loadSelected(
-          directory: directory,
+          repository: repository,
           settings: {'obsDefault': id},
         ))?.config,
         {
@@ -35,15 +40,15 @@ void main() {
       );
 
       final updatedId = await persistence.save(
-        directory: directory,
+        repository: repository,
         resourceId: id,
         host: 'obs.example.test',
         port: 4456,
         password: 'second',
       );
-      expect(updatedId, id);
+      expect(updatedId.id, id);
       final resource = await persistence.loadSelected(
-        directory: directory,
+        repository: repository,
         settings: {'obsDefault': id},
       );
       expect(resource?.config['host'], 'obs.example.test');

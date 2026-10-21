@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../design_system/brand_icons.dart';
 import '../../design_system/tokens/tokens.dart';
-import '../../persistence/queue_config_repository.dart';
-import '../../persistence/resource_repository.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../plugins/stream_plans/manifest.dart';
@@ -79,11 +76,14 @@ class _MainDashboardWorkspaceState extends State<MainDashboardWorkspace> {
   }
 
   Future<MainDashboardData> _loadResources() async {
-    final root = widget.dataService.userDirectory.path;
     final results = await Future.wait<Object>([
-      ResourceRepository(Directory('$root/obs/connections')).list(),
-      QueueConfigRepository(Directory('$root/queues')).list(),
-      ResourceRepository(Directory('$root/stream-plans')).list(),
+      widget.dataService.storage
+          .resource(const ResourceTypeId('OBSConnection'))
+          .list(),
+      widget.dataService.storage.queueConfigs.list(),
+      widget.dataService.storage
+          .resource(const ResourceTypeId('StreamPlan'))
+          .list(),
       loadTwitchChannelSettings(widget.dataService),
     ]);
     return MainDashboardData(

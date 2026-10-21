@@ -129,17 +129,16 @@ void main() {
     addTearDown(() => directory.delete(recursive: true));
     final service = ShowRunnerDataService(directory);
 
-    await service.saveResourceConfig('automations', 'welcome', {
-      'name': 'Welcome',
-      'enabled': true,
-    });
+    await service.storage
+        .automation('welcome.yaml')
+        .save(AutomationDocument.empty().withMetadata({'name': 'Welcome'}));
     await File(
       '${directory.path}/automations/readme.txt',
     ).writeAsString('ignored');
-
-    expect(await service.loadResourceConfigs('automations'), {
-      'welcome': {'name': 'Welcome', 'enabled': true},
-    });
+    final catalog = await service.storage.listAutomations();
+    expect(catalog, hasLength(1));
+    expect(catalog.single.fileName, 'welcome.yaml');
+    expect(catalog.single.automation!.metadata['name'], 'Welcome');
   });
 
   test('evaluates graph expressions against Dart runtime context', () {

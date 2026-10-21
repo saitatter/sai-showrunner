@@ -1,13 +1,10 @@
+import '../persistence/project_storage.dart';
+import '../persistence/filesystem/persistence_directory.dart';
 import 'dart:convert';
 import '../schema/identifiers.dart';
 import '../persistence/plugin_settings_store.dart';
-import '../persistence/document_codec.dart';
 import 'dart:io';
 
-import 'package:yaml/yaml.dart';
-
-import '../persistence/filesystem/atomic_file.dart';
-import '../persistence/filesystem/safe_path.dart';
 import '../persistence/secret_settings_store.dart';
 import '../schema/json.dart';
 
@@ -38,6 +35,7 @@ final class ShowRunnerDataService {
       secretSettings ??
       SecretSettingsStore(
         directory: Directory('${userDirectory.path}/secrets'),
+        location: PersistenceDirectory(userDirectory, ['secrets']),
       );
 
   Directory get settingsDirectory =>
@@ -45,9 +43,15 @@ final class ShowRunnerDataService {
   Directory get stateDirectory => Directory('${userDirectory.path}/state');
 
   Future<ShowRunnerHealth> health() async {
-    final settingsExists = await settingsDirectory.exists();
+    final settingsRoot = await PersistenceDirectory(userDirectory, [
+      'settings',
+    ]).resolve();
+    final stateRoot = await PersistenceDirectory(userDirectory, [
+      'state',
+    ]).resolve();
+    final settingsExists = await settingsRoot.exists();
     final settingsFiles = settingsExists
-        ? await settingsDirectory
+        ? await settingsRoot
               .list()
               .where(
                 (entity) => entity is File && entity.path.endsWith('.yaml'),
@@ -57,7 +61,7 @@ final class ShowRunnerDataService {
     return ShowRunnerHealth(
       userDirectoryExists: await userDirectory.exists(),
       settingsDirectoryExists: settingsExists,
-      stateDirectoryExists: await stateDirectory.exists(),
+      stateDirectoryExists: await stateRoot.exists(),
       settingsFileCount: settingsFiles,
     );
   }
@@ -65,6 +69,7 @@ final class ShowRunnerDataService {
   PluginSettingsStore get pluginSettingsStore => FilePluginSettingsStore(
     directory: settingsDirectory,
     secrets: secretSettingsStore,
+    location: PersistenceDirectory(userDirectory, ['settings']),
   );
 
   Future<JsonMap> loadPluginSettings(String pluginId) =>
@@ -95,50 +100,9 @@ final class ShowRunnerDataService {
     JsonMap Function(JsonMap settings) transform,
   ) => pluginSettingsStore.transform(PluginId(pluginId), transform);
 
-  Future<Map<String, JsonMap>> loadResourceConfigs(
-    String resourceDirectory,
-  ) async {
-    final directory = safeRelativeDirectory(userDirectory, resourceDirectory);
-    if (!await directory.exists()) return <String, JsonMap>{};
-    final resources = <String, JsonMap>{};
-    await for (final entity in directory.list()) {
-      if (entity is! File || !entity.path.endsWith('.yaml')) continue;
-      final id = entity.uri.pathSegments.last.replaceFirst(
-        RegExp(r'\.yaml$'),
-        '',
-      );
-      final safeFile = await containedFile(userDirectory, [
-        ...resourceDirectory.split('/'),
-        entity.uri.pathSegments.last,
-      ]);
-      final parsed = loadYaml(await safeFile.readAsString());
-      if (parsed is YamlMap) resources[id] = decodeYamlValue(parsed) as JsonMap;
-    }
-    return resources;
-  }
+  ProjectStorage get storage =>
+      ProjectStorage(userDirectory, secrets: secretSettingsStore);
 
-  Future<void> saveResourceConfig(
-    String resourceDirectory,
-    String resourceId,
-    JsonMap config,
-  ) async {
-    safeRelativeDirectory(userDirectory, resourceDirectory);
-    validateFileIdentifier(resourceId);
-    final file = await containedFile(userDirectory, [
-      ...resourceDirectory.split('/'),
-      '$resourceId.yaml',
-    ]);
-    await writeAtomicText(file, encodeYaml(config));
-  }
-
-  Future<List<String>> listUserFiles(String relativeDirectory) async {
-    final directory = safeRelativeDirectory(userDirectory, relativeDirectory);
-    if (!await directory.exists()) return <String>[];
-    final files = <String>[];
-    await for (final entity in directory.list()) {
-      if (entity is File) files.add(entity.uri.pathSegments.last);
-    }
-    files.sort();
-    return files;
-  }
+  Future<List<String>> listUserFiles(String relativeDirectory) =>
+      storage.listFiles(relativeDirectory);
 }

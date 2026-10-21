@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/widgets.dart';
 
 import '../../app/commands/app_command.dart';
@@ -44,13 +42,7 @@ final class DartPluginUiHostContext {
   ) async {
     final contract = (await registryFuture).resource(resourceType);
     if (contract == null) return null;
-    return ResourceRepository(
-      Directory(
-        '${dataService.userDirectory.path}/${contract.storageDirectory}',
-      ),
-      resourceType: resourceType.value,
-      secretSettings: dataService.secretSettingsStore,
-    );
+    return dataService.storage.resource(resourceType, contract: contract);
   }
 
   Future<void> runCommand(String commandId, {BuildContext? context}) async {

@@ -1,7 +1,5 @@
 import '../runtime/provider_operation_policy.dart';
 import 'dart:async';
-import 'dart:io';
-import '../../persistence/resource_repository.dart';
 import '../../runtime/expression.dart';
 import '../../services/http_provider_transports.dart';
 import '../../services/plugin_event_hub.dart';
@@ -54,8 +52,8 @@ Future<void> registerConfiguredTwitch(
     createTwitchPlugin(
       configuredTwitchTransport,
       eventHub: eventHub,
-      viewerGroupRepository: ResourceRepository(
-        Directory('${dataService.userDirectory.path}/twitch/groups'),
+      viewerGroupRepository: dataService.storage.resource(
+        const ResourceTypeId('CustomTwitchViewerGroup'),
       ),
     ),
 

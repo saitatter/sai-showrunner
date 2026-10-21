@@ -1,3 +1,4 @@
+import 'persistence_directory.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
@@ -40,22 +41,25 @@ final class FileTransaction {
     required this.id,
     required Map<String, Future<File> Function()> targets,
     this.operations = const TransactionFileOperations(),
+    this.location,
   }) : targets = Map.unmodifiable(targets) {
     validateFileIdentifier(id);
   }
   final Directory directory;
+  final PersistenceDirectory? location;
   final String id;
   final Map<String, Future<File> Function()> targets;
   final TransactionFileOperations operations;
 
-  Future<File> get _journal =>
-      containedFile(directory, ['.transactions', '$id.json']);
+  Future<File> _file(List<String> names) =>
+      location?.file(names) ?? containedFile(directory, names);
+  Future<File> get _journal => _file(['.transactions', '$id.json']);
 
   Future<T> locked<T>(Future<T> Function() operation) async {
-    final lockFile = await containedFile(directory, ['.locks', '$id.lock']);
+    final lockFile = await _file(['.locks', '$id.lock']);
     return withFileLock(lockFile.path, () async {
       await lockFile.parent.create(recursive: true);
-      final checked = await containedFile(directory, ['.locks', '$id.lock']);
+      final checked = await _file(['.locks', '$id.lock']);
       final handle = await checked.open(mode: FileMode.append);
       try {
         await handle.lock(FileLock.blockingExclusive);

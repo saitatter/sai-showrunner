@@ -1,7 +1,6 @@
 import '../../persistence/document_revision.dart';
 import '../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -46,9 +45,7 @@ class _QueueWorkspaceState extends State<QueueWorkspace> {
   void initState() {
     super.initState();
     _selectedQueue = widget.queue;
-    _repository = QueueConfigRepository(
-      Directory('${widget.dataService.userDirectory.path}/queues'),
-    );
+    _repository = widget.dataService.storage.queueConfigs;
     _load();
   }
 

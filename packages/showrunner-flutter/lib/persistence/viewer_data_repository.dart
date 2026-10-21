@@ -1,3 +1,4 @@
+import 'filesystem/persistence_directory.dart';
 import 'document_revision.dart';
 import 'package:crypto/crypto.dart';
 import 'filesystem/file_transaction.dart';
@@ -67,15 +68,18 @@ abstract interface class ViewerDataRepository {
 }
 
 final class FileViewerDataRepository implements ViewerDataRepository {
-  FileViewerDataRepository(this.directory);
+  FileViewerDataRepository(this.directory, {this.location});
 
   final Directory directory;
+  final PersistenceDirectory? location;
+  Future<File> _file(List<String> names) =>
+      location?.file(names) ?? containedFile(directory, names);
 
   File get definitionsFile => File('${directory.path}/variables.yaml');
 
   @override
   Future<List<ViewerVariableDefinition>> loadDefinitions() async {
-    final file = await containedFile(directory, ['variables.yaml']);
+    final file = await _file(['variables.yaml']);
     if (!await file.exists()) return const [];
     final contents = await file.readAsString();
     if (contents.trim().isEmpty) return const [];
@@ -119,6 +123,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
     await FileTransaction(
       directory: directory,
       id: 'definitions',
+      location: location,
       targets: const {},
     ).locked(() async {
       final current = await loadDefinitions();
@@ -136,7 +141,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
           throw const FormatException('Duplicate viewer variable definition.');
         }
       }
-      final file = await containedFile(directory, ['variables.yaml']);
+      final file = await _file(['variables.yaml']);
       await writeAtomicText(file, _encodeDefinitions(values));
     });
   }
@@ -167,10 +172,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
     bool descending = false,
   }) async {
     _providerDirectory(provider);
-    final viewerDirectory = (await containedFile(directory, [
-      provider,
-      ".scan",
-    ])).parent;
+    final viewerDirectory = (await _file([provider, ".scan"])).parent;
     if (!await viewerDirectory.exists()) return const [];
     final rows = <ViewerDataRow>[];
     await for (final entity in viewerDirectory.list()) {
@@ -178,7 +180,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       try {
         final row = ViewerDataRow.fromJson(
           jsonDecode(
-                await (await containedFile(directory, [
+                await (await _file([
                   provider,
                   entity.uri.pathSegments.last,
                 ])).readAsString(),
@@ -400,7 +402,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
         .encode(utf8.encode(viewerId))
         .replaceAll('=', '');
     _providerDirectory(provider);
-    return containedFile(directory, [provider, '$encodedId.json']);
+    return _file([provider, '$encodedId.json']);
   }
 
   Directory _providerDirectory(String provider) {
@@ -414,6 +416,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       FileTransaction(
         directory: directory,
         id: 'viewer-${sha256.convert(utf8.encode(key))}',
+        location: location,
         targets: const {},
       ).locked(operation);
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import '../../persistence/resource_repository.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
@@ -21,8 +20,8 @@ Future<void> registerConfiguredOverlays(
   required void Function(OverlayPresenceReader reader)?
   onOverlayPresenceReaderCreated,
 }) async {
-  final overlayRepository = ResourceRepository(
-    Directory('${dataService.userDirectory.path}/overlays'),
+  final overlayRepository = dataService.storage.resource(
+    const ResourceTypeId('Overlay'),
   );
   final overlayStore = OverlayResourceStore(
     load: overlayRepository.load,

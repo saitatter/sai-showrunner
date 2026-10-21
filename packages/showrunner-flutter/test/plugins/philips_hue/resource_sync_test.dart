@@ -15,8 +15,10 @@ void main() {
       addTearDown(() => root.delete(recursive: true));
       final requests = <String>[];
       final synchronizer = PhilipsHueResourceSynchronizer(
-        lightDirectory: Directory('${root.path}/iot/lights'),
-        plugDirectory: Directory('${root.path}/iot/plugs'),
+        lightRepository: ResourceRepository(
+          Directory('${root.path}/iot/lights'),
+        ),
+        plugRepository: ResourceRepository(Directory('${root.path}/iot/plugs')),
       );
 
       await synchronizer.sync(

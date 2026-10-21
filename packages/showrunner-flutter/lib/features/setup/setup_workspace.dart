@@ -1,5 +1,6 @@
+import '../../persistence/document_revision.dart';
+import '../../schema/identifiers.dart';
 import '../../components/data_inputs/numeric_input_formatter.dart';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -37,6 +38,7 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   final _settings = <String, Map<String, dynamic>>{};
   final _obsPersistence = const ObsSetupPersistence();
   String? _obsResourceId;
+  DocumentRevision? _obsResourceRevision;
   int _stepIndex = 0;
   bool _loading = true;
   bool _saving = false;
@@ -97,14 +99,16 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
   }
 
   Future<void> _loadObsResource(Map<String, dynamic> settings) async {
-    final directory = Directory(
-      '${widget.dataService.userDirectory.path}/obs/connections',
-    );
     final selected = await _obsPersistence.loadSelected(
-      directory: directory,
+      repository: widget.dataService.storage.resource(
+        const ResourceTypeId('OBSConnection'),
+      ),
       settings: settings,
     );
     _obsResourceId = selected?.id;
+    _obsResourceRevision = selected == null
+        ? null
+        : DocumentRevision.of(selected.toJson());
     _fillControllers({...settings, ...?selected?.config});
   }
 
@@ -214,17 +218,19 @@ class _SetupWorkspaceState extends State<SetupWorkspace> {
       if (_pluginId == 'obs') {
         final host = _hostController.text.trim();
         final port = int.tryParse(_portController.text.trim()) ?? 4455;
-        final id = await _obsPersistence.save(
-          directory: Directory(
-            '${widget.dataService.userDirectory.path}/obs/connections',
+        final saved = await _obsPersistence.save(
+          repository: widget.dataService.storage.resource(
+            const ResourceTypeId('OBSConnection'),
           ),
+          expectedRevision: _obsResourceRevision,
           resourceId: _obsResourceId,
           host: host,
           port: port,
           password: _passwordController.text,
         );
-        _obsResourceId = id;
-        current['obsDefault'] = id;
+        _obsResourceId = saved.id;
+        _obsResourceRevision = DocumentRevision.of(saved.toJson());
+        current['obsDefault'] = saved.id;
       } else if (_pluginId == 'twitch') {
         current['clientId'] = twitchPublicClientId;
       } else {

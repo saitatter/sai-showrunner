@@ -1,7 +1,7 @@
+import '../../schema/identifiers.dart';
 import '../../persistence/document_revision.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -47,12 +47,10 @@ class _VariablesWorkspaceState extends State<VariablesWorkspace> {
   @override
   void initState() {
     super.initState();
-    _repository = ResourceRepository(
-      Directory('${widget.dataService.userDirectory.path}/variables'),
+    _repository = widget.dataService.storage.resource(
+      const ResourceTypeId('Variable'),
     );
-    _viewerDataRepository = FileViewerDataRepository(
-      Directory('${widget.dataService.userDirectory.path}/viewer-data'),
-    );
+    _viewerDataRepository = widget.dataService.storage.viewerData;
     widget.variableRuntime?.addListener(_onRuntimeChanged);
     _load();
   }

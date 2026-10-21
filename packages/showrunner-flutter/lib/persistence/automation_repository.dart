@@ -1,3 +1,4 @@
+import 'filesystem/persistence_directory.dart';
 import 'document_revision.dart';
 import 'filesystem/typed_document_file.dart';
 import '../graph/domain/automation_document.dart';
@@ -28,12 +29,14 @@ abstract interface class AutomationStore {
 }
 
 final class AutomationRepository implements AutomationStore {
-  const AutomationRepository(this.file);
+  const AutomationRepository(this.file, {this.location});
 
   final File file;
+  final PersistenceDirectory? location;
 
   TypedDocumentFile<AutomationDocument> get _store => TypedDocumentFile(
     file: file,
+    location: location,
     kind: 'automation',
     decode: AutomationDocument.fromJson,
     encode: (document) => document.toJson(),
@@ -42,8 +45,10 @@ final class AutomationRepository implements AutomationStore {
   Future<AutomationDocument?> load() => _store.load();
 
   static Future<List<AutomationCatalogEntry>> loadDirectory(
-    Directory directory,
-  ) async {
+    Directory directory, {
+    PersistenceDirectory? location,
+  }) async {
+    await location?.resolve();
     if (!await directory.exists()) return const <AutomationCatalogEntry>[];
     final entries = <AutomationCatalogEntry>[];
     await for (final entity in directory.list()) {
@@ -53,7 +58,10 @@ final class AutomationRepository implements AutomationStore {
         entries.add(
           AutomationCatalogEntry(
             fileName: fileName,
-            automation: await AutomationRepository(entity).load(),
+            automation: await AutomationRepository(
+              entity,
+              location: location,
+            ).load(),
           ),
         );
       } catch (error) {

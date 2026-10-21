@@ -1,3 +1,4 @@
+import 'persistence_directory.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:yaml/yaml.dart';
@@ -17,16 +18,23 @@ final class TypedDocumentFile<T> {
     required this.decode,
     required this.encode,
     this.format,
+    this.location,
   });
   final File file;
+  final PersistenceDirectory? location;
   final String kind;
   final T Function(JsonMap) decode;
   final JsonMap Function(T) encode;
   final String Function(JsonMap)? format;
   String get _name => file.uri.pathSegments.last;
-  FileTransaction get _owner =>
-      FileTransaction(directory: file.parent, id: _name, targets: const {});
-  Future<File> _checked() => containedFile(file.parent, [_name]);
+  FileTransaction get _owner => FileTransaction(
+    directory: file.parent,
+    id: _name,
+    targets: const {},
+    location: location,
+  );
+  Future<File> _checked() =>
+      location?.file([_name]) ?? containedFile(file.parent, [_name]);
 
   Future<T?> _read() async {
     final source = await _checked();

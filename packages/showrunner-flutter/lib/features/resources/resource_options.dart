@@ -1,9 +1,7 @@
-import 'dart:io';
-
-import '../../persistence/resource_repository.dart';
 import '../../plugins/sound/windows_audio.dart';
 import '../../services/showrunner_data_service.dart';
-import 'resource_editor_registry.dart';
+import '../../plugins/registry/builtin_resource_specs.dart';
+import '../../schema/identifiers.dart';
 
 /// Loads IDs that can be selected by a resource-valued graph input.
 ///
@@ -37,9 +35,9 @@ Future<List<String>> loadResourceOptions(
     final systemOutputs = createDefaultSoundOutputRegistry().outputs.map(
       (output) => output.id,
     );
-    final splitters = await ResourceRepository(
-      Directory('${dataService.userDirectory.path}/sound/splitters'),
-    ).list();
+    final splitters = await dataService.storage
+        .resource(const ResourceTypeId('AudioSplitterOutput'))
+        .list();
     return {
       'system.default',
       'system.communications',
@@ -48,12 +46,13 @@ Future<List<String>> loadResourceOptions(
     }.toList(growable: false);
   }
 
-  final definition = createDefaultResourceEditorRegistry().find(resourceType);
-  if (definition == null) return const [];
-  final resources = await ResourceRepository(
-    Directory(
-      '${dataService.userDirectory.path}/${definition.storageDirectory}',
-    ),
-  ).list();
+  if (!builtInResourceSpecs.any(
+    (spec) => spec.resourceTypeId.value == resourceType,
+  )) {
+    return const [];
+  }
+  final resources = await dataService.storage
+      .resource(ResourceTypeId(resourceType))
+      .list();
   return resources.map((resource) => resource.id).toList(growable: false);
 }

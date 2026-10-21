@@ -1,3 +1,4 @@
+import 'filesystem/persistence_directory.dart';
 import 'document_revision.dart';
 import 'document_codec.dart';
 import 'dart:convert';
@@ -29,11 +30,15 @@ class ResourceRepository {
   const ResourceRepository(
     this.directory, {
     this.resourceType,
+    this.location,
     this.secretSettings,
     this.fileOperations = const TransactionFileOperations(),
   });
 
   final Directory directory;
+  final PersistenceDirectory? location;
+  Future<File> _file(List<String> names) =>
+      location?.file(names) ?? containedFile(directory, names);
   final String? resourceType;
   final SecretSettingsStore? secretSettings;
   final TransactionFileOperations fileOperations;
@@ -42,10 +47,11 @@ class ResourceRepository {
     directory: directory,
     id: id,
     operations: fileOperations,
+    location: location,
     targets: {
-      'json': () => containedFile(directory, ['$id.json']),
-      'yaml': () => containedFile(directory, ['$id.yaml']),
-      'state': () => containedFile(directory, ['.state', '$id.json']),
+      'json': () => _file(['$id.json']),
+      'yaml': () => _file(['$id.yaml']),
+      'state': () => _file(['.state', '$id.json']),
       if (resourceType != null && secretSettings != null)
         'secrets': () => secretSettings!.resourceStorageFile(resourceType!, id),
     },
@@ -57,6 +63,7 @@ class ResourceRepository {
       .toList();
 
   Future<List<ResourceCatalogEntry>> listWithErrors() async {
+    await location?.resolve();
     if (!await directory.exists()) return const [];
     final names = <String, String>{};
     await for (final entity in directory.list(followLinks: false)) {
@@ -66,10 +73,7 @@ class ResourceRepository {
       final id = name.replaceFirst(RegExp(r'\.(json|yaml)$'), '');
       if (!names.containsKey(id) || name.endsWith('.json')) names[id] = name;
     }
-    final pending = (await containedFile(directory, [
-      '.transactions',
-      '.scan',
-    ])).parent;
+    final pending = (await _file(['.transactions', '.scan'])).parent;
     if (await pending.exists()) {
       await for (final entity in pending.list(followLinks: false)) {
         final name = entity.uri.pathSegments.last;
@@ -106,6 +110,7 @@ class ResourceRepository {
 
   Future<ResourceData?> load(String id) async {
     validateFileIdentifier(id);
+    await location?.resolve();
     if (!await directory.exists()) return null;
     final transaction = _transaction(id);
     return transaction.locked(() async {
@@ -115,9 +120,9 @@ class ResourceRepository {
   }
 
   Future<ResourceData?> _loadUnlocked(String id) async {
-    final jsonFile = await containedFile(directory, ['$id.json']);
+    final jsonFile = await _file(['$id.json']);
     if (await jsonFile.exists()) return _read(jsonFile);
-    final yamlFile = await containedFile(directory, ['$id.yaml']);
+    final yamlFile = await _file(['$id.yaml']);
     if (await yamlFile.exists()) return _read(yamlFile);
     return null;
   }
@@ -187,8 +192,8 @@ class ResourceRepository {
       config: publicConfig,
       state: resource.state,
     );
-    final jsonFile = await containedFile(directory, ['${resource.id}.json']);
-    final yamlFile = await containedFile(directory, ['${resource.id}.yaml']);
+    final jsonFile = await _file(['${resource.id}.json']);
+    final yamlFile = await _file(['${resource.id}.yaml']);
     if (!await jsonFile.exists() && await yamlFile.exists()) {
       if (resource.state.isNotEmpty) {
         mutations.add(
@@ -240,7 +245,24 @@ class ResourceRepository {
   }
 
   Future<ResourceData> _read(File file) async {
-    file = await containedFile(directory, [file.uri.pathSegments.last]);
+    try {
+      return await _readValidated(file);
+    } on YamlException {
+      throw const FormatException(
+        'Invalid resource YAML. Check the stored syntax.',
+      );
+    } on FormatException catch (error) {
+      if (error.source != null) {
+        throw const FormatException(
+          'Invalid resource JSON. Check the stored syntax.',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<ResourceData> _readValidated(File file) async {
+    file = await _file([file.uri.pathSegments.last]);
     final content = await file.readAsString();
     ResourceData resource;
     if (file.path.endsWith('.json')) {
@@ -267,7 +289,7 @@ class ResourceRepository {
         RegExp(r'\.yaml$'),
         '',
       );
-      final stateFile = await containedFile(directory, ['.state', '$id.json']);
+      final stateFile = await _file(['.state', '$id.json']);
       final state = await stateFile.exists()
           ? jsonDecode(await stateFile.readAsString())
           : <String, dynamic>{};
@@ -279,6 +301,9 @@ class ResourceRepository {
         config: decodeYamlValue(parsed) as _JsonMap,
         state: Map<String, dynamic>.from(state),
       );
+    }
+    if (resource.config['name'] != null && resource.config['name'] is! String) {
+      throw const FormatException('Resource name must be text.');
     }
     return _withSecretResourceConfig(resource);
   }

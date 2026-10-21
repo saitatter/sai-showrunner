@@ -1,58 +1,54 @@
-import 'dart:io';
+import '../../persistence/document_revision.dart';
 
 import '../../plugins/obs/transport.dart';
 import '../../persistence/resource_repository.dart';
-import '../../persistence/secret_settings_store.dart';
 import '../../schema/resource.dart';
 
 final class ObsSetupPersistence {
   const ObsSetupPersistence();
 
   Future<ResourceData?> loadSelected({
-    required Directory directory,
+    required ResourceRepository repository,
     required Map<String, dynamic> settings,
   }) async {
     final selectedId = settings['obsDefault']?.toString();
     if (selectedId == null || selectedId.isEmpty) return null;
-    return _repository(directory).load(selectedId);
+    return repository.load(selectedId);
   }
 
-  Future<String> save({
-    required Directory directory,
+  Future<ResourceData> save({
+    required ResourceRepository repository,
     required String? resourceId,
     required String host,
     required int port,
     required String password,
+    DocumentRevision? expectedRevision,
   }) async {
-    final repository = _repository(directory);
     final id = resourceId == null || resourceId.isEmpty
         ? 'obs-main-${DateTime.now().microsecondsSinceEpoch}'
         : resourceId;
     final existing = await repository.load(id);
-    await repository.save(
-      ResourceData(
-        id: id,
-        config: {
-          ...?existing?.config,
-          'name': existing?.config['name'] ?? 'Main OBS',
-          'host': host,
-          'port': port,
-          'password': password,
-          'local': isLocalHost(host),
-        },
-        state: existing?.state ?? const {},
-      ),
+    final resource = ResourceData(
+      id: id,
+      config: {
+        ...?existing?.config,
+        'name': existing?.config['name'] ?? 'Main OBS',
+        'host': host,
+        'port': port,
+        'password': password,
+        'local': isLocalHost(host),
+      },
+      state: existing?.state ?? const {},
     );
-    return id;
+    await repository.save(
+      resource,
+      expectedRevision:
+          expectedRevision ??
+          (existing == null ? null : DocumentRevision.of(existing.toJson())),
+      requireAbsent: existing == null,
+    );
+    return resource;
   }
-
-  ResourceRepository _repository(Directory directory) => ResourceRepository(
-    directory,
-    resourceType: 'OBSConnection',
-    secretSettings: SecretSettingsStore(
-      directory: Directory('${directory.parent.parent.path}/secrets'),
-    ),
-  );
 }
 
 bool isLocalHost(String host) {
