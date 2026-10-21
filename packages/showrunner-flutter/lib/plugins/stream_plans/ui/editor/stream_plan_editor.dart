@@ -1,4 +1,20 @@
-part of '../resource_editor_registry.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+
+import 'package:showrunner_flutter/graph/controller/automation_editor_controller.dart';
+import 'package:showrunner_flutter/graph/domain/automation_document.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_schema.dart';
+import 'package:showrunner_flutter/graph/ui/inline_automation_graph.dart';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
+
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/schema/json.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/schema/stream_plan.dart';
+
+import 'package:showrunner_flutter/plugins/stream_plans/ui/editor/stream_plan_segment_editor.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
 
 class StreamPlanEditorPage extends StatefulWidget {
   const StreamPlanEditorPage({
@@ -27,7 +43,7 @@ class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
   late List<StreamPlanSegmentData> _segments;
   late final StreamPlanData _initialPlan;
   late String _savedBaseline;
-  final Map<String, GlobalKey<_StreamPlanSegmentCardState>> _segmentKeys = {};
+  final Map<String, GlobalKey<StreamPlanSegmentEditorState>> _segmentKeys = {};
   AutomationEditorController? _activationEditor;
   AutomationEditorController? _deactivationEditor;
   Object? _loadError;
@@ -137,10 +153,10 @@ class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
         const Text('No segments defined.')
       else
         for (var index = 0; index < _segments.length; index++)
-          _StreamPlanSegmentCard(
+          StreamPlanSegmentEditor(
             key: _segmentKeys.putIfAbsent(
               _segments[index].id,
-              GlobalKey<_StreamPlanSegmentCardState>.new,
+              GlobalKey<StreamPlanSegmentEditorState>.new,
             ),
             index: index,
             segment: _segments[index],
@@ -179,7 +195,7 @@ class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
           ),
     ];
     if (!widget.documentMode) {
-      return _ResourceForm(
+      return ResourceForm(
         title: 'Edit stream plan',
         fields: fields,
         onSave: _save,
@@ -267,8 +283,7 @@ class _StreamPlanEditorPageState extends State<StreamPlanEditorPage> {
       'segments': _segments
           .map(
             (segment) =>
-                (_segmentKeys[segment.id]?.currentState?._savedSegment() ??
-                        segment)
+                (_segmentKeys[segment.id]?.currentState?.snapshot() ?? segment)
                     .toJson(),
           )
           .toList(),

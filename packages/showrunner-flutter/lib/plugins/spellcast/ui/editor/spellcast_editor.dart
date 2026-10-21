@@ -1,16 +1,26 @@
-part of '../resource_editor_registry.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class _SpellcastEditor extends StatefulWidget {
-  const _SpellcastEditor({required this.resource, required this.onSave});
+import 'package:showrunner_flutter/schema/resource.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_field_values.dart';
+
+class SpellcastEditor extends StatefulWidget {
+  const SpellcastEditor({
+    super.key,
+    required this.resource,
+    required this.onSave,
+  });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
 
   @override
-  State<_SpellcastEditor> createState() => _SpellcastEditorState();
+  State<SpellcastEditor> createState() => _SpellcastEditorState();
 }
 
-class _SpellcastEditorState extends State<_SpellcastEditor> {
+class _SpellcastEditorState extends State<SpellcastEditor> {
   static const _bitAmounts = <int>[
     10,
     20,
@@ -84,13 +94,13 @@ class _SpellcastEditorState extends State<_SpellcastEditor> {
     super.initState();
     final spellData = _spellData;
     _name = TextEditingController(
-      text: _displayValue(widget.resource.config['name']),
+      text: ResourceFieldValues.display(widget.resource.config['name']),
     );
     _spellId = TextEditingController(
-      text: _displayValue(widget.resource.config['spellId']),
+      text: ResourceFieldValues.display(widget.resource.config['spellId']),
     );
     _description = TextEditingController(
-      text: _displayValue(spellData['description']),
+      text: ResourceFieldValues.display(spellData['description']),
     );
     _enabled = spellData['enabled'] == true;
     _bits = _nearestBitAmount((spellData['bits'] as num?)?.toInt() ?? 10);
@@ -109,7 +119,7 @@ class _SpellcastEditorState extends State<_SpellcastEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: 'Edit Spellcast spell',
     fields: [
       TextField(
@@ -177,41 +187,5 @@ class _SpellcastEditorState extends State<_SpellcastEditor> {
   int _nearestBitAmount(int value) => _bitAmounts.reduce(
     (left, right) =>
         (value - left).abs() <= (value - right).abs() ? left : right,
-  );
-}
-
-class _ResourceForm extends StatelessWidget {
-  const _ResourceForm({
-    required this.title,
-    required this.fields,
-    required this.onSave,
-    this.validate,
-  });
-
-  final String title;
-  final List<Widget> fields;
-  final Future<void> Function() onSave;
-  final bool Function()? validate;
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(title),
-    content: SingleChildScrollView(
-      child: Column(mainAxisSize: MainAxisSize.min, children: fields),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () async {
-          if (validate?.call() == false) return;
-          await onSave();
-          if (context.mounted) Navigator.pop(context);
-        },
-        child: const Text('Save'),
-      ),
-    ],
   );
 }

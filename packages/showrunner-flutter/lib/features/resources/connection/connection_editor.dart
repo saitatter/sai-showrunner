@@ -1,7 +1,16 @@
-part of '../resource_editor_registry.dart';
+import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class _ConnectionEditor extends StatefulWidget {
-  const _ConnectionEditor({
+import 'package:showrunner_flutter/plugins/obs/transport.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_field_values.dart';
+
+class ConnectionEditor extends StatefulWidget {
+  const ConnectionEditor({
+    super.key,
     required this.title,
     required this.resource,
     required this.onSave,
@@ -17,10 +26,10 @@ class _ConnectionEditor extends StatefulWidget {
   testConnection;
 
   @override
-  State<_ConnectionEditor> createState() => _ConnectionEditorState();
+  State<ConnectionEditor> createState() => _ConnectionEditorState();
 }
 
-class _ConnectionEditorState extends State<_ConnectionEditor> {
+class _ConnectionEditorState extends State<ConnectionEditor> {
   late final TextEditingController _name;
   late final TextEditingController _host;
   late final TextEditingController _port;
@@ -35,12 +44,20 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
   void initState() {
     super.initState();
     final config = widget.resource.config;
-    _name = TextEditingController(text: _displayValue(config['name']));
-    _host = TextEditingController(text: _displayValue(config['host']));
-    _port = TextEditingController(text: _displayValue(config['port']));
-    _password = TextEditingController(text: _displayValue(config['password']));
+    _name = TextEditingController(
+      text: ResourceFieldValues.display(config['name']),
+    );
+    _host = TextEditingController(
+      text: ResourceFieldValues.display(config['host']),
+    );
+    _port = TextEditingController(
+      text: ResourceFieldValues.display(config['port']),
+    );
+    _password = TextEditingController(
+      text: ResourceFieldValues.display(config['password']),
+    );
     _installPath = TextEditingController(
-      text: _displayValue(config['installPath']),
+      text: ResourceFieldValues.display(config['installPath']),
     );
     _local = config['local'] == true;
   }
@@ -86,7 +103,7 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: widget.title,
     fields: [
       TextField(
@@ -189,7 +206,7 @@ class _ConnectionEditorState extends State<_ConnectionEditor> {
   );
 }
 
-Future<bool> _testObsConnection(String host, int port, String? password) async {
+Future<bool> testObsConnection(String host, int port, String? password) async {
   final transport = ObsWebSocketTransport(
     host: host,
     port: port,

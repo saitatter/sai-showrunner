@@ -239,7 +239,13 @@ They are not a mechanism to load desktop plugins into another process. The curre
 registered dashboard widgets are label and remote button; unknown kinds remain
 visible placeholders. External plugin loading is intentionally deferred in ADR-003.
 
-### Persisted document ownership and current recovery boundary
+#### Resource editor contributions
+
+`ResourceEditorContribution` is a Flutter-only boundary with canonical resource metadata, optional validation/read-only factories, editor/runtime factories and explicit save/dirty/undo capabilities. The registry imports contracts, not plugin widgets. The composition pack assembles provider-owned `ui/resource_editor_pack.dart` contributions; metadata/defaults come directly from `builtInResourceSpec`, without duplicate UI declarations or resource-type switches.
+
+All resource editors are ordinary libraries. Overlay canvas, inspector, widget configuration and presentation live under `plugins/overlays/ui/editor`; dashboard hierarchy helpers stay private to its editor; audio split normalization stays with the sound editor. Shared form/value controls live in `components/data_inputs`. Stream Plan segment state exposes a snapshot API to its parent editor while retaining ownership of inline graph controllers. Unknown types, disabled contributions and malformed collection shapes use a read-only inspector that does not render loaded credentials. Save failures keep form drafts open and suppress duplicate submissions; error messages do not echo arbitrary exception contents.
+
+## Persisted document ownership and current recovery boundary
 
 `persistence/persisted_document_catalog.dart` describes paths, codec families, authority and required write scopes without containing runtime instances or secret values. Resource entries derive from the same provider-owned declarations as graph/editor contracts; IDs and existing JSON/YAML choices remain unchanged. Only automations and chat document families carry explicit envelope versions today; profile/resource/viewer/settings codecs retain their shipped shapes, including embedded version-1 automations. The catalog is not an alternate decoder or migration layer.
 

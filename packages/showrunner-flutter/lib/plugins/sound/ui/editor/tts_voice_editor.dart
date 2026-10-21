@@ -1,16 +1,28 @@
-part of '../resource_editor_registry.dart';
+import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class _TtsVoiceEditor extends StatefulWidget {
-  const _TtsVoiceEditor({required this.resource, required this.onSave});
+import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/plugins/sound/ui/tts_voice_provider_picker.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_field_values.dart';
+
+class TtsVoiceEditor extends StatefulWidget {
+  const TtsVoiceEditor({
+    super.key,
+    required this.resource,
+    required this.onSave,
+  });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
 
   @override
-  State<_TtsVoiceEditor> createState() => _TtsVoiceEditorState();
+  State<TtsVoiceEditor> createState() => _TtsVoiceEditorState();
 }
 
-class _TtsVoiceEditorState extends State<_TtsVoiceEditor> {
+class _TtsVoiceEditorState extends State<TtsVoiceEditor> {
   late final TextEditingController _name;
   late final TextEditingController _providerConfig;
   late final TextEditingController _pitch;
@@ -21,19 +33,21 @@ class _TtsVoiceEditorState extends State<_TtsVoiceEditor> {
   void initState() {
     super.initState();
     final config = widget.resource.config;
-    _name = TextEditingController(text: _displayValue(config['name']));
-    _provider = _displayValue(config['voiceProvider']);
+    _name = TextEditingController(
+      text: ResourceFieldValues.display(config['name']),
+    );
+    _provider = ResourceFieldValues.display(config['voiceProvider']);
     _providerConfig = TextEditingController(
-      text: _jsonDisplayValue(config['providerConfig']),
+      text: ResourceFieldValues.jsonDisplay(config['providerConfig']),
     );
     final providerConfig = config['providerConfig'] is Map
         ? Map<String, dynamic>.from(config['providerConfig'] as Map)
         : const <String, dynamic>{};
     _pitch = TextEditingController(
-      text: _displayValue(providerConfig['pitch'] ?? 0),
+      text: ResourceFieldValues.display(providerConfig['pitch'] ?? 0),
     );
     _rate = TextEditingController(
-      text: _displayValue(providerConfig['rate'] ?? 0),
+      text: ResourceFieldValues.display(providerConfig['rate'] ?? 0),
     );
   }
 
@@ -47,7 +61,7 @@ class _TtsVoiceEditorState extends State<_TtsVoiceEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: 'Edit TTS voice',
     fields: [
       TextField(
@@ -92,7 +106,7 @@ class _TtsVoiceEditorState extends State<_TtsVoiceEditor> {
                   'pitch': num.tryParse(_pitch.text.trim()) ?? 0,
                   'rate': num.tryParse(_rate.text.trim()) ?? 0,
                 }
-              : _parseJsonMap(_providerConfig.text),
+              : ResourceFieldValues.parseJsonMap(_providerConfig.text),
         },
         state: widget.resource.state,
       ),

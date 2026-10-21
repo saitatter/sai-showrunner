@@ -1,7 +1,18 @@
-part of '../resource_editor_registry.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class _StreamPlanSegmentCard extends StatefulWidget {
-  const _StreamPlanSegmentCard({
+import 'package:showrunner_flutter/graph/controller/automation_editor_controller.dart';
+import 'package:showrunner_flutter/graph/domain/automation_document.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_schema.dart';
+import 'package:showrunner_flutter/graph/ui/inline_automation_graph.dart';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
+
+import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
+import 'package:showrunner_flutter/schema/json.dart';
+import 'package:showrunner_flutter/schema/stream_plan.dart';
+
+class StreamPlanSegmentEditor extends StatefulWidget {
+  const StreamPlanSegmentEditor({
     super.key,
     required this.index,
     required this.segment,
@@ -25,10 +36,11 @@ class _StreamPlanSegmentCard extends StatefulWidget {
   final VoidCallback onDelete;
 
   @override
-  State<_StreamPlanSegmentCard> createState() => _StreamPlanSegmentCardState();
+  State<StreamPlanSegmentEditor> createState() =>
+      StreamPlanSegmentEditorState();
 }
 
-class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
+class StreamPlanSegmentEditorState extends State<StreamPlanSegmentEditor> {
   AutomationEditorController? _activationEditor;
   AutomationEditorController? _deactivationEditor;
 
@@ -63,11 +75,11 @@ class _StreamPlanSegmentCardState extends State<_StreamPlanSegmentCard> {
   }
 
   void _syncAutomationChanges() {
-    widget.onChanged(_savedSegment());
+    widget.onChanged(snapshot());
     widget.onGraphDirty();
   }
 
-  StreamPlanSegmentData _savedSegment() {
+  StreamPlanSegmentData snapshot() {
     final segment = widget.segment;
     return StreamPlanSegmentData(
       id: segment.id,

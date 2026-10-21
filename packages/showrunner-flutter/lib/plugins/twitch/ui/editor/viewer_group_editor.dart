@@ -1,16 +1,26 @@
-part of '../resource_editor_registry.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 
-class _ViewerGroupEditor extends StatefulWidget {
-  const _ViewerGroupEditor({required this.resource, required this.onSave});
+import 'package:showrunner_flutter/schema/resource.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+import 'package:showrunner_flutter/components/data_inputs/resource_field_values.dart';
+
+class ViewerGroupEditor extends StatefulWidget {
+  const ViewerGroupEditor({
+    super.key,
+    required this.resource,
+    required this.onSave,
+  });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
 
   @override
-  State<_ViewerGroupEditor> createState() => _ViewerGroupEditorState();
+  State<ViewerGroupEditor> createState() => _ViewerGroupEditorState();
 }
 
-class _ViewerGroupEditorState extends State<_ViewerGroupEditor> {
+class _ViewerGroupEditorState extends State<ViewerGroupEditor> {
   late final TextEditingController _name;
   late final TextEditingController _userId;
   late final Set<String> _userIds;
@@ -19,7 +29,7 @@ class _ViewerGroupEditorState extends State<_ViewerGroupEditor> {
   void initState() {
     super.initState();
     _name = TextEditingController(
-      text: _displayValue(widget.resource.config['name']),
+      text: ResourceFieldValues.display(widget.resource.config['name']),
     );
     _userId = TextEditingController();
     _userIds = {
@@ -46,7 +56,7 @@ class _ViewerGroupEditorState extends State<_ViewerGroupEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: 'Edit Twitch viewer group',
     fields: [
       TextField(

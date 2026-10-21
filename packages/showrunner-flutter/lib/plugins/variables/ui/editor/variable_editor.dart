@@ -1,16 +1,26 @@
-part of '../resource_editor_registry.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
 
-class _VariableEditor extends StatefulWidget {
-  const _VariableEditor({required this.resource, required this.onSave});
+import 'package:showrunner_flutter/schema/resource.dart';
+
+import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
+
+class VariableEditor extends StatefulWidget {
+  const VariableEditor({
+    super.key,
+    required this.resource,
+    required this.onSave,
+  });
 
   final ResourceData resource;
   final Future<void> Function(ResourceData resource) onSave;
 
   @override
-  State<_VariableEditor> createState() => _VariableEditorState();
+  State<VariableEditor> createState() => _VariableEditorState();
 }
 
-class _VariableEditorState extends State<_VariableEditor> {
+class _VariableEditorState extends State<VariableEditor> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
   late final TextEditingController _type;
@@ -43,7 +53,7 @@ class _VariableEditorState extends State<_VariableEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => _ResourceForm(
+  Widget build(BuildContext context) => ResourceForm(
     title: 'Edit variable',
     validate: () => _formKey.currentState!.validate(),
     fields: [

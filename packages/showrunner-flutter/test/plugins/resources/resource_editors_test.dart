@@ -169,7 +169,7 @@ void main() {
   }
   test('uses typed resource keys and rejects duplicate editors', () {
     final registry = DartResourceEditorRegistry();
-    final definition = DartResourceEditorDefinition.fromContract(
+    final definition = ResourceEditorContribution.fromContract(
       contract: ResourceSpec(
         ownerId: const PluginId('sample'),
         resourceTypeId: const ResourceTypeId('Sample'),
