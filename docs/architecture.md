@@ -239,6 +239,24 @@ They are not a mechanism to load desktop plugins into another process. The curre
 registered dashboard widgets are label and remote button; unknown kinds remain
 visible placeholders. External plugin loading is intentionally deferred in ADR-003.
 
+### Persisted document ownership and current recovery boundary
+
+`persistence/persisted_document_catalog.dart` describes paths, codec families, authority and required write scopes without containing runtime instances or secret values. Resource entries derive from the same provider-owned declarations as graph/editor contracts; IDs and existing JSON/YAML choices remain unchanged. Only automations and chat document families carry explicit envelope versions today; profile/resource/viewer/settings codecs retain their shipped shapes, including embedded version-1 automations. The catalog is not an alternate decoder or migration layer.
+
+| Document family | Authoritative bytes and owner | Separate durable/secret state and recovery requirement |
+| --- | --- | --- |
+| Automations, profiles | `automations/{file}.yaml`, `profiles/{file}.yaml`; host-owned typed codecs, JSON output/YAML parser input | No execution traces, selection, cancellation or subscriptions in authoring data; reject unsupported graphs and leave source available for inspection |
+| All 20 resource types, including Stream Plans, dashboards, overlays, variables, device connections and accounts | Canonical provider `storageDirectory`, `{id}.json` envelope or existing `{id}.yaml` config | YAML state in `.state/{id}.json`; declared secrets in `secrets/resources/{type}/{id}.yaml`; these form one required coherence group |
+| Queues | `queues/{file}.yaml` configuration | `QueueRepository` takes an explicit history file; host composition currently binds no fixed history file. Pending snapshots/history are durable runtime data, not live cancellation handles |
+| Viewer definitions/rows | `viewer-data/variables.yaml`; `{provider}/{base64url(id)}.json` | Provider qualification and IDs belong to the codec; corrupt rows/definitions must become observable rather than silently merging platforms or resetting values |
+| Plugin settings and accounts | `settings/{plugin}.yaml`; accounts use their provider-owned resource directories | Declared secret fields only in per-plugin/resource DPAPI ciphertext files. Public/secret settings are one required coherence group; unavailable secrets must be distinguished from missing settings |
+| Chat preferences/actions/commands | `settings/chat.yaml`, `settings/chat-actions.yaml`, `chat-commands.json`; version 1 | Version-1 counters in `state/chat-command-counters.json`; command counters are not disposable cache data |
+| Workspace/window state | `settings/showrunner-flutter.yaml`, `state/window.json` | UI state is separate from authored graphs; malformed input must not authorize resetting unrelated documents |
+
+OBS source choices belong to overlay configuration. The external OBS profile itself remains OBS-owned; tests use the portable instance and never rewrite user profiles. Secrets catalogs contain field names only. File/version/decryption errors require an actionable read-only/error path, preserving bytes for inspection and explicit retry/repair.
+
+Phase 04 baseline at `a4278743d` has 32 passing persistence tests. Five new failure probes demonstrate pre-existing gaps: state-write failure exposes new credentials with old YAML config; decryption errors become empty credentials; a missing secret adapter permits plaintext; unknown JSON envelopes are accepted; and a filename can redirect the resource's secret identity. Per-file atomic rename and in-process lock serialization exist, but are not a multi-file transaction or a stale-write policy. These probes remain intentionally red until the recovery implementation lands; no production data is used.
+
 ## Verification boundaries
 
 Frozen Electron contracts/screenshots provide historical comparison evidence, not

@@ -55,3 +55,7 @@ DartResourceContract builtInResourceSpec(String resourceType) =>
       'resourceType',
       'Unknown built-in resource type.',
     ));
+
+/// Canonical provider-owned resource declarations for storage/UI composition.
+Iterable<DartResourceContract> get builtInResourceSpecs =>
+    _resourceIndex.values;
