@@ -1,9 +1,7 @@
 import '../../runtime/automation_invocation_service.dart';
 import '../../graph/runtime/graph_execution_engine.dart';
 import 'dart:async';
-import 'dart:io';
 import '../../graph/domain/automation_document.dart';
-import '../../persistence/automation_repository.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../services/showrunner_data_service.dart';
 import '../registry/plugin_registry.dart';
@@ -65,7 +63,5 @@ Future<AutomationDocument?> _loadAutomationResource(
   final fileName = normalized.endsWith('.yaml')
       ? normalized
       : '$normalized.yaml';
-  return AutomationRepository(
-    File('${dataService.userDirectory.path}/automations/$fileName'),
-  ).load();
+  return dataService.storage.automation(fileName).load();
 }

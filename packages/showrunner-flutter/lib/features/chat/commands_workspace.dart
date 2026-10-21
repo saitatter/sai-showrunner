@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../persistence/automation_repository.dart';
 import '../../services/showrunner_data_service.dart';
 import 'chat_command.dart';
 import 'chat_message.dart';
@@ -36,9 +34,7 @@ class _CommandsWorkspaceState extends State<CommandsWorkspace> {
   }
 
   Future<void> _edit([ChatCommand? command]) => _run(() async {
-    final catalog = await AutomationRepository.loadDirectory(
-      Directory('${widget.dataService.userDirectory.path}/automations'),
-    );
+    final catalog = await widget.dataService.storage.listAutomations();
     final files = catalog
         .where((a) => a.isValid)
         .map((a) => a.fileName)

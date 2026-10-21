@@ -12,7 +12,7 @@
 - Keep unreadable resources visible with safe diagnostics instead of hiding them, and prevent malformed parser source from reaching resource errors/logs.
 - Serialize viewer updates across repository owners, reject stale definition edits and report corrupt viewer data instead of silently skipping it; preserve provider-qualified identities and group membership.
 - Keep resource form drafts open after failed saves and prevent duplicate submissions without exposing credential-bearing errors.
-- Reject stale resource, automation, profile and queue editor saves/deletes and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
+- Reject stale resource, automation, profile and queue editor saves/deletes and concurrent profile activation updates and duplicate creation instead of silently replacing another owner’s data; preserve newer in-flight edits when advancing the saved baseline.
 - Reject dangling filesystem redirects and recursive YAML aliases, handle secret roots with trailing separators and clear native DPAPI buffers after use.
 - Recover plugin settings and encrypted credentials together after interrupted saves, reject stale settings forms, serialize independent owners and keep unknown encrypted fields opaque to editors and public settings/resource files; publish dock registration and its token together.
 - Recover resource config, runtime state and encrypted credentials as one generation after interrupted saves/deletes; serialize repository owners across processes and preserve externally changed files on recovery conflicts.
@@ -20,7 +20,7 @@
 
 ### Refactors
 - Validate resource configurations through provider-owned codecs shared by storage and editors, with distinct unsupported-schema diagnostics and semantic JSON/YAML round-trip coverage for every resource family.
-- Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers.
+- Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers and route project commands, chat/usage catalogs, provider automation loading and profile activation through the same owners.
 - Share typed single-document storage across automation/profile/queue repositories, with explicit domain store contracts and validation under the same owner lock as atomic publication.
 - Split resource editors into provider-owned Flutter libraries and contribution packs, with separate overlay toolbar/palette/rename controls and dashboard creation forms, shared inputs, explicit editing capabilities and safe read-only fallbacks that block unavailable plugin writes while retaining mounted document drafts/history.
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.

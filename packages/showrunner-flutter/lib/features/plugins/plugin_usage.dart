@@ -1,7 +1,6 @@
 import 'package:sai_nodes_core/sai_nodes_core.dart';
 import '../../graph/definitions/showrunner_graph_types.dart';
 import '../../graph/domain/automation_document.dart';
-import 'dart:io';
 
 import '../../persistence/automation_repository.dart';
 import '../../schema/json.dart';
@@ -31,10 +30,10 @@ final class PluginUsageEntry {
 /// actions nested in subgraphs, matching the reference application's usage
 /// surface.
 Future<List<PluginUsageEntry>> loadPluginUsage({
-  required Directory directory,
+  required Future<List<AutomationCatalogEntry>> Function() loadEntries,
   required String pluginId,
 }) async {
-  final entries = await AutomationRepository.loadDirectory(directory);
+  final entries = await loadEntries();
   final usage = <PluginUsageEntry>[];
   for (final entry in entries) {
     final automation = entry.automation;

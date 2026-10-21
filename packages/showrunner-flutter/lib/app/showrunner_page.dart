@@ -42,8 +42,6 @@ import '../graph/execution/showrunner_execution_visual_adapter.dart';
 import 'package:sai_nodes/sai_nodes.dart' show GraphSceneBuilder;
 import 'package:sai_nodes_core/sai_nodes_core.dart';
 import 'package:flutter/services.dart';
-import '../persistence/automation_repository.dart';
-import '../persistence/profile_repository.dart';
 import '../plugins/registry/plugin_registry.dart';
 import '../plugins/dashboards/cloud_sync.dart';
 import '../plugins/overlays/manifest.dart';

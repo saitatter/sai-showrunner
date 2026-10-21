@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../persistence/automation_repository.dart';
 import 'chat_message.dart';
 import 'configured_chat_action.dart';
 import 'unified_chat_runtime.dart';
@@ -45,9 +43,7 @@ class _ChatActionsDialogState extends State<ChatActionsDialog> {
   }
 
   Future<void> edit([ConfiguredChatAction? action]) => run(() async {
-    final catalog = await AutomationRepository.loadDirectory(
-      Directory('${widget.runtime.dataService.userDirectory.path}/automations'),
-    );
+    final catalog = await widget.runtime.dataService.storage.listAutomations();
     if (!mounted) return;
     final result = await showDialog<ConfiguredChatAction>(
       context: context,

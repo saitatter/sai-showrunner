@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import '../../graph/definitions/showrunner_graph_types.dart';
 import '../../graph/domain/automation_document.dart';
-import '../../persistence/profile_repository.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 import '../registry/plugin_factory_settings.dart';
@@ -70,9 +68,7 @@ Future<List<String>> _loadRemoteButtonNames(
   final names = <String>{};
   for (final fileName in await dataService.listUserFiles('profiles')) {
     try {
-      final profile = await ProfileRepository(
-        File('${dataService.userDirectory.path}/profiles/$fileName'),
-      ).load();
+      final profile = await dataService.storage.profile(fileName).load();
       if (profile == null) continue;
       for (final trigger in profile.triggers) {
         final automation = AutomationDocument.fromJson(
