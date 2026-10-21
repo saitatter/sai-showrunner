@@ -1,3 +1,5 @@
+import '../persistence/persistence_issue.dart';
+import '../services/structured_logger.dart';
 import '../graph/domain/automation_document.dart';
 import 'dart:async';
 
@@ -117,6 +119,29 @@ class _ShowRunnerProjectPanelState extends State<ShowRunnerProjectPanel> {
         key: const ValueKey('showrunner-project-panel-scroll'),
         padding: EdgeInsets.symmetric(vertical: compact ? 6 : 8),
         children: [
+          if (_controller.watchIssue case final issue?)
+            ListTile(
+              leading: const Icon(Icons.warning_amber),
+              title: Text(issue.message),
+            ),
+          FutureBuilder<ShowRunnerProjectCatalog>(
+            future: future,
+            builder: (context, snapshot) {
+              final issues =
+                  snapshot.data?.issues ?? const <PersistenceIssue>[];
+              if (issues.isEmpty) return const SizedBox.shrink();
+              return Column(
+                children: [
+                  for (final issue in issues)
+                    ListTile(
+                      leading: const Icon(Icons.warning_amber),
+                      title: Text('${issue.owner} / ${issue.document}'),
+                      subtitle: Text(issue.message),
+                    ),
+                ],
+              );
+            },
+          ),
           _ProjectItemRow(
             title: 'ShowRunner',
             icon: Icons.crop_square,

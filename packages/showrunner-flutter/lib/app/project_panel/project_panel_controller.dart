@@ -73,13 +73,109 @@ final class ProjectPanelController extends ChangeNotifier {
          'dashboards': false,
          'tools': false,
        } {
-    _catalogFuture = catalogService?.load();
+    _catalogFuture = _loadCatalog(catalogService);
+    _watchCatalog();
   }
 
   ShowRunnerProjectCatalogService? _catalogService;
   int catalogRevision;
   Future<ShowRunnerProjectCatalog>? _catalogFuture;
   final Map<String, bool> _expanded;
+  StreamSubscription? _catalogChanges;
+  Timer? _catalogTimer;
+  bool _closed = false;
+  Future<void>? _closing;
+  PersistenceIssue? watchIssue;
+  int _watchGeneration = 0;
+  final Set<Future<void>> _watchStops = {};
+  final Set<Future<ShowRunnerProjectCatalog>> _catalogLoads = {};
+
+  Future<ShowRunnerProjectCatalog>? _loadCatalog(
+    ShowRunnerProjectCatalogService? service,
+  ) {
+    if (service == null || _closed) return null;
+    final loading = service.load();
+    _catalogLoads.add(loading);
+    loading.then<void>(
+      (_) {
+        _catalogLoads.remove(loading);
+      },
+      onError: (Object _, StackTrace _) {
+        _catalogLoads.remove(loading);
+      },
+    );
+    return loading;
+  }
+
+  final List<Object> _watchStopErrors = [];
+
+  void _retireWatcher(StreamSubscription subscription) {
+    final stopped = Future<void>.sync(subscription.cancel).then<void>(
+      (_) {},
+      onError: (Object error) {
+        _watchStopErrors.add(error);
+      },
+    );
+    _watchStops.add(stopped);
+    stopped.then((_) => _watchStops.remove(stopped));
+  }
+
+  void _watchCatalog() {
+    final service = _catalogService;
+    if (service == null || _closed) return;
+    final generation = ++_watchGeneration;
+    _catalogChanges = service.watchChanges().listen(
+      (_) {
+        if (_closed || generation != _watchGeneration) return;
+        _catalogTimer?.cancel();
+        _catalogTimer = Timer(const Duration(milliseconds: 50), () {
+          if (_closed || generation != _watchGeneration) return;
+          _catalogFuture = _loadCatalog(_catalogService);
+          notifyListeners();
+        });
+      },
+      onError: (Object error) {
+        if (_closed || generation != _watchGeneration) return;
+        watchIssue = PersistenceIssue.fromError(
+          error,
+          owner: 'catalog',
+          document: 'watcher',
+        );
+        notifyListeners();
+      },
+    );
+  }
+
+  Future<void> close() => _closing ??= _close();
+  Future<void> _close() async {
+    _closed = true;
+    _catalogTimer?.cancel();
+    _watchGeneration++;
+    if (_catalogChanges case final subscription?) _retireWatcher(subscription);
+    _catalogChanges = null;
+    await Future.wait([
+      ..._watchStops,
+      for (final loading in _catalogLoads.toList()) loading.then<void>((_) {}),
+    ]);
+    if (_watchStopErrors.isNotEmpty) {
+      throw StateError('A project catalog watcher could not be stopped.');
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(
+      close().catchError((Object error, StackTrace stack) {
+        ShowRunnerLogger.instance.error(
+          'persistence',
+          'Could not close the project catalog watcher.',
+          error: error,
+          stackTrace: stack,
+        );
+      }),
+    );
+    super.dispose();
+  }
 
   Future<ShowRunnerProjectCatalog>? get catalogFuture => _catalogFuture;
 
@@ -94,12 +190,22 @@ final class ProjectPanelController extends ChangeNotifier {
     required ShowRunnerProjectCatalogService? service,
     required int revision,
   }) {
-    if (identical(_catalogService, service) && catalogRevision == revision) {
+    if (_catalogService == service && catalogRevision == revision) {
       return;
     }
+    if (_closed) return;
+    final changed = _catalogService != service;
+    if (changed) {
+      _catalogTimer?.cancel();
+      final previous = _catalogChanges;
+      if (previous != null) _retireWatcher(previous);
+      _catalogChanges = null;
+      watchIssue = null;
+    }
     _catalogService = service;
+    if (changed) _watchCatalog();
     catalogRevision = revision;
-    _catalogFuture = service?.load();
+    _catalogFuture = _loadCatalog(service);
     notifyListeners();
   }
 }

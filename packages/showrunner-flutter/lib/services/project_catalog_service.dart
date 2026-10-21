@@ -1,4 +1,9 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
+import '../plugins/registry/builtin_resource_specs.dart';
+import '../persistence/project_storage.dart';
+import '../persistence/persistence_issue.dart';
+import '../persistence/filesystem/persistence_directory.dart';
 
 import '../persistence/automation_repository.dart';
 import '../persistence/profile_repository.dart';
@@ -14,8 +19,10 @@ final class ShowRunnerProjectCatalog {
     required this.automations,
     required this.profiles,
     required this.resources,
+    this.issues = const [],
   });
 
+  final List<PersistenceIssue> issues;
   final List<AutomationCatalogEntry> automations;
   final List<ProfileCatalogEntry> profiles;
   final Map<String, List<ProjectResourceCatalogEntry>> resources;
@@ -37,78 +44,124 @@ final class ProjectResourceCatalogEntry {
 }
 
 final class ShowRunnerProjectCatalogService {
-  const ShowRunnerProjectCatalogService(this.userDirectory);
-
+  const ShowRunnerProjectCatalogService(
+    this.userDirectory, {
+    this.secretSettings,
+  });
   final Directory userDirectory;
+  final SecretSettingsStore? secretSettings;
+  String get _scope => Platform.isWindows
+      ? p.normalize(userDirectory.absolute.path).toLowerCase()
+      : p.normalize(userDirectory.absolute.path);
+  @override
+  bool operator ==(Object other) =>
+      other is ShowRunnerProjectCatalogService &&
+      _scope == other._scope &&
+      identical(secretSettings, other.secretSettings);
+  @override
+  int get hashCode => Object.hash(_scope, secretSettings);
+
+  ProjectStorage get _storage => ProjectStorage(
+    userDirectory,
+    secrets:
+        secretSettings ??
+        SecretSettingsStore(
+          directory: Directory('${userDirectory.path}/secrets'),
+          location: PersistenceDirectory(userDirectory, ['secrets']),
+        ),
+  );
+
+  /// The panel owns this subscription and its cache invalidation timer.
+  Stream<FileSystemEvent> watchChanges() {
+    if (!userDirectory.existsSync()) return const Stream.empty();
+    final scopes = [
+      'automations',
+      'profiles',
+      for (final spec in builtInResourceSpecs) spec.storageDirectory,
+    ];
+    bool relevant(String path) {
+      final relative = p
+          .relative(path, from: userDirectory.path)
+          .replaceAll('\\', '/');
+      final segments = relative.split('/');
+      if (segments.any(
+        (part) => const {'.locks', '.transactions', '.state'}.contains(part),
+      )) {
+        return false;
+      }
+      if (!relative.endsWith('.yaml') && !relative.endsWith('.json')) {
+        return false;
+      }
+      return scopes.any((scope) => relative.startsWith('$scope/'));
+    }
+
+    return userDirectory
+        .watch(recursive: true)
+        .where(
+          (event) =>
+              relevant(event.path) ||
+              event is FileSystemMoveEvent &&
+                  event.destination != null &&
+                  relevant(event.destination!),
+        );
+  }
 
   Future<ShowRunnerProjectCatalog> load() async {
-    final resourceDirectories = _projectResourceDirectories.entries.toList(
-      growable: false,
-    );
-    final secretSettings = SecretSettingsStore(
-      directory: Directory('${userDirectory.path}/secrets'),
-    );
+    final storage = _storage;
+    final issues = <PersistenceIssue>[];
+    Future<List<T>> query<T>(
+      String owner,
+      String path,
+      Future<List<T>> Function() read,
+    ) async {
+      try {
+        return await read();
+      } catch (error) {
+        issues.add(
+          PersistenceIssue.fromError(error, owner: owner, document: path),
+        );
+        return [];
+      }
+    }
+
+    final specs = builtInResourceSpecs.toList(growable: false);
     final results = await Future.wait<Object>([
-      AutomationRepository.loadDirectory(
-        Directory('${userDirectory.path}/automations'),
-      ),
-      ProfileRepository.loadDirectory(
-        Directory('${userDirectory.path}/profiles'),
-      ),
-      for (final entry in resourceDirectories)
-        ResourceRepository(
-          Directory('${userDirectory.path}/${entry.value}'),
-          resourceType: entry.key,
-          secretSettings: secretSettings,
-        ).listWithErrors(),
+      query('automations', 'automations', storage.listAutomations),
+      query('profiles', 'profiles', storage.listProfiles),
+      for (final spec in specs)
+        query(
+          spec.resourceTypeId.value,
+          spec.storageDirectory,
+          storage.resource(spec.resourceTypeId).listWithErrors,
+        ),
     ]);
     final resources = <String, List<ProjectResourceCatalogEntry>>{};
-    for (var index = 0; index < resourceDirectories.length; index++) {
-      final resourceType = resourceDirectories[index].key;
-      final entries =
-          (results[index + 2] as List<ResourceCatalogEntry>)
-              .map(
-                (entry) => ProjectResourceCatalogEntry(
-                  resourceType: resourceType,
-                  resource:
-                      entry.resource ??
-                      ResourceData(
-                        id: entry.fileName.replaceFirst(
-                          RegExp(r'\.(yaml|json)$'),
-                          '',
-                        ),
-                        config: {'name': entry.fileName},
-                      ),
-                  error: entry.error,
+    for (var index = 0; index < specs.length; index++) {
+      final type = specs[index].resourceTypeId.value;
+      final entries = results[index + 2] as List<ResourceCatalogEntry>;
+      resources[type] = [
+        for (final entry in entries)
+          ProjectResourceCatalogEntry(
+            resourceType: type,
+            resource:
+                entry.resource ??
+                ResourceData(
+                  id: entry.fileName.replaceFirst(
+                    RegExp(r'\.(yaml|json)$'),
+                    '',
+                  ),
+                  config: {'name': entry.fileName},
                 ),
-              )
-              .toList()
-            ..sort(
-              (left, right) =>
-                  left.title.toLowerCase().compareTo(right.title.toLowerCase()),
-            );
-      resources[resourceType] = entries;
+            error: entry.error,
+          ),
+      ]..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     }
+    issues.sort((a, b) => a.toString().compareTo(b.toString()));
     return ShowRunnerProjectCatalog(
       automations: results[0] as List<AutomationCatalogEntry>,
       profiles: results[1] as List<ProfileCatalogEntry>,
       resources: resources,
+      issues: List.unmodifiable(issues),
     );
   }
 }
-
-const _projectResourceDirectories = <String, String>{
-  'StreamPlan': 'stream-plans',
-  'Overlay': 'overlays',
-  'Dashboard': 'dashboards',
-  'TTSVoice': 'sound/tts',
-  'SoundOutput': 'sound/outputs',
-  'AudioSplitterOutput': 'sound/splitters',
-  'OBSConnection': 'obs/connections',
-  'CustomTwitchViewerGroup': 'twitch/groups',
-  'ChannelPointReward': 'twitch/channelpoints',
-  'SpellHook': 'spellcast/spells',
-  'TwitchAccount': 'accounts/twitch',
-  'BlueSkyAccount': 'accounts/bluesky',
-  'WyzeAccount': 'accounts/wyze',
-};
