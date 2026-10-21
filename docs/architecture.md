@@ -146,7 +146,7 @@ The default/configured registrars explicitly assemble provider-owned
 transport/account setup stays with the provider and shared HTTP, variable and
 dashboard ports are constructed by their owning factories. The public bootstrap
 is a facade. `first_party_plugin_ui.dart` assembles Flutter UI independently;
-disabled integrations retain their settings and resource editors. IoT resource
+disabled integrations retain their settings; resource documents retain their drafts/history behind a read-only availability guard. IoT resource
 routing lives in `plugins/iot/configured_resolver.dart`. These are statically
 compiled first-party factories, not external plugin loading.
 
@@ -243,7 +243,7 @@ visible placeholders. External plugin loading is intentionally deferred in ADR-0
 
 `ResourceEditorContribution` is a Flutter-only boundary with canonical resource metadata, optional validation/read-only factories, editor/runtime factories and explicit save/dirty/undo capabilities. The registry imports contracts, not plugin widgets. The composition pack assembles provider-owned `ui/resource_editor_pack.dart` contributions; metadata/defaults come directly from `builtInResourceSpec`, without duplicate UI declarations or resource-type switches.
 
-All resource editors are ordinary libraries. Overlay canvas, inspector, widget configuration and presentation live under `plugins/overlays/ui/editor`; dashboard forms and hierarchy/default/ID helpers have feature-owned libraries; audio split normalization stays with the sound editor. Overlay toolbar, palette and rename controls own presentation/focus while the page retains document history, draft snapshots and OBS/network lifecycle. Shared form/value controls live in `components/data_inputs`. Stream Plan segment state exposes a snapshot API to its parent editor while retaining ownership of inline graph controllers. Unknown types, disabled contributions and malformed collection shapes use a read-only inspector that does not render loaded credentials. Save failures keep form drafts open and suppress duplicate submissions; error messages do not echo arbitrary exception contents.
+All resource editors are ordinary libraries. Overlay canvas, inspector, widget configuration and presentation live under `plugins/overlays/ui/editor`; dashboard forms and hierarchy/default/ID helpers have feature-owned libraries; audio split normalization stays with the sound editor. Overlay toolbar, palette and rename controls own presentation/focus while the page retains document history, draft snapshots and OBS/network lifecycle. Shared form/value controls live in `components/data_inputs`. Stream Plan segment state exposes a snapshot API to its parent editor while retaining ownership of inline graph controllers. Unknown types, disabled contributions and malformed collection shapes use a read-only inspector that does not render loaded credentials. Workspace document availability follows registry notifications; disabled owners hide and unfocus the mounted editor without disposing its draft/history. Modal opening and document save/delete paths also check owner availability. Re-enabling restores the retained editor. Save failures keep form drafts open and suppress duplicate submissions; error messages do not echo arbitrary exception contents.
 
 ## Persisted document ownership and current recovery boundary
 

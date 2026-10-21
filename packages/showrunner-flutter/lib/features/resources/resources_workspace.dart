@@ -310,19 +310,42 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     ResourceData resource,
     String resourceType,
   ) async {
+    final editor = editorRegistry.find(resourceType);
+    final registry = await widget.registryFuture;
+    if (!context.mounted) return;
+    final enabled =
+        registry == null ||
+        (editor != null &&
+            registry.manifest(editor.ownerId) != null &&
+            registry.isPluginEnabledId(editor.ownerId));
+    if (editor == null ||
+        editor.readOnlyReason(resource, enabled: enabled) != null) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => editorRegistry.build(
+          ResourceTypeId(resourceType),
+          context,
+          resource,
+          (_) async {},
+          enabled: enabled,
+        ),
+      );
+      return;
+    }
     if ((resourceType == 'Overlay' || resourceType == 'StreamPlan') &&
         widget.onOpenResource != null) {
       await widget.onOpenResource!.call(resource, resourceType);
       return;
     }
     if (resourceType == 'Overlay') return;
-    final editor = editorRegistry.find(resourceType);
-    if (editor == null) return;
     var storageRevision = DocumentRevision.of(resource.toJson());
     await showDialog<void>(
       context: context,
       builder: (context) {
         Future<void> save(ResourceData updated) async {
+          if (registry != null && !registry.isPluginEnabledId(editor.ownerId)) {
+            throw StateError('The owning plugin is disabled.');
+          }
           final repository = _repository(resourceType);
           await repository.save(updated, expectedRevision: storageRevision);
           storageRevision = DocumentRevision.of(updated.toJson());

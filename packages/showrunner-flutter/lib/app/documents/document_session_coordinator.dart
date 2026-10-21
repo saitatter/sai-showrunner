@@ -30,6 +30,7 @@ final class DocumentSessionCoordinator {
     required this.streamPlans,
     this.automationWriter,
     this.resourceWriter,
+    this.canEditResource,
   }) : scratch = AutomationEditorController(document: scratchDocument);
 
   final ShowRunnerDataService dataService;
@@ -38,6 +39,7 @@ final class DocumentSessionCoordinator {
   automationWriter;
   final Future<void> Function(String type, ResourceData resource)?
   resourceWriter;
+  final Future<bool> Function(String type)? canEditResource;
   final automations = AutomationDocumentSessions();
   final overlays = ResourceDocumentManager();
   final plans = ResourceDocumentManager();
@@ -158,7 +160,16 @@ final class DocumentSessionCoordinator {
     }
   }
 
+  Future<void> _requireResourceOwner(String type) async {
+    if (canEditResource != null && !await canEditResource!(type)) {
+      throw StateError(
+        'The owning resource plugin is unavailable or disabled.',
+      );
+    }
+  }
+
   Future<void> _saveResource(String type, ResourceData resource) async {
+    await _requireResourceOwner(type);
     final manager = type == 'Overlay' ? overlays : plans;
     final expected = manager.resources[resource.id];
     final storageRevision = manager.storageRevisions[resource.id];
@@ -304,6 +315,7 @@ final class DocumentSessionCoordinator {
     String type,
     DocumentClosePrompt prompt,
   ) async {
+    await _requireResourceOwner(type);
     if ((type == 'Overlay' || type == 'StreamPlan') &&
         !await confirmResource(type, resource.id, prompt)) {
       return false;

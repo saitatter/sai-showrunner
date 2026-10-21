@@ -1,3 +1,4 @@
+import 'resource_editor_availability.dart';
 import 'package:flutter/material.dart';
 
 import 'resource_editor_registry.dart';
@@ -36,23 +37,28 @@ Widget? buildResourceDocumentWorkspace(
     if (resource == null || host.resources.onSaveOverlay == null) {
       return const LogsWorkspace();
     }
-    return OverlayEditorPage(
+    return ResourceEditorAvailability(
+      contribution: createDefaultResourceEditorRegistry().find('Overlay'),
       resource: resource,
-      onSave: host.resources.onSaveOverlay!,
-      onDocumentChanged: host.resources.onOverlayDocumentChanged,
-      presenceReaderFuture: host.runtime.overlayPresenceReaderFuture,
-      obsSourceService: host.runtime.overlayObsSourceService,
-      templateSuggestions: [
-        for (final definition
-            in host.runtime.variableRuntime?.definitions ??
-                const <DartVariableDefinition>[]) ...[
-          definition.id,
-          if (definition.name?.trim().isNotEmpty == true)
-            definition.name!.trim(),
+      registryFuture: host.runtime.pluginRegistryFuture,
+      builder: (context) => OverlayEditorPage(
+        resource: resource,
+        onSave: host.resources.onSaveOverlay!,
+        onDocumentChanged: host.resources.onOverlayDocumentChanged,
+        presenceReaderFuture: host.runtime.overlayPresenceReaderFuture,
+        obsSourceService: host.runtime.overlayObsSourceService,
+        templateSuggestions: [
+          for (final definition
+              in host.runtime.variableRuntime?.definitions ??
+                  const <DartVariableDefinition>[]) ...[
+            definition.id,
+            if (definition.name?.trim().isNotEmpty == true)
+              definition.name!.trim(),
+          ],
         ],
-      ],
-      onDirtyChanged: (dirty) =>
-          host.resources.onOverlayDirtyChanged?.call(resource.id, dirty),
+        onDirtyChanged: (dirty) =>
+            host.resources.onOverlayDirtyChanged?.call(resource.id, dirty),
+      ),
     );
   }
 
@@ -62,14 +68,19 @@ Widget? buildResourceDocumentWorkspace(
     if (resource == null || host.resources.onSaveStreamPlan == null) {
       return const LogsWorkspace();
     }
-    return StreamPlanEditorPage(
+    return ResourceEditorAvailability(
+      contribution: createDefaultResourceEditorRegistry().find('StreamPlan'),
       resource: resource,
-      onSave: host.resources.onSaveStreamPlan!,
       registryFuture: host.runtime.pluginRegistryFuture,
-      resourceOptionsLoader: (resourceType) =>
-          loadResourceOptions(host.runtime.dataService, resourceType),
-      documentMode: true,
-      onDocumentChanged: host.resources.onStreamPlanDocumentChanged,
+      builder: (context) => StreamPlanEditorPage(
+        resource: resource,
+        onSave: host.resources.onSaveStreamPlan!,
+        registryFuture: host.runtime.pluginRegistryFuture,
+        resourceOptionsLoader: (resourceType) =>
+            loadResourceOptions(host.runtime.dataService, resourceType),
+        documentMode: true,
+        onDocumentChanged: host.resources.onStreamPlanDocumentChanged,
+      ),
     );
   }
 

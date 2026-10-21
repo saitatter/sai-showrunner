@@ -50,6 +50,40 @@ void main() {
   tearDown(() => root.delete(recursive: true));
 
   test(
+    'disabled resource owners cannot save or delete and retain dirty drafts',
+    () async {
+      final documents = DocumentSessionCoordinator(
+        dataService: data,
+        scratchDocument: AutomationDocument.empty(),
+        streamPlans: DartStreamPlanRuntime(),
+        canEditResource: (_) async => false,
+      );
+      addTearDown(documents.dispose);
+      const original = ResourceData(id: 'one', config: {'name': 'Original'});
+      final repository = documents.resourceRepository('Overlay');
+      await repository.save(original);
+      documents.overlays.open(original);
+      const draft = ResourceData(id: 'one', config: {'name': 'Draft'});
+      documents.overlays.update(draft, isDirty: true);
+      await expectLater(
+        documents.saveResource('Overlay', draft),
+        throwsStateError,
+      );
+      await expectLater(
+        documents.deleteResource(
+          original,
+          'Overlay',
+          (_) async => DocumentCloseDecision.discard,
+        ),
+        throwsStateError,
+      );
+      expect(documents.overlays.dirty['one'], isTrue);
+      expect(documents.overlays.resources['one'], same(draft));
+      expect((await repository.load('one'))!.name, 'Original');
+    },
+  );
+
+  test(
     'an externally changed automation preserves the dirty editor and newer file',
     () async {
       final documents = DocumentSessionCoordinator(
