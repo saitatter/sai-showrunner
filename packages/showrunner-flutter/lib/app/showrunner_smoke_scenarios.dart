@@ -255,11 +255,13 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       fetcher: () async => {'tag_name': 'v$showRunnerFlutterVersion'},
     ).check();
     final available = await UpdateCheckService(
-      currentVersion: showRunnerFlutterVersion,
+      // The availability fixture must remain newer than its synthetic install
+      // regardless of the actual packaged version checked above.
+      currentVersion: '1.0.0',
       fetcher: () async => {
-        'tag_name': 'v2.0.1',
+        'tag_name': 'v1.0.1',
         'body': 'Smoke update',
-        'html_url': 'https://example.test/releases/v2.0.1',
+        'html_url': 'https://example.test/releases/v1.0.1',
       },
     ).check();
     if (current.status != UpdateStatus.upToDate ||
