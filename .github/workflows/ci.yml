@@ -57,6 +57,9 @@ jobs:
       - name: Smoke Flutter Windows release startup
         shell: pwsh
         run: .\scripts\smoke-flutter-windows.ps1 -Configuration Release
+      - name: Smoke Flutter Windows updater classification
+        shell: pwsh
+        run: .\scripts\smoke-flutter-windows.ps1 -Configuration Release -Scenario updates
   windows-integration:
     runs-on: windows-latest
     steps:

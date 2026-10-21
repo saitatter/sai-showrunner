@@ -89,6 +89,9 @@ describe("Manual release policy", () => {
     expect(startup).toBeGreaterThan(build)
     expect(steps[startup].run).toContain("-Configuration Debug")
     expect(steps.some(step => step.name === "Run Flutter integration gate")).toBe(false)
+    const updateSmoke = steps.find(step => step.name === "Smoke Flutter Windows updater classification")
+    expect(updateSmoke.run).toContain("-Configuration Release -Scenario updates")
+
     expect(ci.jobs["test-windows"].needs.sort()).toEqual(["windows-build", "windows-integration"])
     expect(ci.jobs["test-windows"].if).toContain("always()")
     const gate = ci.jobs["test-windows"].steps[0]

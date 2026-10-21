@@ -57,6 +57,7 @@
 - Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 
 ### CI & Build
+- Keep the packaged updater smoke independent of release version bumps and run it in the Windows build gate before publication.
 - Restore unpublished release notes and preparation metadata so failed draft attempts do not consume public release versions.
 - Verify the About screen against the declared package version so release version bumps preserve the UI test contract.
 - Run Windows packaging after successful release preparation when exact-commit CI reuse skips fresh validation; keep failed preparation and dry runs blocked.
