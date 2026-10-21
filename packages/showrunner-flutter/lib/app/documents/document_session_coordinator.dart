@@ -1,3 +1,4 @@
+import '../../persistence/document_revision.dart';
 import '../../services/structured_logger.dart';
 import 'dart:async';
 import 'dart:io';
@@ -167,12 +168,18 @@ final class DocumentSessionCoordinator {
   Future<void> _saveResource(String type, ResourceData resource) async {
     final manager = type == 'Overlay' ? overlays : plans;
     final expected = manager.resources[resource.id];
+    final storageRevision = manager.storageRevisions[resource.id];
     if (resourceWriter case final writer?) {
       await writer(type, resource);
     } else {
-      await resourceRepository(type).save(resource);
+      await resourceRepository(
+        type,
+      ).save(resource, expectedRevision: storageRevision);
     }
-    if (!_disposed) manager.markSavedIfCurrent(resource, expected);
+    if (!_disposed) {
+      manager.acceptPersisted(resource, storageRevision);
+      manager.markSavedIfCurrent(resource, expected);
+    }
     if (!_disposed &&
         type == 'StreamPlan' &&
         streamPlans.activePlanId == resource.id) {
@@ -314,7 +321,17 @@ final class DocumentSessionCoordinator {
         ),
       );
     }
-    await resourceRepository(type).delete(resource.id);
+    final manager = type == 'Overlay'
+        ? overlays
+        : type == 'StreamPlan'
+        ? plans
+        : null;
+    await resourceRepository(type).delete(
+      resource.id,
+      expectedRevision:
+          manager?.storageRevisions[resource.id] ??
+          DocumentRevision.of(resource.toJson()),
+    );
     if (type == 'Overlay') overlays.close(resource.id);
     if (type == 'StreamPlan') plans.close(resource.id);
     return true;
