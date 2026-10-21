@@ -48,6 +48,60 @@ void main() {
     skip: !Platform.isWindows,
   );
 
+  test(
+    'dangling junction ancestors fail closed instead of looking like missing files',
+    () async {
+      final allowed = await Directory('${root.path}/allowed').create();
+      final outside = await Directory('${root.path}/outside').create();
+      final junction = '${allowed.path}/redirect';
+      final result = await Process.run('powershell.exe', [
+        '-NoProfile',
+        '-Command',
+        "New-Item -ItemType Junction -Path '$junction' -Target '${outside.path}' | Out-Null",
+      ]);
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+      await outside.delete();
+      await expectLater(
+        containedFile(allowed, ['redirect', 'new.txt']),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(await outside.exists(), isFalse);
+    },
+    skip: !Platform.isWindows,
+  );
+
+  test('shared YAML aliases round-trip and recursive aliases fail visibly', () {
+    expect(decodeYamlValue(loadYaml('a: &shared {value: 42}\nb: *shared\n')), {
+      'a': {'value': 42},
+      'b': {'value': 42},
+    });
+    expect(
+      () => decodeYamlValue(loadYaml('a: &loop {self: *loop}\n')),
+      throwsFormatException,
+    );
+  });
+
+  test(
+    'secret stores accept a configured root with a trailing separator',
+    () async {
+      final secrets = SecretSettingsStore(
+        directory: Directory('${root.path}/secrets/'),
+        encrypt: (bytes) async => bytes,
+        decrypt: (bytes) async => bytes,
+      );
+      await secrets.save('obs', {'password': 'fixture'});
+      expect(await secrets.load('obs'), {'password': 'fixture'});
+      await secrets.saveResource('OBSConnection', 'studio', {
+        'password': 'resource-fixture',
+      });
+      expect(await secrets.loadResource('OBSConnection', 'studio'), {
+        'password': 'resource-fixture',
+      });
+      await secrets.deleteResource('OBSConnection', 'studio');
+      expect(await secrets.loadResource('OBSConnection', 'studio'), isEmpty);
+    },
+  );
+
   test('YAML preserves nested collections, keys and multiline scalars', () {
     final value = <String, dynamic>{
       'widgets': [

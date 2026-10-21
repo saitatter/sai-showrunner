@@ -39,7 +39,8 @@ bool pathIsWithin(String root, String candidate) {
 /// Resolves existing ancestors too, so junctions cannot redirect a new file.
 Future<String> canonicalPath(String path) async {
   final absolute = p.normalize(p.absolute(path));
-  if (await FileSystemEntity.type(absolute) != FileSystemEntityType.notFound) {
+  if (await FileSystemEntity.type(absolute, followLinks: false) !=
+      FileSystemEntityType.notFound) {
     return File(absolute).resolveSymbolicLinks();
   }
   final parent = p.dirname(absolute);

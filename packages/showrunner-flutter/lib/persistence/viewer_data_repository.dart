@@ -1,3 +1,4 @@
+import 'document_codec.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -76,7 +77,9 @@ final class FileViewerDataRepository implements ViewerDataRepository {
     for (final item in parsed) {
       if (item is! YamlMap) continue;
       try {
-        definitions.add(ViewerVariableDefinition.fromJson(_yamlMap(item)));
+        definitions.add(
+          ViewerVariableDefinition.fromJson(decodeYamlValue(item) as JsonMap),
+        );
       } on ArgumentError {
         continue;
       } on FormatException {
@@ -526,17 +529,6 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
 
   String _viewerKey(String provider, String viewerId) =>
       '${provider.length}:$provider:$viewerId';
-}
-
-JsonMap _yamlMap(YamlMap value) => {
-  for (final entry in value.entries)
-    entry.key.toString(): _yamlValue(entry.value),
-};
-
-dynamic _yamlValue(dynamic value) {
-  if (value is YamlMap) return _yamlMap(value);
-  if (value is YamlList) return value.map(_yamlValue).toList();
-  return value;
 }
 
 String _encodeDefinitions(List<ViewerVariableDefinition> definitions) {

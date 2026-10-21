@@ -250,7 +250,7 @@ class ResourceRepository {
       }
       resource = ResourceData(
         id: id,
-        config: _yamlMap(parsed),
+        config: decodeYamlValue(parsed) as _JsonMap,
         state: Map<String, dynamic>.from(state),
       );
     }
@@ -277,15 +277,4 @@ class ResourceRepository {
     }
     return secretSettings!.loadResource(type, resourceId);
   }
-}
-
-_JsonMap _yamlMap(YamlMap value) => {
-  for (final entry in value.entries)
-    entry.key.toString(): _yamlValue(entry.value),
-};
-
-dynamic _yamlValue(dynamic value) {
-  if (value is YamlMap) return _yamlMap(value);
-  if (value is YamlList) return value.map(_yamlValue).toList();
-  return value;
 }

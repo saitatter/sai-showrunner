@@ -1,3 +1,4 @@
+import 'document_codec.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -55,7 +56,7 @@ final class ProfileRepository {
     try {
       decoded = jsonDecode(contents);
     } on FormatException {
-      decoded = _yamlToDart(loadYaml(contents));
+      decoded = decodeYamlValue(loadYaml(contents));
     }
     if (decoded is! Map) {
       throw const FormatException('Profile file must contain a JSON object.');
@@ -70,15 +71,4 @@ final class ProfileRepository {
       const JsonEncoder.withIndent('  ').convert(profile.toJson()),
     );
   }
-}
-
-dynamic _yamlToDart(dynamic value) {
-  if (value is YamlMap) {
-    return <String, dynamic>{
-      for (final entry in value.entries)
-        entry.key.toString(): _yamlToDart(entry.value),
-    };
-  }
-  if (value is YamlList) return value.map(_yamlToDart).toList();
-  return value;
 }
