@@ -41,7 +41,7 @@ are not interchangeable with nightly benchmark medians/p95 or GPU frame rates.
 | Execution equivalence, branches/loops, cancellation, nested errors and traces | `test/graph/automation_execution_test.dart`, `test/runtime/execution_trace_test.dart`, `integration_test/runtime/runtime_workflows_test.dart` | External action side effects require live credentials |
 | Queues, profiles and serial Stream Plan transitions | `test/runtime/action_queue_test.dart`, `profile_runtime_test.dart`, `test/plugins/stream_plans/stream_plan_test.dart`, `integration_test/resources/queue_lifecycle_test.dart` | Real provider delivery remains opt-in |
 | Plugin availability, start/stop and reconnect | `test/plugins/registry/plugin_registry_test.dart`, `integration_test/plugins/provider_lifecycle_test.dart` | Enable/disable gates invocation; it does not promise worker stop/start on each toggle |
-| Unsupported/invalid data, atomic writes, secret separation, junctions | `test/persistence/persistence_safety_test.dart`, `atomic_file_test.dart`, `secret_settings_store_test.dart` | Process termination during an actual disk write is not a demonstrated crash-recovery test |
+| Unsupported/invalid data, atomic writes, secret separation, junctions | `test/persistence/persistence_safety_test.dart`, `atomic_file_test.dart`, `secret_settings_store_test.dart` | Deterministic abrupt process exit is covered at journal checkpoints; hardware power loss and hostile ancestor replacement during syscalls remain outside the proof |
 | Overlay/remote assets, RPC, ACL, shader rendering | `test/plugins/overlays/websocket_bridge_test.dart`, `test/plugins/remote/dashboard_host_test.dart`, `tools/overlay_registry/browser-smoke.mjs` | See architecture trust review for unresolved LAN capabilities and quotas |
 | Chat priority/cooldowns/counters, identity scoping and private/public isolation | `test/features/chat/`, `integration_test/application/chat_workspaces_test.dart` | Twitch whispers and YouTube privileges still require account validation |
 | Unsigned packaging, startup and updater rollback | `test/features/support/update_install_service_test.dart`, `scripts/smoke-flutter-windows.ps1`, release dry-run | Publishing remains a separate manually authorized operation |
@@ -202,6 +202,59 @@ A separate temporary comparison checked all instruction operands, edge IDs, slot
 
 These results use synthetic providers, injected capabilities and loopback services. They establish dispatch, lifecycle, persistence and visual contracts, not live provider permissions or external side-effect rollback. Timeout/close can still wait for a non-cooperative plugin to finish its owned cleanup. Accepted queue work remains queue-owned when a profile session stops. No live accounts, credentials, user OBS profiles or production resources are modified. No new browser shader claim is made: this phase changes no shader/browser rendering code.
 
+
+## Persistence, resource editors and secrets
+
+Phase 04 starts from integrated main `a4278743d`. The storage catalog covers all 20
+canonical resource families plus automations, profiles, queues, viewer data, plugin
+settings and chat state. Current JSON/YAML formats and resource identities remain
+unchanged. There is no migration decoder or automatic repair/reset of unsupported
+files. The public contract snapshot is identical before/after: 34 plugins, 174
+actions, 61 triggers, 57 states, 20 resources and 65 settings. Both committed
+lockfiles have unchanged hashes. Source inventory falls from 42 to 27 `part` sites;
+all 15 resource editor parts become ordinary provider-owned libraries. The one
+previously recorded TypeScript schema import cycle remains unrelated to this work.
+
+| Storage/editor contract | Executable evidence |
+| --- | --- |
+| Coherent public/state/secret recovery; failed deletes/cleanup; conflicting external bytes preserved | `test/persistence/file_transaction_test.dart`, `resource_recovery_test.dart`, `plugin_settings_store_test.dart`; faults before/after each publication, ciphertext-only secret journal payloads and independent process crash/lock fixtures |
+| Strict current formats, optimistic editor revisions, immutable accepted inputs and anchored project factories | `authoring_store_contract_test.dart`, `resource_revision_test.dart`, `project_storage_test.dart`, `test/app/document_session_coordinator_test.dart` |
+| Semantic resource fidelity | `resource_codec_contract_test.dart`: all 20 families in both JSON and YAML, unknown fields/state retained, malformed complex collections rejected without rewriting source, unbounded queue timeout and Stream Plan segment fields retained |
+| Provider-qualified viewer semantics across adapters | `viewer_store_contract_test.dart`: file/in-memory defaults, scoping, groups, import, pagination, concurrent increments and stale definition edits |
+| Native DPAPI and unavailable secrets | `secret_settings_store_test.dart`, `persistence_safety_test.dart`: real Windows encrypt/decrypt plus deterministic bad-cipher/read/write probes; declared fields merge, unrecognized encrypted fields remain opaque |
+| Windows containment and YAML safety | `persistence_safety_test.dart`, `project_storage_test.dart`: traversal, directory collisions, trailing separators, junction/dangling link containment, recursive aliases and non-string YAML keys |
+| Catalog ownership and diagnostics | `test/app/project_panel_controller_test.dart`, `test/services/project_catalog_service_test.dart`, `test/plugins/resources/resource_workspace_diagnostics_test.dart`: cached queries, scoped invalidation, shutdown drains and payload-free failures alongside healthy entries |
+| Draft/history retention and editor availability | `resource_editor_contribution_test.dart`, resource/overlay editor suites: disabled/unknown/malformed fallback, save failures retain drafts, disable/re-enable preserves mounted editor state; coordinator rejects unavailable-owner save/delete |
+| Runtime state versus authoring | `test/plugins/variables/variable_runtime_test.dart`: ID/alias increments serialize; runtime patches preserve newer config and unrelated state, respect disabled persistence and do not recreate deleted resources |
+| Native CRUD and restart | `integration_test/resources/resource_crud_test.dart`, `extended_editors_test.dart`, `resource_workspace_lifecycle_test.dart` and overlay fixtures; malformed resource remains visible beside healthy data across app restart without rewriting or showing parser source |
+
+Local full validation uses Windows 11 x64 and the pinned SDK above. The complete
+`ci-check.ps1 -Stage All` passes formatting, fatal-info analysis, 1,131 Flutter tests
+with 10 intentionally opt-in live-provider skips, 133 overlay tests in 22 files,
+typechecking/build/generated checks and product parity across 18 workspaces.
+Native validation runs from a byte-equivalent isolated checkout under `.tmp`,
+with no user profile/storage writes. The opt-in local audio probe requires
+`SHOWRUNNER_LOCAL_AUDIO=1`; this phase does not claim live audio/device validation. Captures retain the existing 1440x900 logical
+viewport at DPR 1. The editor extraction intends no layout/font changes; frozen
+Electron references and regression thresholds are unchanged. The final
+`-Stage Parity -Integration -Visual` gate passes 99 native scenarios with one
+opt-in audio skip. Both reviewed inspector regions have zero differing pixels;
+actual label/font captures were visually inspected. The historical Electron
+catalog comparison has no gate failures and remains diagnostic rather than a
+claim of full cross-runtime pixel equality. An initial restart-fixture navigation
+assumption was corrected to exercise the actual unreadable project row and safe
+diagnostic toast; the focused probe and subsequent complete suite both pass.
+
+Fault injection proves recovery at controlled journal/member boundaries, including
+an abrupt process exit; it is not hardware power-loss certification. Containment
+uses pathname checks rather than kernel no-follow handles, so hostile ancestor
+replacement during a syscall remains a documented limit. Repository readers
+recover coherent generations; raw filesystem readers do not get a simultaneous
+multi-file snapshot. Existing bounded external HTTP/protocol paths remain in
+force; authorized local authoring files receive no arbitrary new size cap.
+Live credentials, provider permissions, external side-effect rollback and production
+OBS resources are outside these isolated proofs. Raw reports/captures stay in
+ignored `.tmp/persistence-resources` and `.tmp/chat-qa`.
 
 ## Local checks and CI
 
