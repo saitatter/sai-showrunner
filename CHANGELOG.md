@@ -34,6 +34,7 @@
 - Enforce configured Twitch chat-trigger filters.
 
 ### Refactors
+- Memoize full semantic compiler signatures by immutable document identity in a bounded cache, retaining payload equality, entry-point invalidation and fresh runtime contexts; expose cache counters and repeatable timing/allocation probes.
 - Isolate compiler labels/slots and pure VM value operations, preserving the 16-opcode format and validating program operand addresses before actions run.
 - Separate trace models, events, snapshots, session production and retention behind the existing public trace facade without coupling them to Flutter or saved graphs.
 - Separate typed queue source metadata from captured automation snapshots and isolate nested context collections so explicit replay uses the original graph and inputs.

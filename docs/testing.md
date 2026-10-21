@@ -357,3 +357,31 @@ or print tokens. The [release checklist](release-checklist.md) remains an
 operator gate. Public packages and the manual Windows release proof are unsigned;
 packaging still exercises installed upgrade/rollback without a signature requirement.
 The separate signing-helper fixture uses a temporary test certificate only.
+
+## Graph runtime measurement contract
+
+`tool/graph_execution_benchmark_test.dart` records 21 samples after three warmups for linear 100/500/1,000-node, 100-iteration loop and eight-subgraph fixtures. It separates canonical signature construction, cold compilation including its signature, hot cache lookup, VM execution and VM execution with bounded tracing. Reports include program instruction/action/slot/subgraph/wire counts, executed instructions, signature bytes and cache counters. These structural counts are not retained program byte sizes. The authoring benchmark remains a separate gate.
+
+Run from `packages/showrunner-flutter` with Flutter 3.47.7 / Dart 3.13.5:
+
+```powershell
+$env:SHOWRUNNER_BENCH_ALLOCATIONS='1'
+flutter test --no-pub --enable-vmservice --concurrency=1 tool/graph_execution_benchmark_test.dart
+Remove-Item Env:SHOWRUNNER_BENCH_ALLOCATIONS
+```
+
+Allocation probes explicitly trace map/list/string classes only during separate untimed operations, then count allocation samples in that operation's VM timeline interval. They are sampled events within a finite VM buffer, not exact total allocations, allocated bytes or retained heap. Large operations can exceed the sample buffer; compare small fixtures and timing distributions without claiming precise memory savings. The probe fails visibly if explicitly requested without a working VM service. The debug service URL is never included in benchmark reports. RPC setup and tracing are outside timed samples. The VM allocation-profile accumulated fields matched current live heap in this environment and produced inconsistent churn deltas; those exploratory values were discarded.
+
+Same Windows machine/SDK, JIT, 21 samples, before/after bounded identity memoization:
+
+| Fixture | Hot lookup before p50/p95 (microseconds) | After p50/p95 (microseconds) |
+| --- | --- | --- |
+| Linear 100 | 364 / 724 | 7 / 21 |
+| Linear 500 | 1,914 / 2,895 | 11 / 15 |
+| Linear 1,000 | 4,231 / 5,659 | 14 / 23 |
+| Loop 100 | 32 / 52 | 5 / 7 |
+| Subgraphs 8 | 84 / 262 | 4 / 7 |
+
+For the 100-node fixture, the selected allocation sample count for one hot lookup fell from 4,885 to 1. The improvement applies to repeated lookup of the same immutable document and entry choice; a new document instance must still build the full signature. VM timings varied between runs and do not establish an execution-speed improvement. No frame-rate or end-to-end latency guarantee follows from this microbenchmark. Raw before/after reports remain ignored under `.tmp/graph-runtime`; reproducible fixtures and this measurement contract are maintained here.
+
+The independent interpreter differential suite adds 30 bounded synthetic seeds, each with completion, cancellation and failure modes. It covers wired variables, branches/switches, for/foreach/while loops, nested subgraph calls/returns, per-action observations and final results. Failures include the seed and synthetic serialized graph; fixtures contain no credentials. Tests also assert that execution leaves the authoring document unchanged.
