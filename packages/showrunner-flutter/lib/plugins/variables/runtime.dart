@@ -24,17 +24,6 @@ final class DartVariableDefinition {
   dynamic defaultValue;
   dynamic currentValue;
   bool persistent;
-
-  ResourceData toResource() => ResourceData(
-    id: id,
-    config: {
-      'name': name ?? id,
-      'type': type,
-      'defaultValue': defaultValue,
-      'persistent': persistent,
-    },
-    state: {'value': currentValue},
-  );
 }
 
 /// Runtime-backed variables shared by all graph executions.
@@ -54,6 +43,8 @@ final class DartVariableRuntime extends ChangeNotifier {
   final DartVariableChanged? onChanged;
   final Map<String, DartVariableDefinition> _definitions = {};
   bool _loaded = false;
+  Future<void>? _loading;
+  final _variableTails = <String, Future<void>>{};
   bool _disposed = false;
   Future<void>? _closing;
   final _pending = <Future<void>>{};
@@ -113,7 +104,7 @@ final class DartVariableRuntime extends ChangeNotifier {
   }
 
   Future<dynamic> setValue(String id, dynamic value) =>
-      _track(() => _setValue(id, value));
+      _trackVariable(id, (key) => _setValue(key, value));
   Future<dynamic> _setValue(String id, dynamic value) async {
     await _ensureLoaded();
     final definition = _find(id);
@@ -129,8 +120,9 @@ final class DartVariableRuntime extends ChangeNotifier {
     num offset, {
     num? minimum,
     num? maximum,
-  }) => _track(
-    () => _offsetValue(id, offset, minimum: minimum, maximum: maximum),
+  }) => _trackVariable(
+    id,
+    (key) => _offsetValue(key, offset, minimum: minimum, maximum: maximum),
   );
 
   Future<dynamic> _offsetValue(
@@ -154,10 +146,37 @@ final class DartVariableRuntime extends ChangeNotifier {
   }
 
   Future<dynamic> resetValue(String id) =>
-      setValue(id, _find(id)?.defaultValue);
+      _trackVariable(id, (key) => _setValue(key, _find(key)?.defaultValue));
+
+  Future<dynamic> _trackVariable(
+    String id,
+    Future<dynamic> Function(String key) operation,
+  ) => _track(() async {
+    await _ensureLoaded();
+    final key = _find(id)?.id;
+    if (key == null) return null;
+    final previous = _variableTails[key] ?? Future<void>.value();
+    final result = previous.then((_) => operation(key));
+    final tail = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    _variableTails[key] = tail;
+    try {
+      return await result;
+    } finally {
+      if (identical(_variableTails[key], tail)) _variableTails.remove(key);
+    }
+  });
 
   Future<void> _ensureLoaded() async {
-    if (!_loaded) await _load();
+    if (_loaded) return;
+    final loading = _loading ??= _load();
+    try {
+      await loading;
+    } finally {
+      if (identical(_loading, loading)) _loading = null;
+    }
   }
 
   Future<void> _loadFromDisk() async {
@@ -213,7 +232,14 @@ final class DartVariableRuntime extends ChangeNotifier {
 
   Future<void> _persist(DartVariableDefinition definition) async {
     if (!definition.persistent) return;
-    await _repository.save(definition.toResource());
+    await _repository.updateRuntimeState(
+      definition.id,
+      {'value': definition.currentValue},
+      writeIf: (current) =>
+          current.config['persistent'] != false &&
+          current.config['type']?.toString().trim().toLowerCase() ==
+              definition.type.trim().toLowerCase(),
+    );
   }
 
   void _publishAll() {

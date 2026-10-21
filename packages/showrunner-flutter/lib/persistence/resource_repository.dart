@@ -156,6 +156,32 @@ class ResourceRepository {
     });
   }
 
+  /// Patch durable runtime state without replaying an author's old config.
+  /// Missing resources are never recreated by a background runtime.
+  Future<ResourceData?> updateRuntimeState(
+    String id,
+    Map<String, dynamic> patch, {
+    bool Function(ResourceData current)? writeIf,
+  }) {
+    validateFileIdentifier(id);
+    final snapshot = jsonDecode(jsonEncode(patch)) as _JsonMap;
+    final transaction = _transaction(id);
+    return transaction.locked(() async {
+      await transaction.recover();
+      final current = await _loadUnlocked(id);
+      if (current == null || (writeIf != null && !writeIf(current))) {
+        return current;
+      }
+      final next = ResourceData(
+        id: id,
+        config: current.config,
+        state: {...current.state, ...snapshot},
+      );
+      await _save(next, transaction);
+      return next;
+    });
+  }
+
   Future<void> _save(ResourceData resource, FileTransaction transaction) async {
     // Reject unsupported existing bytes before staging any replacement.
     await _loadUnlocked(resource.id);

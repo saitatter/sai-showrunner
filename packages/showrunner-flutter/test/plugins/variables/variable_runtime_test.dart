@@ -10,7 +10,7 @@ import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
 import '../../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
-import 'package:showrunner_flutter/persistence/filesystem/atomic_file.dart';
+import 'package:showrunner_flutter/persistence/filesystem/file_transaction.dart';
 
 void main() {
   test(
@@ -34,10 +34,11 @@ void main() {
       );
       await runtime.load();
       final entered = Completer<void>(), release = Completer<void>();
-      final blocker = withFileLock('${root.path}/count.transaction', () async {
-        entered.complete();
-        await release.future;
-      });
+      final blocker = FileTransaction(directory: root, id: 'count', targets: {})
+          .locked(() async {
+            entered.complete();
+            await release.future;
+          });
       await entered.future;
       final edit = runtime.setValue('count', 7);
       var closed = false;
@@ -61,6 +62,83 @@ void main() {
       await root.delete(recursive: true);
     },
   );
+  test(
+    'concurrent offsets share canonical ID ownership and return each result',
+    () async {
+      final root = await Directory.systemTemp.createTemp('variable-offsets-');
+      addTearDown(() => root.delete(recursive: true));
+      final repository = ResourceRepository(root);
+      await repository.save(
+        const ResourceData(
+          id: 'count',
+          config: {
+            'name': 'Count',
+            'type': 'number',
+            'persistent': true,
+            'defaultValue': 0,
+          },
+        ),
+      );
+      final runtime = DartVariableRuntime(directory: root);
+      final results = await Future.wait([
+        for (var i = 0; i < 30; i++)
+          runtime.offsetValue(i.isEven ? 'count' : 'Count', 1),
+      ]);
+      expect(results, List.generate(30, (i) => i + 1));
+      expect((await repository.load('count'))!.state['value'], 30);
+      await runtime.close();
+    },
+  );
+
+  test(
+    'runtime patches preserve editor config and unrelated state without resurrecting deletes',
+    () async {
+      final root = await Directory.systemTemp.createTemp('variable-patch-');
+      addTearDown(() => root.delete(recursive: true));
+      final repository = ResourceRepository(root);
+      await repository.save(
+        const ResourceData(
+          id: 'count',
+          config: {'type': 'number', 'persistent': true, 'defaultValue': 3},
+        ),
+      );
+      final runtime = DartVariableRuntime(directory: root);
+      expect(await runtime.resetValue('count'), 3);
+      await repository.save(
+        const ResourceData(
+          id: 'count',
+          config: {
+            'type': 'number',
+            'name': 'Edited',
+            'persistent': true,
+            'defaultValue': 10,
+            'futureField': {'keep': true},
+          },
+          state: {'value': 3, 'other': 42},
+        ),
+      );
+      await runtime.setValue('count', 7);
+      final saved = (await repository.load('count'))!;
+      expect(saved.config['name'], 'Edited');
+      expect(saved.config['defaultValue'], 10);
+      expect(saved.config['futureField'], {'keep': true});
+      expect(saved.state, {'value': 7, 'other': 42});
+      await repository.save(
+        ResourceData(
+          id: 'count',
+          config: {...saved.config, 'persistent': false},
+          state: saved.state,
+        ),
+      );
+      await runtime.setValue('count', 8);
+      expect((await repository.load('count'))!.state['value'], 7);
+      await repository.delete('count');
+      await runtime.setValue('count', 9);
+      expect(await repository.load('count'), isNull);
+      await runtime.close();
+    },
+  );
+
   test('variable actions persist values and expose dynamic state', () async {
     final root = await Directory.systemTemp.createTemp('showrunner-variables-');
     addTearDown(() => root.delete(recursive: true));
