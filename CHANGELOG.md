@@ -19,7 +19,7 @@
 ### Docs
 
 ### CI & Build
-- Add isolated persistence failure probes for mixed credential/config generations, hidden decryption failures, unsupported envelopes and resource identity confusion.
+- Add isolated persistence failure probes for mixed credential/config generations, hidden decryption failures, unsupported envelopes and resource identity confusion; await real filesystem completion in variable UI fixtures and ignore generated fixture owner locks.
 
 ## 2.1.0 - 2026-10-21
 

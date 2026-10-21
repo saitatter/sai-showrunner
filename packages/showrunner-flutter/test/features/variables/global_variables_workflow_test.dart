@@ -17,7 +17,7 @@ void main() {
     final root = (await tester.runAsync(
       () => Directory.systemTemp.createTemp('showrunner-variable-ui-'),
     ))!;
-    addTearDown(() => root.delete(recursive: true));
+    addTearDown(() => tester.runAsync(() => root.delete(recursive: true)));
     final repository = ResourceRepository(Directory('${root.path}/variables'));
     await tester.runAsync(
       () => repository.save(
@@ -49,8 +49,8 @@ void main() {
       ),
     );
     await _until(tester, find.text('Session counter'));
-    await tester.tap(find.byTooltip('Reset to default'));
-    await _settleIo(tester);
+    await tester.runAsync(() => tester.tap(find.byTooltip('Reset to default')));
+    await _settleIo(tester, () => runtime.valueOf('counter') == 10);
     expect(runtime.valueOf('counter'), 10);
     await tester.tap(find.byTooltip('Edit variable'));
     await tester.pumpAndSettle();
@@ -61,8 +61,10 @@ void main() {
       ),
     );
     await tester.enterText(current, '60');
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await _settleIo(tester);
+    await tester.runAsync(
+      () => tester.tap(find.widgetWithText(FilledButton, 'Save')),
+    );
+    await _settleIo(tester, () => runtime.valueOf('counter') == 60);
     expect(runtime.valueOf('counter'), 60);
     final search = find.byWidgetPredicate(
       (w) => w is TextField && w.decoration?.labelText == 'Search variables',
@@ -79,11 +81,16 @@ void main() {
     expect(restarted.valueOf('counter'), 10);
     await tester.tap(find.byTooltip('Delete variable'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
-    await _settleIo(tester);
+    await tester.runAsync(
+      () => tester.tap(find.widgetWithText(FilledButton, 'Delete')),
+    );
+    await _settleIo(tester, () => runtime.definitionOf('counter') == null);
     expect(runtime.definitionOf('counter'), isNull);
     expect(await tester.runAsync(repository.list), isEmpty);
     await tester.pumpWidget(const SizedBox.shrink());
+    await tester.runAsync(runtime.close);
+    await tester.runAsync(repository.list);
+    await tester.pumpAndSettle();
   });
 }
 
@@ -98,11 +105,13 @@ Future<void> _until(WidgetTester tester, Finder target) async {
   throw TestFailure('Missing $target');
 }
 
-Future<void> _settleIo(WidgetTester tester) async {
-  for (var i = 0; i < 60; i++) {
+Future<void> _settleIo(WidgetTester tester, bool Function() completed) async {
+  for (var i = 0; i < 200; i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
     await tester.pump(const Duration(milliseconds: 100));
+    if (completed()) return;
   }
+  throw TestFailure('Variable operation did not complete.');
 }
