@@ -360,3 +360,7 @@ projection. These are scoped proofs, not a claim that arbitrary widget config or
 every remote error path has been exhaustively reviewed. Further secret-projection,
 shader-input, emote-host and data-channel failure-path tests remain part of the
 baseline exit gate. See the [behavior contract matrix](testing.md#baseline-and-behavior-contracts).
+
+### Compiler and VM responsibility boundaries
+
+The production compiler retains control-flow lowering and subgraph traversal, where visited sets, loop stacks and deterministic edge correlation belong together. `CompilerLabels` owns relocation (including loop exits in operand 2) and rejects unresolved labels; `CompilerSlots` owns deterministic allocation and aliases. Pure VM cloning, path access, result normalization and wire indexing live in `vm_value_operations.dart`. The interpreter imports none of these helpers. Before running an action, the VM validates every compiled operand address and subgraph signature against the program; dynamic values, stack operations and execution limits remain runtime checks. The instruction set still has 16 opcodes.

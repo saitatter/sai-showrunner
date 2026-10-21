@@ -3,6 +3,8 @@ import '../domain/automation_document.dart';
 import 'package:sai_nodes_core/sai_nodes_core.dart' show PortRef;
 
 import 'graph_program.dart';
+import 'compiler_labels.dart';
+import 'compiler_slots.dart';
 
 final class DartProductionGraphCompiler {
   DartProductionGraphCompiler({this.yieldInterval = 64});
@@ -10,8 +12,7 @@ final class DartProductionGraphCompiler {
   final int yieldInterval;
   final List<DartGraphInstruction> _instructions = [];
   final List<RuntimeNode> _actionNodes = [];
-  final Map<String, int> _localSlots = {};
-  final Map<String, int> _slotAliases = {};
+  final CompilerSlots _slots = CompilerSlots();
   final Map<String, List<RuntimeControlEdge>> _edgeMap = {};
   final Map<String, RuntimeNode> _nodeMap = {};
   final Map<String, String> _nodeTypes = {};
@@ -24,10 +25,7 @@ final class DartProductionGraphCompiler {
   final List<int> _loopExitStack = [];
   final List<int> _loopHeaderStack = [];
   final List<int> _loopContinueStack = [];
-  final Map<int, int> _labels = {};
-  final List<({int instructionIndex, int labelId})> _pendingJumps = [];
-  int _nextSlot = 0;
-  int _nextLabel = 0;
+  final CompilerLabels _labels = CompilerLabels();
 
   DartGraphProgram compileAutomation(
     AutomationDocument automation, {
@@ -72,21 +70,9 @@ final class DartProductionGraphCompiler {
     for (final subgraph in subgraphs) {
       compiledSubgraphs.add(_compileSubgraph(subgraph));
     }
-    _resolveLabels();
+    _labels.resolve(_instructions);
 
-    final slotNames = List<String>.filled(_nextSlot, '');
-    for (final entry in _slotAliases.entries) {
-      final current = slotNames[entry.value];
-      if (current.isEmpty || current.contains(':')) {
-        slotNames[entry.value] = entry.key;
-      }
-    }
-    for (final entry in _localSlots.entries) {
-      final current = slotNames[entry.value];
-      if (current.isEmpty || current.contains(':')) {
-        slotNames[entry.value] = entry.key;
-      }
-    }
+    final slotNames = _slots.names;
 
     final allWires = <RuntimeValueBinding>[
       ...dataWires,
@@ -114,7 +100,7 @@ final class DartProductionGraphCompiler {
       instructions: List.unmodifiable(_instructions),
       actionNodes: List.unmodifiable(_actionNodes),
       subgraphs: List.unmodifiable(compiledSubgraphs),
-      localSlotCount: _nextSlot,
+      localSlotCount: _slots.count,
       slotNames: List.unmodifiable(slotNames),
       wireMap: Map.unmodifiable(wireMap),
       contextSourceNodeIds: List.unmodifiable(_contextSourceNodeIds),
@@ -130,8 +116,7 @@ final class DartProductionGraphCompiler {
   void _reset() {
     _instructions.clear();
     _actionNodes.clear();
-    _localSlots.clear();
-    _slotAliases.clear();
+    _slots.reset();
     _edgeMap.clear();
     _nodeMap.clear();
     _nodeTypes.clear();
@@ -144,10 +129,7 @@ final class DartProductionGraphCompiler {
     _loopExitStack.clear();
     _loopHeaderStack.clear();
     _loopContinueStack.clear();
-    _labels.clear();
-    _pendingJumps.clear();
-    _nextSlot = 0;
-    _nextLabel = 0;
+    _labels.reset();
   }
 
   void _buildMaps(List<RuntimeNode> nodes, List<RuntimeControlEdge> edges) {
@@ -266,7 +248,7 @@ final class DartProductionGraphCompiler {
 
   void _compileSwitch(RuntimeNode node, Set<String> visited) {
     final endLabel = _newLabel();
-    final switchSlot = _allocSlot('${node.id}:switchVal');
+    final switchSlot = _slots.allocate('${node.id}:switchVal');
     _emit(
       DartGraphInstruction(
         op: DartGraphOpCode.eval,
@@ -286,7 +268,7 @@ final class DartProductionGraphCompiler {
       ),
     );
     final switchName = '__switch_${node.id}';
-    _bindSlot(switchName, switchSlot);
+    _slots.bind(switchName, switchSlot);
     final cases = node.data['cases'];
     if (cases is List) {
       for (final item in cases.whereType<Map>()) {
@@ -319,9 +301,9 @@ final class DartProductionGraphCompiler {
 
   void _compileFor(RuntimeNode node, Set<String> visited) {
     _loopNodeIds.add(node.id);
-    final counterSlot = _allocSlot('${node.id}:counter');
-    final endSlot = _allocSlot('${node.id}:end');
-    final stepSlot = _allocSlot('${node.id}:step');
+    final counterSlot = _slots.allocate('${node.id}:counter');
+    final endSlot = _slots.allocate('${node.id}:end');
+    final stepSlot = _slots.allocate('${node.id}:step');
     if (node.data['maxIterations'] case final num limit) {
       _loopLimits[node.id] = limit.toInt();
     }
@@ -371,7 +353,7 @@ final class DartProductionGraphCompiler {
       ),
     );
     final variable = node.data['variable']?.toString() ?? 'index';
-    _bindSlot(variable, counterSlot);
+    _slots.bind(variable, counterSlot);
     _emit(DartGraphInstruction(op: DartGraphOpCode.loopInit, nodeId: node.id));
     _loopRepeatLabels[node.id] = continueLabel;
     _placeLabel(headerLabel);
@@ -385,7 +367,7 @@ final class DartProductionGraphCompiler {
         arg2: -1,
       ),
     );
-    _pendingJumps.add((instructionIndex: checkIndex, labelId: exitLabel));
+    _labels.reference(checkIndex, exitLabel);
     _loopExitStack.add(exitLabel);
     _loopHeaderStack.add(headerLabel);
     _loopContinueStack.add(continueLabel);
@@ -415,9 +397,9 @@ final class DartProductionGraphCompiler {
 
   void _compileForEach(RuntimeNode node, Set<String> visited) {
     _loopNodeIds.add(node.id);
-    final itemSlot = _allocSlot('${node.id}:item');
-    final indexSlot = _allocSlot('${node.id}:index');
-    final collSlot = _allocSlot('${node.id}:coll');
+    final itemSlot = _slots.allocate('${node.id}:item');
+    final indexSlot = _slots.allocate('${node.id}:index');
+    final collSlot = _slots.allocate('${node.id}:coll');
     final headerLabel = _newLabel();
     final exitLabel = _newLabel();
     final continueLabel = _newLabel();
@@ -453,10 +435,10 @@ final class DartProductionGraphCompiler {
         arg0: indexSlot,
       ),
     );
-    _bindSlot(node.data['variable']?.toString() ?? 'item', itemSlot);
+    _slots.bind(node.data['variable']?.toString() ?? 'item', itemSlot);
     final indexVariable = node.data['indexVariable']?.toString();
     if (indexVariable != null && indexVariable.isNotEmpty) {
-      _bindSlot(indexVariable, indexSlot);
+      _slots.bind(indexVariable, indexSlot);
     }
     _emit(DartGraphInstruction(op: DartGraphOpCode.loopInit, nodeId: node.id));
     _loopRepeatLabels[node.id] = continueLabel;
@@ -475,7 +457,7 @@ final class DartProductionGraphCompiler {
         arg2: -1,
       ),
     );
-    _pendingJumps.add((instructionIndex: iterIndex, labelId: exitLabel));
+    _labels.reference(iterIndex, exitLabel);
     _loopExitStack.add(exitLabel);
     _loopHeaderStack.add(headerLabel);
     _loopContinueStack.add(continueLabel);
@@ -593,8 +575,8 @@ final class DartProductionGraphCompiler {
 
   DartCompiledSubgraph _compileSubgraph(RuntimeSubgraph subgraph) {
     final entryPc = _instructions.length;
-    final previousLocalSlots = Map<String, int>.from(_localSlots);
-    final subgraphSlotStart = _nextSlot;
+    final previousLocalSlots = Map<String, int>.from(_slots.bindings);
+    final subgraphSlotStart = _slots.count;
     final previousEdges = Map<String, List<RuntimeControlEdge>>.from(_edgeMap);
     final previousNodes = Map<String, RuntimeNode>.from(_nodeMap);
     final previousNodePc = Map<String, int>.from(_nodePc);
@@ -607,9 +589,9 @@ final class DartProductionGraphCompiler {
     final paramSlots = <int>[];
     for (final parameter in subgraph.parameters) {
       final name = parameter['name']?.toString() ?? '';
-      final slot = _allocSlot('sg:${subgraph.id}:$name');
+      final slot = _slots.allocate('sg:${subgraph.id}:$name');
       paramSlots.add(slot);
-      if (name.isNotEmpty) _bindSlot(name, slot);
+      if (name.isNotEmpty) _slots.bind(name, slot);
     }
     final subgraphInstructionStart = _instructions.length;
     _compileFromEntry(subgraph.entryNodeId);
@@ -631,7 +613,7 @@ final class DartProductionGraphCompiler {
       ),
     );
     final localSlotsByName = <String, int>{
-      for (final entry in _localSlots.entries)
+      for (final entry in _slots.bindings.entries)
         if (entry.value >= subgraphSlotStart ||
             previousLocalSlots[entry.key] != entry.value)
           entry.key: entry.value,
@@ -664,20 +646,6 @@ final class DartProductionGraphCompiler {
       ),
       localSlotsByName: Map.unmodifiable(localSlotsByName),
     );
-  }
-
-  int _allocSlot(String key) {
-    final existing = _localSlots[key];
-    if (existing != null) return existing;
-    final slot = _nextSlot++;
-    _localSlots[key] = slot;
-    _slotAliases[key] = slot;
-    return slot;
-  }
-
-  void _bindSlot(String name, int slot) {
-    _localSlots[name] = slot;
-    _slotAliases[name] = slot;
   }
 
   RuntimeControlEdge? _getEdge(String nodeId, String? port) =>
@@ -719,35 +687,13 @@ final class DartProductionGraphCompiler {
   void _emit(DartGraphInstruction instruction) =>
       _instructions.add(instruction);
 
-  int _newLabel() => _nextLabel++;
+  int _newLabel() => _labels.allocate();
 
-  void _placeLabel(int label) => _labels[label] = _instructions.length;
+  void _placeLabel(int label) => _labels.place(label, _instructions.length);
 
   void _emitJumpToLabel(DartGraphOpCode op, int label, String? nodeId) {
     final index = _instructions.length;
     _emit(DartGraphInstruction(op: op, nodeId: nodeId, arg0: -1));
-    _pendingJumps.add((instructionIndex: index, labelId: label));
-  }
-
-  void _resolveLabels() {
-    for (final pending in _pendingJumps) {
-      final target = _labels[pending.labelId];
-      if (target == null) continue;
-      final old = _instructions[pending.instructionIndex];
-      final isExitJump =
-          old.op == DartGraphOpCode.loopCheck ||
-          old.op == DartGraphOpCode.iterNext;
-      _instructions[pending.instructionIndex] = DartGraphInstruction(
-        op: old.op,
-        nodeId: old.nodeId,
-        arg0: isExitJump ? old.arg0 : target,
-        arg1: old.arg1,
-        arg2: isExitJump ? target : old.arg2,
-        edgeId: old.edgeId,
-        edgeFromNodeId: old.edgeFromNodeId,
-        edgeToNodeId: old.edgeToNodeId,
-        edgePort: old.edgePort,
-      );
-    }
+    _labels.reference(index, label);
   }
 }

@@ -6,7 +6,8 @@ import '../../runtime/execution_trace.dart';
 import 'graph_runtime.dart';
 
 import 'graph_program.dart';
-import 'runtime_values.dart';
+import 'graph_program_validation.dart';
+import 'vm_value_operations.dart';
 
 final class DartGraphVm {
   DartGraphVm(
@@ -51,6 +52,7 @@ final class DartGraphVm {
     required EvaluationContext context,
     required DartProgramAction action,
   }) async {
+    validateGraphProgram(program);
     _locals = List<dynamic>.filled(program.localSlotCount, null);
     _stack.clear();
     _callStack.clear();
@@ -88,7 +90,7 @@ final class DartGraphVm {
         _locals[entry.value] = _context.locals[entry.key];
       }
     }
-    _nodeWireInputs = _buildNodeWireInputs(program);
+    _nodeWireInputs = vmBuildNodeWireInputs(program);
     try {
       while (_pc < program.instructions.length) {
         _context.cancellationToken?.throwIfCancelled();
@@ -129,7 +131,7 @@ final class DartGraphVm {
       contextState: Map.unmodifiable(_context.contextState),
       outputValues: _didReturn
           ? {..._outputValues}
-          : {..._definitionOutputValues(program.outputs, _context)},
+          : {...vmDefinitionOutputValues(program.outputs, _context)},
     );
   }
 
@@ -239,13 +241,13 @@ final class DartGraphVm {
         _pc = instruction.arg0 ?? -1;
         return false;
       case DartGraphOpCode.jumpIf:
-        if (_truthy(_stack.removeLast())) {
+        if (vmTruthy(_stack.removeLast())) {
           _pc = instruction.arg0 ?? -1;
           return false;
         }
         return true;
       case DartGraphOpCode.jumpIfNot:
-        if (!_truthy(_stack.removeLast())) {
+        if (!vmTruthy(_stack.removeLast())) {
           _pc = instruction.arg0 ?? -1;
           return false;
         }
@@ -255,7 +257,7 @@ final class DartGraphVm {
         final value = _evaluateInput(instruction.arg1);
         if (instruction.arg1 case RuntimeInputReference(key: 'condition')) {
           if (program.loopNodeIds.contains(instruction.nodeId) &&
-              _truthy(value)) {
+              vmTruthy(value)) {
             _checkIterationLimit(instruction.nodeId);
             _nodeResults[instruction.nodeId!] = {
               'iteration': _iterationCounters[instruction.nodeId]! - 1,
@@ -279,7 +281,7 @@ final class DartGraphVm {
         final counter = _locals[instruction.arg0 ?? 0];
         final args = instruction.arg1 as DartGraphLoopCheckArgs;
         final end = _locals[args.endSlot];
-        final step = _asNumber(_locals[args.stepSlot]);
+        final step = vmAsNumber(_locals[args.stepSlot]);
         if (!step.isFinite || step == 0) {
           throw StateError(
             'Loop step must be finite and nonzero at ${instruction.nodeId}.',
@@ -304,8 +306,8 @@ final class DartGraphVm {
         return true;
       case DartGraphOpCode.loopStep:
         _syncLocalsToContext();
-        final current = _asNumber(_locals[instruction.arg0 ?? 0]);
-        final step = _asNumber(_evaluateInput(instruction.arg1));
+        final current = vmAsNumber(_locals[instruction.arg0 ?? 0]);
+        final step = vmAsNumber(_evaluateInput(instruction.arg1));
         if (!current.isFinite || !step.isFinite) {
           throw StateError(
             'Loop step must be numeric at ${instruction.nodeId}.',
@@ -383,12 +385,12 @@ final class DartGraphVm {
       rethrow;
     }
     _context.cancellationToken?.throwIfCancelled();
-    final normalized = _normalizeActionResult(result);
+    final normalized = vmNormalizeActionResult(result);
     if (normalized != null) _nodeResults[node.id] = normalized;
     final mapping = node.data['resultMapping'];
     if (mapping is Map) {
       for (final entry in mapping.entries) {
-        _context.contextState[entry.value.toString()] = _getPath(
+        _context.contextState[entry.value.toString()] = vmGetPath(
           normalized,
           entry.key.toString(),
         );
@@ -399,10 +401,10 @@ final class DartGraphVm {
   RuntimeMap _resolveActionConfig(RuntimeNode node) {
     final raw = node.data['config'];
     final config = raw is Map
-        ? _cloneValue(raw) as RuntimeMap
+        ? vmCloneValue(raw) as RuntimeMap
         : <String, dynamic>{};
     for (final wire in _nodeWireInputs[node.id] ?? const []) {
-      _setPath(config, wire.toPort, _resolveWireSource(wire.source));
+      vmSetPath(config, wire.toPort, _resolveWireSource(wire.source));
     }
     final interpolated = interpolateRuntimeValue(config, _context);
     return interpolated is Map
@@ -643,90 +645,3 @@ final class _DartGraphCallFrame {
   final int? callInvocation;
   final DateTime? callStartedAt;
 }
-
-Map<String, List<({String toPort, DartGraphWireSource source})>>
-_buildNodeWireInputs(DartGraphProgram program) {
-  final result =
-      <String, List<({String toPort, DartGraphWireSource source})>>{};
-  for (final entry in program.wireMap.entries) {
-    result.putIfAbsent(entry.key.nodeId, () => []).add((
-      toPort: entry.key.portId,
-      source: entry.value,
-    ));
-  }
-  return result;
-}
-
-RuntimeMap? _normalizeActionResult(Object? result) {
-  if (result is Map) {
-    return {
-      for (final entry in result.entries) entry.key.toString(): entry.value,
-    };
-  }
-  return result == null ? null : {'_result': result};
-}
-
-Object? _cloneValue(Object? value) {
-  if (value is Map) {
-    return {
-      for (final entry in value.entries)
-        entry.key.toString(): _cloneValue(entry.value),
-    };
-  }
-  if (value is List) return value.map(_cloneValue).toList();
-  return value;
-}
-
-void _setPath(RuntimeMap target, String path, Object? value) {
-  final parts = path.split('.').where((part) => part.isNotEmpty).toList();
-  if (parts.isEmpty) return;
-  var current = target;
-  for (final part in parts.take(parts.length - 1)) {
-    final next = current[part];
-    if (next is Map) {
-      final copy = Map<String, dynamic>.from(next);
-      current[part] = copy;
-      current = copy;
-    } else {
-      current[part] = <String, dynamic>{};
-      current = current[part] as RuntimeMap;
-    }
-  }
-  current[parts.last] = value;
-}
-
-dynamic _getPath(dynamic source, String path) {
-  if (source == null) return null;
-  var current = source;
-  for (final part in path.split('.').where((part) => part.isNotEmpty)) {
-    if (current is Map) {
-      current = current[part];
-    } else if (current is List) {
-      final index = int.tryParse(part);
-      if (index == null || index < 0 || index >= current.length) return null;
-      current = current[index];
-    } else {
-      return null;
-    }
-  }
-  return current;
-}
-
-Map<String, dynamic> _definitionOutputValues(
-  List<JsonMap> definitions,
-  EvaluationContext context,
-) => {
-  for (final definition in definitions)
-    if (definition['name'] is String && definition['expression'] != null)
-      definition['name'].toString(): evaluateRuntimeInput(
-        definition['expression'],
-        context,
-      ),
-};
-
-num _asNumber(Object? value) =>
-    value is num ? value : num.tryParse('$value') ?? double.nan;
-
-bool _truthy(Object? value) => value is bool
-    ? value
-    : value != null && value != 0 && value != '' && value != false;
