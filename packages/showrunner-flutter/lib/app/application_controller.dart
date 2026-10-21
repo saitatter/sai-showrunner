@@ -1,3 +1,4 @@
+import '../plugins/registry/builtin_resource_specs.dart';
 import '../plugins/runtime/provider_worker_status.dart';
 import '../services/structured_logger.dart';
 import 'dart:async';
@@ -56,6 +57,12 @@ final class ApplicationController {
           ? createSampleAutomation()
           : AutomationDocument.empty(),
       streamPlans: services.streamPlans,
+      canEditResource: (type) async {
+        final contract = builtInResourceSpec(type);
+        final registry = await services.pluginRegistryFuture;
+        return registry.manifest(contract.ownerId) != null &&
+            registry.isPluginEnabledId(contract.ownerId);
+      },
     );
     return owner = ApplicationController._(
       services: services,
