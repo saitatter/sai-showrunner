@@ -114,6 +114,15 @@ Shader authoring uses the same immutable graph/core/canvas. Semantic changes
 invalidate generated GLSL; presentation changes do not. Node previews use derived
 documents. Shader source is compiled/rendered by the actual browser WebGL runtime.
 
+### Compiler and VM responsibility boundaries
+
+The production compiler retains control-flow lowering and subgraph traversal, where visited sets, loop stacks and deterministic edge correlation belong together. `CompilerLabels` owns relocation (including loop exits in operand 2) and rejects unresolved labels; `CompilerSlots` owns deterministic allocation and aliases. Pure VM cloning, path access, result normalization and wire indexing live in `vm_value_operations.dart`. The interpreter imports none of these helpers. Before running an action, the VM validates every compiled operand address and subgraph signature against the program; dynamic values, stack operations and execution limits remain runtime checks. The instruction set still has 16 opcodes.
+
+### Program cache identity and semantic equality
+
+The program LRU still keys by the entire canonical semantic payload, so correctness does not depend on a hash collision assumption. A separate identity map remembers one entry-space/node variant per immutable `AutomationDocument`, bounded to the same configured entry count. New document instances compute their payload and can reuse an existing program by equality; edits never reuse an identity fingerprint. Clearing the program cache also clears identity fingerprints. A zero entry count disables both stores. Presentation maps, frames/comments and host display/queue settings are excluded; node data, conservative node/space metadata, connection endpoints/data, entry choice and dependent subgraph signatures remain included. Plugin state and evaluation contexts are never cached. Hit/miss/signature-build counters are cumulative diagnostics.
+
+
 ## Plugins, persistence and remote control
 
 Built-in Dart plugins own manifests, action/trigger contracts, runtimes and UI
@@ -360,11 +369,3 @@ projection. These are scoped proofs, not a claim that arbitrary widget config or
 every remote error path has been exhaustively reviewed. Further secret-projection,
 shader-input, emote-host and data-channel failure-path tests remain part of the
 baseline exit gate. See the [behavior contract matrix](testing.md#baseline-and-behavior-contracts).
-
-### Compiler and VM responsibility boundaries
-
-The production compiler retains control-flow lowering and subgraph traversal, where visited sets, loop stacks and deterministic edge correlation belong together. `CompilerLabels` owns relocation (including loop exits in operand 2) and rejects unresolved labels; `CompilerSlots` owns deterministic allocation and aliases. Pure VM cloning, path access, result normalization and wire indexing live in `vm_value_operations.dart`. The interpreter imports none of these helpers. Before running an action, the VM validates every compiled operand address and subgraph signature against the program; dynamic values, stack operations and execution limits remain runtime checks. The instruction set still has 16 opcodes.
-
-### Program cache identity and semantic equality
-
-The program LRU still keys by the entire canonical semantic payload, so correctness does not depend on a hash collision assumption. A separate identity map remembers one entry-space/node variant per immutable `AutomationDocument`, bounded to the same configured entry count. New document instances compute their payload and can reuse an existing program by equality; edits never reuse an identity fingerprint. Clearing the program cache also clears identity fingerprints. A zero entry count disables both stores. Presentation maps, frames/comments and host display/queue settings are excluded; node data, conservative node/space metadata, connection endpoints/data, entry choice and dependent subgraph signatures remain included. Plugin state and evaluation contexts are never cached. Hit/miss/signature-build counters are cumulative diagnostics.

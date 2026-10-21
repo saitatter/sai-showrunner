@@ -50,6 +50,7 @@
 - Give navigation, document sessions and execution workflows explicit owners with validated navigation persistence and guarded asynchronous saves; native fixtures await flush and shutdown before restart or storage cleanup.
 
 ### Docs
+- Document graph invocation/queue ownership, profile and plan shutdown, trace privacy/retention, compiler/cache boundaries and measured Phase 03 validation limits.
 - Document first-party provider composition, lifecycle/enable semantics, cancellation, bounded event delivery and the corresponding validation boundaries.
 - Document application ownership and shutdown contracts, network trust boundaries and remaining baseline security work with measured validation evidence.
 - Clarify that corrections made while implementing new features remain in their feature entries rather than release fixes.
