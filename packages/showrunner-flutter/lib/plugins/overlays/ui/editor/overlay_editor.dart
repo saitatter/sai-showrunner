@@ -1,3 +1,7 @@
+import 'overlay_editor_toolbar.dart';
+import 'overlay_widget_palette.dart';
+import 'overlay_widget_rename_dialog.dart';
+import 'overlay_layer_title.dart';
 import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -164,7 +168,32 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       color: ShowRunnerColors.surfaceB,
       child: Column(
         children: [
-          _overlayEditorToolbar(context),
+          OverlayEditorToolbar(
+            nameController: _name,
+            widthController: _width,
+            heightController: _height,
+            snapEnabled: _snapEnabled,
+            onSnapToggle: () => setState(() {
+              _snapEnabled = !_snapEnabled;
+              _verticalGuides = const [];
+              _horizontalGuides = const [];
+            }),
+            onNameChanged: _markDirty,
+            onSizeChanged: () {
+              _markDirty();
+              setState(() {});
+              _scheduleObsSourceRefresh();
+            },
+            onSizePreset: _setSizePreset,
+            onPreviewSettings: () => _showPreviewSettings(context),
+            obsConnections: _obsConnections,
+            obsConnectionsLoading: _obsConnectionsLoading,
+            selectedObsConnectionId: _selectedObsConnectionId,
+            onSelectObsConnection: _selectObsConnection,
+            obsSourceControl: widget.obsSourceService == null
+                ? null
+                : _overlayObsSourceControl(context),
+          ),
           const Divider(height: 1),
           Expanded(
             child: Row(
@@ -313,141 +342,6 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       widget.onDirtyChanged?.call(false);
     }
   }
-
-  Widget _overlayEditorToolbar(BuildContext context) => Material(
-    key: const ValueKey('overlay-editor-toolbar'),
-    color: ShowRunnerColors.surfaceB,
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          const Icon(Icons.layers_outlined),
-          IconButton(
-            key: const ValueKey('overlay-snap-toggle'),
-            tooltip: 'Snap to guides (hold Shift to bypass)',
-            isSelected: _snapEnabled,
-            selectedIcon: const Icon(Icons.grid_on),
-            icon: const Icon(Icons.grid_off),
-            onPressed: () => setState(() {
-              _snapEnabled = !_snapEnabled;
-              _verticalGuides = const [];
-              _horizontalGuides = const [];
-            }),
-          ),
-          const Text(
-            'Edit overlay',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
-          SizedBox(
-            width: 180,
-            child: TextField(
-              controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Overlay name',
-                isDense: true,
-              ),
-              onChanged: (_) => _markDirty(),
-            ),
-          ),
-          if (widget.obsSourceService != null) ...[
-            SizedBox(
-              width: 220,
-              child: DropdownButtonFormField<String>(
-                key: const ValueKey('overlay-obs-connection-selector'),
-                initialValue:
-                    _obsConnections.any(
-                      (connection) => connection.id == _selectedObsConnectionId,
-                    )
-                    ? _selectedObsConnectionId
-                    : null,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: 'OBS Connection',
-                  isDense: true,
-                  suffixIcon: _obsConnectionsLoading
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : null,
-                ),
-                hint: const Text('Select OBS Connection'),
-                items: [
-                  for (final connection in _obsConnections)
-                    DropdownMenuItem(
-                      value: connection.id,
-                      child: Text(
-                        connection.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-                onChanged: _obsConnectionsLoading ? null : _selectObsConnection,
-              ),
-            ),
-            _overlayObsSourceControl(context),
-          ],
-          SizedBox(
-            width: 86,
-            child: TextField(
-              controller: _width,
-              inputFormatters: const [
-                NumericInputFormatter(decimal: false, signed: false),
-              ],
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Width',
-                suffixText: 'px',
-                isDense: true,
-              ),
-              onChanged: (_) {
-                _markDirty();
-                setState(() {});
-                _scheduleObsSourceRefresh();
-              },
-            ),
-          ),
-          SizedBox(
-            width: 86,
-            child: TextField(
-              controller: _height,
-              inputFormatters: const [
-                NumericInputFormatter(decimal: false, signed: false),
-              ],
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Height',
-                suffixText: 'px',
-                isDense: true,
-              ),
-              onChanged: (_) {
-                _markDirty();
-                setState(() {});
-                _scheduleObsSourceRefresh();
-              },
-            ),
-          ),
-          _sizePreset('1080p', 1920, 1080),
-          _sizePreset('1440p', 2560, 1440),
-          _sizePreset('4K', 3840, 2160),
-          _sizePreset('Vertical', 1080, 1920),
-          IconButton(
-            tooltip: 'Preview settings',
-            onPressed: () => _showPreviewSettings(context),
-            icon: const Icon(Icons.image_outlined),
-          ),
-        ],
-      ),
-    ),
-  );
 
   Widget _overlayObsSourceControl(BuildContext context) {
     final selected = _selectedObsConnection;
@@ -881,7 +775,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          _OverlayLayerTitle(
+                                          OverlayLayerTitle(
                                             key: ValueKey(
                                               'overlay-layer-title-${item['id']}',
                                             ),
@@ -1570,7 +1464,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
             targetAnchor: Alignment.bottomRight,
             followerAnchor: Alignment.topRight,
             offset: const Offset(0, 4),
-            child: _OverlayWidgetMenu(
+            child: OverlayWidgetPalette(
               catalog: _overlayWidgetCatalog,
               height: menuHeight,
               onSelected: (definition) {
@@ -1592,17 +1486,14 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     entry?.remove();
   }
 
-  Widget _sizePreset(String label, int width, int height) => OutlinedButton(
-    onPressed: () {
-      _markDirty();
-      setState(() {
-        _width.text = '$width';
-        _height.text = '$height';
-      });
-      _scheduleObsSourceRefresh();
-    },
-    child: Text(label),
-  );
+  void _setSizePreset(int width, int height) {
+    _markDirty();
+    setState(() {
+      _width.text = '$width';
+      _height.text = '$height';
+    });
+    _scheduleObsSourceRefresh();
+  }
 
   void _addWidget(GeneratedOverlayWidget definition) {
     final widgetConfig = definition.createWidget(
@@ -1669,7 +1560,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     final widgetConfig = _widgets[index];
     final name = await showDialog<String>(
       context: context,
-      builder: (_) => _OverlayWidgetRenameDialog(
+      builder: (_) => OverlayWidgetRenameDialog(
         widgetId: widgetConfig['id']?.toString() ?? '$index',
         name: widgetConfig['name']?.toString() ?? '',
       ),
@@ -1713,255 +1604,6 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
           child: Icon(Icons.lock, size: 10),
         ),
       ],
-    );
-  }
-}
-
-class _OverlayLayerTitle extends StatefulWidget {
-  const _OverlayLayerTitle({
-    super.key,
-    required this.widgetId,
-    required this.name,
-    required this.onSelected,
-    required this.onRenamed,
-  });
-  final String widgetId;
-  final String name;
-  final VoidCallback onSelected;
-  final ValueChanged<String> onRenamed;
-  @override
-  State<_OverlayLayerTitle> createState() => _OverlayLayerTitleState();
-}
-
-class _OverlayLayerTitleState extends State<_OverlayLayerTitle> {
-  final _controller = TextEditingController();
-  final _focus = FocusNode();
-  bool _editing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(() {
-      if (!_focus.hasFocus && _editing) _finish();
-    });
-  }
-
-  void _start() {
-    widget.onSelected();
-    _controller.value = TextEditingValue(
-      text: widget.name,
-      selection: TextSelection(baseOffset: 0, extentOffset: widget.name.length),
-    );
-    setState(() => _editing = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _editing) _focus.requestFocus();
-    });
-  }
-
-  void _finish({bool cancel = false}) {
-    if (!_editing) return;
-    final name = _controller.text.trim();
-    setState(() => _editing = false);
-    if (!cancel && name.isNotEmpty && name != widget.name) {
-      widget.onRenamed(name);
-    }
-  }
-
-  @override
-  void dispose() {
-    _focus.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => _editing
-      ? Focus(
-          onKeyEvent: (node, event) {
-            if (event is KeyDownEvent &&
-                event.logicalKey == LogicalKeyboardKey.escape) {
-              _finish(cancel: true);
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          child: TextField(
-            key: ValueKey('overlay-layer-rename-${widget.widgetId}'),
-            controller: _controller,
-            focusNode: _focus,
-            style: Theme.of(context).textTheme.bodyMedium,
-            decoration: const InputDecoration(
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            ),
-            onSubmitted: (_) => _finish(),
-            onTapOutside: (_) => _finish(),
-          ),
-        )
-      : GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.onSelected,
-          onDoubleTap: _start,
-          child: Text(
-            widget.name,
-            key: ValueKey('overlay-widget-row-title-${widget.widgetId}'),
-            semanticsLabel: widget.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            softWrap: false,
-          ),
-        );
-}
-
-class _OverlayWidgetRenameDialog extends StatefulWidget {
-  const _OverlayWidgetRenameDialog({
-    required this.widgetId,
-    required this.name,
-  });
-
-  final String widgetId;
-  final String name;
-
-  @override
-  State<_OverlayWidgetRenameDialog> createState() =>
-      _OverlayWidgetRenameDialogState();
-}
-
-class _OverlayWidgetRenameDialogState
-    extends State<_OverlayWidgetRenameDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.name);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text('Rename ${widget.name}'),
-    content: TextField(
-      key: ValueKey('overlay-widget-rename-${widget.widgetId}'),
-      controller: _controller,
-      autofocus: true,
-      decoration: const InputDecoration(labelText: 'Name'),
-      onSubmitted: (value) => Navigator.of(context).pop(value),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.of(context).pop(_controller.text),
-        child: const Text('Rename'),
-      ),
-    ],
-  );
-}
-
-class _OverlayWidgetMenu extends StatefulWidget {
-  const _OverlayWidgetMenu({
-    required this.catalog,
-    required this.height,
-    required this.onSelected,
-  });
-
-  final List<GeneratedOverlayWidget> catalog;
-  final double height;
-  final ValueChanged<GeneratedOverlayWidget> onSelected;
-
-  @override
-  State<_OverlayWidgetMenu> createState() => _OverlayWidgetMenuState();
-}
-
-class _OverlayWidgetMenuState extends State<_OverlayWidgetMenu> {
-  final _search = TextEditingController();
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final query = _search.text.trim().toLowerCase();
-    final filtered = widget.catalog
-        .where(
-          (definition) =>
-              query.isEmpty ||
-              definition.name.toLowerCase().contains(query) ||
-              definition.id.toLowerCase().contains(query) ||
-              definition.pluginId.toLowerCase().contains(query),
-        )
-        .toList(growable: false);
-    return Material(
-      elevation: 8,
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      borderRadius: BorderRadius.circular(8),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: 300,
-        height: widget.height,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: TextField(
-                key: const ValueKey('overlay-widget-search'),
-                controller: _search,
-                autofocus: true,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText: 'Search widgets',
-                  isDense: true,
-                ),
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: filtered.isEmpty
-                  ? const Center(child: Text('No widgets found'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final definition = filtered[index];
-                        return InkWell(
-                          onTap: () => widget.onSelected(definition),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 9,
-                            ),
-                            child: Row(
-                              children: [
-                                overlayWidgetIconWidget(definition),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    definition.name,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
