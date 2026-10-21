@@ -261,7 +261,7 @@ All resource editors are ordinary libraries. Overlay canvas, inspector, widget c
 
 OBS source choices belong to overlay configuration. The external OBS profile itself remains OBS-owned; tests use the portable instance and never rewrite user profiles. Secrets catalogs contain field names only. File/version/decryption errors require an actionable read-only/error path, preserving bytes for inspection and explicit retry/repair.
 
-Phase 04 baseline at `a4278743d` has 32 passing persistence tests. Five new failure probes demonstrate pre-existing gaps: state-write failure exposes new credentials with old YAML config; decryption errors become empty credentials; a missing secret adapter permits plaintext; unknown JSON envelopes are accepted; and a filename can redirect the resource's secret identity. Per-file atomic rename and in-process lock serialization alone were not a multi-file transaction or a stale-write policy. The five reproducers now pass; no production data is used.
+The Phase 04 failure probes reproduce and now prevent mixed credential/config generations, hidden decryption failures, plaintext fallback without a secret adapter, unsupported envelopes and filename/identity confusion. Per-file atomic rename alone is not the multi-file transaction or stale-write policy; the repository owner supplies both, using isolated fixtures rather than production data.
 
 Resource save/delete now uses a version-1 redo journal at `.transactions/{id}.json` and a persistent OS lock at `.locks/{id}.lock`, in addition to in-process serialization. Target names are a closed vocabulary resolved by the owner; journal input cannot supply filesystem paths. The journal contains public document bytes and already encrypted secret bytes, before/after SHA-256 fingerprints and no decoded credentials. Each member is still published by atomic replacement. All repository readers finish a pending generation under the same lock before returning data; pending creations are also discovered by catalog enumeration.
 
@@ -407,8 +407,9 @@ The remaining baseline work needs an isolated unauthorized-data reproducer and a
 decision on independent overlay-scoped capabilities and field projection, preserving
 OBS Browser Sources and media loading. Do not reuse the chat dock token.
 
-Secret storage tests verify persistence with an injected fixture cipher and declared
-public/secret setting separation; they do not establish native DPAPI behavior.
+Secret storage tests verify real Windows DPAPI encrypt/decrypt on isolated bytes,
+declared public/secret separation, opaque unknown encrypted fields and unavailable
+credential failures. Injected ciphers additionally make fault recovery deterministic.
 Overlay config responses project resource fields, not plugin settings;
 the transport fixture also places a synthetic top-level token marker outside that
 projection. These are scoped proofs, not a claim that arbitrary widget config or
