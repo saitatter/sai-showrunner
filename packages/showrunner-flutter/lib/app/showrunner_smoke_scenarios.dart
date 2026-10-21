@@ -62,10 +62,7 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       {'value': 42},
       'smokeValue',
     ).withMetadata({'name': 'Packaged automation smoke'});
-    final file = File(
-      '${widget.dataService.userDirectory.path}/automations/smoke.yaml',
-    );
-    final repository = AutomationRepository(file);
+    final repository = widget.dataService.storage.automation('smoke.yaml');
     await repository.save(automation);
     final loaded = await repository.load();
     if (loaded == null) {
@@ -123,10 +120,7 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       final created = editor.document.withMetadata({
         'name': 'Packaged workflow smoke',
       });
-      final file = File(
-        '${widget.dataService.userDirectory.path}/automations/workflow.yaml',
-      );
-      final repository = AutomationRepository(file);
+      final repository = widget.dataService.storage.automation('workflow.yaml');
       await repository.save(created);
       final loaded = await repository.load();
       if (loaded == null) {
@@ -179,10 +173,7 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       activationAutomation: activation,
       deactivationAutomation: AutomationDocument.empty(),
     );
-    final file = File(
-      '${widget.dataService.userDirectory.path}/profiles/smoke.yaml',
-    );
-    final repository = ProfileRepository(file);
+    final repository = widget.dataService.storage.profile('smoke.yaml');
     await repository.save(profile);
     final loaded = await repository.load();
     if (loaded == null) {

@@ -66,9 +66,9 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
       ...base.metadata,
       'name': selection.name,
     });
-    await AutomationRepository(
-      File('${widget.dataService.userDirectory.path}/automations/$fileName'),
-    ).save(automation, requireAbsent: true);
+    await widget.dataService.storage
+        .automation(fileName)
+        .save(automation, requireAbsent: true);
     final session = _automationDocuments.open(automation, fileName);
     _loadAutomationSession(session);
     if (!mounted) return;
@@ -103,9 +103,9 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
       activationAutomation: emptyAutomation,
       deactivationAutomation: emptyAutomation,
     );
-    await ProfileRepository(
-      File('${widget.dataService.userDirectory.path}/profiles/$fileName'),
-    ).save(profile, requireAbsent: true);
+    await widget.dataService.storage
+        .profile(fileName)
+        .save(profile, requireAbsent: true);
     if (!mounted) return;
     await _profileWorkspaceController.reloadEntries();
     if (!mounted) return;
@@ -149,12 +149,10 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
 
   Future<void> _renameAutomationEntry(String fileName, String name) async {
     if (!WorkspaceNavigationSnapshot.isSafeAutomationFileName(fileName)) return;
-    final file = File(
-      '${widget.dataService.userDirectory.path}/automations/$fileName',
-    );
-    final automation = await AutomationRepository(file).load();
+    final repository = widget.dataService.storage.automation(fileName);
+    final automation = await repository.load();
     if (automation == null) return;
-    await AutomationRepository(file).save(
+    await repository.save(
       automation.withMetadata({...automation.metadata, 'name': name}),
       expectedRevision: DocumentRevision.of(automation.toJson()),
     );
@@ -164,12 +162,10 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
 
   Future<void> _renameProfileEntry(String fileName, String name) async {
     if (!WorkspaceNavigationSnapshot.isSafeAutomationFileName(fileName)) return;
-    final file = File(
-      '${widget.dataService.userDirectory.path}/profiles/$fileName',
-    );
-    final profile = await ProfileRepository(file).load();
+    final repository = widget.dataService.storage.profile(fileName);
+    final profile = await repository.load();
     if (profile == null) return;
-    await ProfileRepository(file).save(
+    await repository.save(
       ShowRunnerProfile(
         name: name,
         activationMode: profile.activationMode,
@@ -192,14 +188,12 @@ extension _ShowrunnerProjectCommands on _ShowRunnerPageState {
         !await profileController.confirmClose()) {
       return;
     }
-    final file = File(
-      '${widget.dataService.userDirectory.path}/profiles/$fileName',
-    );
-    final profile = await ProfileRepository(file).load();
+    final repository = widget.dataService.storage.profile(fileName);
+    final profile = await repository.load();
     if (profile != null) {
-      await ProfileRepository(
-        file,
-      ).delete(expectedRevision: DocumentRevision.of(profile.toJson()));
+      await repository.delete(
+        expectedRevision: DocumentRevision.of(profile.toJson()),
+      );
     }
     if (profileController.activeProfileFile == fileName) {
       await profileController.reloadEntries();

@@ -1,6 +1,5 @@
-import 'dart:io';
+import '../../persistence/document_revision.dart';
 import '../../services/showrunner_data_service.dart';
-import '../../persistence/profile_repository.dart';
 import '../../runtime/profile_runtime.dart';
 import '../../runtime/expression.dart';
 import '../../schema/profile.dart';
@@ -19,10 +18,7 @@ final class ProfileActivationWorkflow {
         ? requestedProfileId.substring(0, requestedProfileId.length - 5)
         : requestedProfileId;
     if (!WorkspaceNavigationSnapshot.isSafeResourceId(profileId)) return false;
-    final file = File(
-      '${dataService.userDirectory.path}/profiles/$profileId.yaml',
-    );
-    final repository = ProfileRepository(file);
+    final repository = dataService.storage.profile('$profileId.yaml');
     final profile = await repository.load();
     if (profile == null) return false;
     final runtime = await this.runtime();
@@ -42,7 +38,10 @@ final class ProfileActivationWorkflow {
       extra: profile.extra,
     );
     if (updated.activationMode != profile.activationMode) {
-      await repository.save(updated);
+      await repository.save(
+        updated,
+        expectedRevision: DocumentRevision.of(profile.toJson()),
+      );
     }
     final desired = runtime.shouldBeActive(updated, context: context);
     await runtime.setManagedActive(

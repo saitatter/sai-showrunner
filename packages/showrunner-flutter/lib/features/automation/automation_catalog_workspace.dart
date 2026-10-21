@@ -1,6 +1,5 @@
 import '../../graph/domain/automation_document.dart';
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -45,9 +44,7 @@ class _AutomationCatalogWorkspaceState
 
   Future<List<AutomationCatalogEntry>> _loadEntries() =>
       widget.entriesLoader?.call() ??
-      AutomationRepository.loadDirectory(
-        Directory('${widget.dataService.userDirectory.path}/automations'),
-      );
+      widget.dataService.storage.listAutomations();
 
   void _refresh() {
     setState(() {

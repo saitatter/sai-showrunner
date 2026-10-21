@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'dart:io';
 import 'dart:convert';
 import '../../support/graph_fixtures.dart';
@@ -54,7 +55,7 @@ void main() {
     ).writeAsString(jsonEncode(document.toJson()));
 
     final usage = await loadPluginUsage(
-      directory: directory,
+      loadEntries: () => AutomationRepository.loadDirectory(directory),
       pluginId: 'twitch',
     );
 

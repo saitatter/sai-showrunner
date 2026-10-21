@@ -2,7 +2,6 @@ import '../../plugins/youtube/auth_service.dart';
 import '../../persistence/document_revision.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../../components/data_inputs/numeric_input_formatter.dart';
@@ -996,9 +995,7 @@ class _PluginUsageSummaryState extends State<_PluginUsageSummary> {
 
   Future<List<String>> _loadUsage() async {
     final usage = await loadPluginUsage(
-      directory: Directory(
-        '${widget.dataService.userDirectory.path}/automations',
-      ),
+      loadEntries: widget.dataService.storage.listAutomations,
       pluginId: widget.pluginId,
     );
     return usage.map((entry) => entry.automationFile).toSet().toList()..sort();
@@ -1060,9 +1057,7 @@ final class _PluginUsageDetailsState extends State<_PluginUsageDetails> {
   }
 
   Future<List<PluginUsageEntry>> _load() => loadPluginUsage(
-    directory: Directory(
-      '${widget.dataService.userDirectory.path}/automations',
-    ),
+    loadEntries: widget.dataService.storage.listAutomations,
     pluginId: widget.pluginId,
   );
 
