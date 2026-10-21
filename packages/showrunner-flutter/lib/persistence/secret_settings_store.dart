@@ -1,3 +1,4 @@
+import 'secret_storage_exception.dart';
 import 'document_codec.dart';
 import 'dart:convert';
 import 'dart:ffi';
@@ -94,21 +95,28 @@ final class SecretSettingsStore {
   }
 
   Future<JsonMap> _loadFile(File file, String label) async {
-    if (!await file.exists()) return <String, dynamic>{};
     final relative = file.absolute.path
         .substring(directory.absolute.path.length + 1)
         .replaceAll('\\', '/')
         .split('/');
     file = await containedFile(directory, relative);
-    final encrypted = await file.readAsBytes();
-    final plaintext = await (decrypt ?? decryptWithWindowsDpapi)(encrypted);
-    final parsed = loadYaml(utf8.decode(plaintext));
-    if (parsed is! YamlMap) {
-      throw FormatException('$label must contain a map.');
+    if (!await file.exists()) return <String, dynamic>{};
+    try {
+      final encrypted = await file.readAsBytes();
+      final plaintext = await (decrypt ?? decryptWithWindowsDpapi)(encrypted);
+      final parsed = loadYaml(utf8.decode(plaintext));
+      if (parsed is! YamlMap) {
+        throw const FormatException('Secrets must contain a map.');
+      }
+      final values = _yamlMap(parsed);
+      ShowRunnerLogger.instance.registerSecrets(values);
+      return values;
+    } catch (_) {
+      throw SecretStorageException(
+        owner: relative.join('/'),
+        operation: 'read',
+      );
     }
-    final values = _yamlMap(parsed);
-    ShowRunnerLogger.instance.registerSecrets(values);
-    return values;
   }
 
   Future<void> _saveFile(File file, JsonMap values) async {

@@ -14,6 +14,12 @@ class ResourceData {
   String get name => (config['name'] as String?) ?? id;
 
   factory ResourceData.fromJson(JsonMap json) {
+    if (json.keys.any(
+      (key) => !const {'id', 'config', 'state'}.contains(key),
+    )) {
+      throw const FormatException('Unsupported resource envelope fields.');
+    }
+
     final id = json['id'];
     if (id is! String || id.trim().isEmpty) {
       throw const FormatException('Resource JSON must contain a non-empty id.');

@@ -101,7 +101,16 @@ class ResourceRepository {
     if (!await directory.exists()) {
       await directory.create(recursive: true);
     }
+    // Revalidate existing bytes before any credential/state write. A corrupt
+    // or unsupported file must never be overwritten by a stale editor save.
+    await load(resource.id);
     final secretFields = secretResourceFieldIdsFor(resourceType ?? '');
+    if (secretSettings == null &&
+        secretFields.any(resource.config.containsKey)) {
+      throw StateError(
+        'Encrypted storage is required for declared resource secrets.',
+      );
+    }
     final publicConfig = <String, dynamic>{
       for (final entry in resource.config.entries)
         if (secretSettings == null || !secretFields.contains(entry.key))
@@ -172,6 +181,15 @@ class ResourceRepository {
         throw const FormatException('Resource JSON must contain an object.');
       }
       resource = ResourceData.fromJson(Map<String, dynamic>.from(decoded));
+      final fileId = file.uri.pathSegments.last.replaceFirst(
+        RegExp(r'\.json$'),
+        '',
+      );
+      if (resource.id != fileId) {
+        throw const FormatException(
+          'Resource identity does not match its filename.',
+        );
+      }
     } else {
       final parsed = loadYaml(content);
       if (parsed is! YamlMap) {
@@ -201,18 +219,7 @@ class ResourceRepository {
     if (resourceType == null || secretSettings == null) return resource;
     final secretFields = secretResourceFieldIdsFor(resourceType!);
     if (secretFields.isEmpty) return resource;
-    _JsonMap secrets;
-    try {
-      secrets = await _loadSecretResource(resource.id);
-    } on Object catch (error, stackTrace) {
-      ShowRunnerLogger.instance.error(
-        'persistence',
-        'Could not decrypt resource ${resource.id}',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      secrets = <String, dynamic>{};
-    }
+    final secrets = await _loadSecretResource(resource.id);
     if (secrets.isEmpty) return resource;
     return ResourceData(
       id: resource.id,
