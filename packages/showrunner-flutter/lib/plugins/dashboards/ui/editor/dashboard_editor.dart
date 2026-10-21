@@ -1,79 +1,16 @@
-import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
+import 'dashboard_editor_values.dart';
+import 'dashboard_resource_slot_dialog.dart';
+import 'dashboard_widget_dialog.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:showrunner_flutter/schema/json.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
-import 'package:showrunner_flutter/components/data_inputs/data_input.dart';
 import 'package:showrunner_flutter/plugins/dashboards/ui/dashboard_widget_config.dart';
 
 import 'package:showrunner_flutter/components/data_inputs/resource_form.dart';
 import 'package:showrunner_flutter/components/data_inputs/resource_field_values.dart';
 import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_widget_presentation.dart';
-
-int _dashboardIdCounter = 0;
-
-String _newDashboardId(String prefix) =>
-    '$prefix-${DateTime.now().microsecondsSinceEpoch}-${_dashboardIdCounter++}';
-
-String _dashboardId(Object? value, String prefix) {
-  final id = value?.toString().trim();
-  return id == null || id.isEmpty ? _newDashboardId(prefix) : id;
-}
-
-String _dashboardValue(Object? value, String fallback) {
-  final text = value?.toString().trim();
-  return text == null || text.isEmpty ? fallback : text;
-}
-
-JsonMap _dashboardWidget(Map value) {
-  final size = value['size'] is Map
-      ? Map<String, dynamic>.from(value['size'] as Map)
-      : const <String, dynamic>{};
-  final config = value['config'] is Map
-      ? Map<String, dynamic>.from(value['config'] as Map)
-      : <String, dynamic>{
-          'label': value['title']?.toString() ?? 'New widget',
-          'color': '#000000',
-        };
-  return {
-    ...Map<String, dynamic>.from(value),
-    'id': _dashboardId(value['id'], 'widget'),
-    'plugin': _dashboardValue(value['plugin'], 'dashboards'),
-    'widget': _dashboardValue(value['widget'], 'label'),
-    'size': {
-      'width': (size['width'] as num?)?.toInt() ?? 4,
-      'height': (size['height'] as num?)?.toInt() ?? 1,
-    },
-    'config': config,
-  };
-}
-
-JsonMap _dashboardSection(Map value) {
-  final widgets = ResourceFieldValues.maps(
-    value['widgets'],
-  ).map(_dashboardWidget).toList();
-  return {
-    ...Map<String, dynamic>.from(value),
-    'id': _dashboardId(value['id'], 'section'),
-    'name': value['name']?.toString() ?? 'New section',
-    'columns': (value['columns'] as num?)?.toInt() ?? 4,
-    'widgets': widgets,
-  };
-}
-
-JsonMap _dashboardPage(Map value) {
-  final sections = ResourceFieldValues.maps(
-    value['sections'],
-  ).map(_dashboardSection).toList();
-  return {
-    ...Map<String, dynamic>.from(value),
-    'id': _dashboardId(value['id'], 'page'),
-    'name': value['name']?.toString() ?? 'New page',
-    'sections': sections,
-  };
-}
 
 class DashboardEditor extends StatefulWidget {
   const DashboardEditor({
@@ -108,7 +45,7 @@ class _DashboardEditorState extends State<DashboardEditor> {
     );
     _pages = ResourceFieldValues.maps(
       widget.resource.config['pages'],
-    ).map(_dashboardPage).toList();
+    ).map(DashboardEditorValues.page).toList();
     _resourceSlots = ResourceFieldValues.maps(
       widget.resource.config['resourceSlots'],
     );
@@ -297,7 +234,7 @@ class _DashboardEditorState extends State<DashboardEditor> {
                   tooltip: 'Add section',
                   onPressed: () => setState(
                     () => sections.add({
-                      'id': _newDashboardId('section'),
+                      'id': DashboardEditorValues.newId('section'),
                       'name': 'New section',
                       'columns': 4,
                       'widgets': <JsonMap>[],
@@ -436,7 +373,7 @@ class _DashboardEditorState extends State<DashboardEditor> {
 
   void _addPage() => setState(
     () => _pages.add({
-      'id': _newDashboardId('page'),
+      'id': DashboardEditorValues.newId('page'),
       'name': 'New page',
       'sections': <JsonMap>[],
     }),
@@ -445,7 +382,7 @@ class _DashboardEditorState extends State<DashboardEditor> {
   Future<void> _editWidget(List<JsonMap> widgets, int index) async {
     final updated = await showDialog<JsonMap>(
       context: context,
-      builder: (context) => _DashboardWidgetDialog(widget: widgets[index]),
+      builder: (context) => DashboardWidgetDialog(widget: widgets[index]),
     );
     if (updated != null && mounted) setState(() => widgets[index] = updated);
   }
@@ -453,7 +390,7 @@ class _DashboardEditorState extends State<DashboardEditor> {
   Future<void> _addResourceSlot() async {
     final slot = await showDialog<JsonMap>(
       context: context,
-      builder: (context) => const _DashboardResourceSlotDialog(),
+      builder: (context) => const DashboardResourceSlotDialog(),
     );
     if (slot != null && mounted) setState(() => _resourceSlots.add(slot));
   }
@@ -479,236 +416,9 @@ class _DashboardEditorState extends State<DashboardEditor> {
     );
     if (definition == null || !mounted) return;
     setState(
-      () => widgets.add(definition.createWidget(id: _newDashboardId('widget'))),
-    );
-  }
-}
-
-class _DashboardWidgetDialog extends StatefulWidget {
-  const _DashboardWidgetDialog({required this.widget});
-
-  final JsonMap widget;
-
-  @override
-  State<_DashboardWidgetDialog> createState() => _DashboardWidgetDialogState();
-}
-
-class _DashboardWidgetDialogState extends State<_DashboardWidgetDialog> {
-  late final TextEditingController _plugin;
-  late final TextEditingController _widget;
-  late final TextEditingController _width;
-  late final TextEditingController _height;
-  late final TextEditingController _config;
-  late JsonMap _configValue;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    final size = widget.widget['size'] is Map
-        ? Map<String, dynamic>.from(widget.widget['size'] as Map)
-        : const <String, dynamic>{};
-    _plugin = TextEditingController(
-      text: widget.widget['plugin']?.toString() ?? 'dashboards',
-    );
-    _widget = TextEditingController(
-      text: widget.widget['widget']?.toString() ?? 'label',
-    );
-    _width = TextEditingController(text: '${size['width'] ?? 4}');
-    _height = TextEditingController(text: '${size['height'] ?? 1}');
-    _configValue = widget.widget['config'] is Map
-        ? Map<String, dynamic>.from(widget.widget['config'] as Map)
-        : <String, dynamic>{};
-    _config = TextEditingController(
-      text: const JsonEncoder.withIndent('  ').convert(_configValue),
-    );
-  }
-
-  @override
-  void dispose() {
-    for (final controller in [_plugin, _widget, _width, _height, _config]) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Edit dashboard widget'),
-    content: SizedBox(
-      width: 480,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _plugin,
-              decoration: const InputDecoration(labelText: 'Plugin'),
-              onChanged: (_) => setState(() {}),
-            ),
-            TextField(
-              controller: _widget,
-              decoration: const InputDecoration(labelText: 'Widget'),
-              onChanged: (_) => setState(() {}),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _width,
-                    inputFormatters: const [
-                      NumericInputFormatter(decimal: false, signed: false),
-                    ],
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Width'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _height,
-                    inputFormatters: const [
-                      NumericInputFormatter(decimal: false, signed: false),
-                    ],
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Height'),
-                  ),
-                ),
-              ],
-            ),
-            _configEditor(),
-            if (_error != null)
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-          ],
-        ),
+      () => widgets.add(
+        definition.createWidget(id: DashboardEditorValues.newId('widget')),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(onPressed: _save, child: const Text('Save')),
-    ],
-  );
-
-  void _save() {
-    final definition = findDashboardWidgetDefinition(
-      _plugin.text.trim(),
-      _widget.text.trim(),
-    );
-    JsonMap config;
-    if (definition != null) {
-      config = _configValue;
-    } else {
-      dynamic decoded;
-      try {
-        decoded = jsonDecode(_config.text);
-      } on FormatException {
-        setState(() => _error = 'Widget config must be valid JSON.');
-        return;
-      }
-      if (decoded is! Map) {
-        setState(() => _error = 'Widget config must be a JSON object.');
-        return;
-      }
-      config = Map<String, dynamic>.from(decoded);
-    }
-    Navigator.pop(context, {
-      ...widget.widget,
-      'plugin': _plugin.text.trim(),
-      'widget': _widget.text.trim(),
-      'size': {
-        'width': int.tryParse(_width.text) ?? 4,
-        'height': int.tryParse(_height.text) ?? 1,
-      },
-      'config': config,
-    });
-  }
-
-  Widget _configEditor() {
-    final definition = findDashboardWidgetDefinition(
-      _plugin.text.trim(),
-      _widget.text.trim(),
-    );
-    if (definition == null) {
-      return TextField(
-        controller: _config,
-        maxLines: 8,
-        decoration: const InputDecoration(labelText: 'Widget config JSON'),
-      );
-    }
-    return DartDataInput(
-      key: ValueKey('${definition.plugin}.${definition.widget}'),
-      schema: definition.configSchema,
-      value: _configValue,
-      onChanged: (value) {
-        if (value is Map) {
-          setState(() => _configValue = Map<String, dynamic>.from(value));
-        }
-      },
     );
   }
-}
-
-class _DashboardResourceSlotDialog extends StatefulWidget {
-  const _DashboardResourceSlotDialog();
-
-  @override
-  State<_DashboardResourceSlotDialog> createState() =>
-      _DashboardResourceSlotDialogState();
-}
-
-class _DashboardResourceSlotDialogState
-    extends State<_DashboardResourceSlotDialog> {
-  final _name = TextEditingController();
-  final _type = TextEditingController(text: 'SoundOutput');
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _type.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Add resource slot'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextField(
-          controller: _name,
-          decoration: const InputDecoration(labelText: 'Name'),
-        ),
-        TextField(
-          controller: _type,
-          decoration: const InputDecoration(labelText: 'Slot type'),
-        ),
-      ],
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () {
-          final name = _name.text.trim();
-          final type = _type.text.trim();
-          if (name.isEmpty || type.isEmpty) return;
-          Navigator.pop(context, {
-            'id': _newDashboardId('slot'),
-            'name': name,
-            'slotType': type,
-            'config': <String, dynamic>{},
-          });
-        },
-        child: const Text('Add'),
-      ),
-    ],
-  );
 }

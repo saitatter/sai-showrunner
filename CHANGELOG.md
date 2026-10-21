@@ -19,7 +19,7 @@
 ### Refactors
 - Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers.
 - Share typed single-document storage across automation/profile/queue repositories, with explicit domain store contracts and validation under the same owner lock as atomic publication.
-- Split resource editors into provider-owned Flutter libraries and contribution packs, with shared form controls, explicit editing capabilities and safe read-only fallbacks for unavailable or malformed resources.
+- Split resource editors into provider-owned Flutter libraries and contribution packs, with separate overlay toolbar/palette/rename controls and dashboard creation forms, shared inputs, explicit editing capabilities and safe read-only fallbacks.
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
