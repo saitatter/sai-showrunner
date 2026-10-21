@@ -5,6 +5,7 @@
 ### Features
 
 ### Fixes
+- Persist variable values without replacing concurrent authoring edits, unrelated state or deleted resources; serialize ID/alias updates and initialize defaults before reset.
 - Preserve unbounded queue timeouts and unknown Stream Plan segment fields across restart/editing; reject malformed nested resource data before overwriting it.
 - Preserve unrelated settings during OAuth refresh and save verified YouTube credentials/channel identity together; reject outdated login/account writes.
 - Keep the project catalog cached across unrelated UI rebuilds, refresh it through an owned storage watcher and report unreadable directories without discarding healthy project entries.
