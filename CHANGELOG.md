@@ -3,24 +3,6 @@
 ## Unreleased
 
 ### Features
-
-### Fixes
-
-### Refactors
-
-### Docs
-
-### CI & Build
-
-## 2.1.1 - 2026-10-21
-
-### CI & Build
-- Verify the About screen against the declared package version so release version bumps preserve the UI test contract.
-- Run Windows packaging after successful release preparation when exact-commit CI reuse skips fresh validation; keep failed preparation and dry runs blocked.
-
-## 2.1.0 - 2026-10-21
-
-### Features
 - Bound trace event/node/edge retention with explicit truncation counters, coalesce paused observer notifications and refresh execution visuals once per frame with stable run selection.
 - Add immutable Twitch/YouTube provider events with credential redaction, private/public feed separation and bounded delivery queues that report overload without silently dropping accepted events.
 - Render rich chat emotes with Twitch fragments and 7TV/BTTV/FFZ catalogs, bounded caching, animation preferences and text fallback.
@@ -75,6 +57,9 @@
 - Document chat setup and remaining Streamer.bot differences using static .NET evidence and an isolated runtime UI comparison.
 
 ### CI & Build
+- Restore unpublished release notes and preparation metadata so failed draft attempts do not consume public release versions.
+- Verify the About screen against the declared package version so release version bumps preserve the UI test contract.
+- Run Windows packaging after successful release preparation when exact-commit CI reuse skips fresh validation; keep failed preparation and dry runs blocked.
 - Validate corrupted graph contracts, unsupported versions and bounded control cycles; compare compiled and interpreted execution across 30 deterministic graph seeds, including nested calls, branches, three loop types, intermediate action state, cancellation and failures with reproducible synthetic graph dumps.
 - Launch browser smokes through a responsive CDP endpoint, retain startup diagnostics and try another installed Chromium browser when startup fails.
 - Add a reproducible cross-runtime source/import inventory and baseline behavior contract matrix.

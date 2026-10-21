@@ -2,7 +2,7 @@ name: showrunner_flutter
 description: "ShowRunner desktop broadcaster automation application."
 publish_to: 'none'
 
-version: 2.1.1+4
+version: 2.0.0+2
 
 environment:
   sdk: ^3.12.0
