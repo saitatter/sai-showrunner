@@ -143,7 +143,11 @@ class ResourceRepository {
     // Reject unsupported existing bytes before staging any replacement.
     await _loadUnlocked(resource.id);
     final mutations = <FileMutation>[];
-    final secretFields = secretResourceFieldIdsFor(resourceType ?? '');
+    final existing = await _loadSecretResource(resource.id);
+    final secretFields = {
+      ...secretResourceFieldIdsFor(resourceType ?? ''),
+      ...existing.keys,
+    };
     if (secretSettings == null &&
         secretFields.any(resource.config.containsKey)) {
       throw StateError(
@@ -156,7 +160,6 @@ class ResourceRepository {
           entry.key: entry.value,
     };
     if (secretFields.isNotEmpty && secretSettings != null) {
-      final existing = await _loadSecretResource(resource.id);
       final secrets = <String, dynamic>{
         for (final key in secretFields)
           if (resource.config.containsKey(key)) key: resource.config[key],
