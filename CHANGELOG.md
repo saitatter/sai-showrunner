@@ -3,8 +3,10 @@
 ## Unreleased
 
 ### Features
+- Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Keep overlay inputs and save completion isolated when switching resources, preserve unrelated layer selection after deletion and show save failures without exception payloads.
 - Persist variable values without replacing concurrent authoring edits, unrelated state or deleted resources; serialize ID/alias updates and initialize defaults before reset.
 - Preserve unbounded queue timeouts and unknown Stream Plan segment fields across restart/editing; reject malformed nested resource data before overwriting it.
 - Preserve unrelated settings during OAuth refresh and save verified YouTube credentials/channel identity together; reject outdated login/account writes.
@@ -19,6 +21,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Move overlay authoring, semantic dirty state, immutable snapshots and save ownership into an independently testable editor controller.
 - Validate resource configurations through provider-owned codecs shared by storage and editors, with distinct unsupported-schema diagnostics and semantic JSON/YAML round-trip coverage for every resource family.
 - Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers and route project commands, chat/usage catalogs, provider automation loading and profile activation through the same owners.
 - Share typed single-document storage across automation/profile/queue repositories, with explicit domain store contracts and validation under the same owner lock as atomic publication.
