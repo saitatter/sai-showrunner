@@ -1,3 +1,5 @@
+import 'overlay_presence_controller.dart';
+import 'overlay_browser_source_panel.dart';
 import 'overlay_editor_layout.dart';
 import 'overlay_editor_controller.dart';
 import 'overlay_editor_toolbar.dart';
@@ -21,7 +23,6 @@ import 'package:showrunner_flutter/features/resources/overlay/overlay_snapping.d
 import 'package:showrunner_flutter/plugins/overlays/generated_widget_catalog.dart';
 import 'package:showrunner_flutter/plugins/overlays/overlay_widget_icons.dart';
 import 'package:showrunner_flutter/plugins/overlays/overlay_presence.dart';
-import 'package:showrunner_flutter/services/oauth_token.dart';
 
 import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_canvas.dart';
 import 'package:showrunner_flutter/plugins/overlays/ui/editor/overlay_widget_inspector.dart';
@@ -76,8 +77,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   bool get _saving => _editor.saving;
   int _reportedRevision = 0;
   bool _reportedDirty = false;
-  OverlayPresenceReader? _presenceReader;
-  late OverlayPresence _presence;
+  late final OverlayPresenceController _presenceController;
   List<ObsConnectionChoice> _obsConnections = const [];
   String? _selectedObsConnectionId;
   OverlayBrowserSourceStatus? _obsSourceStatus;
@@ -85,7 +85,6 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   bool _obsConnectionsLoading = false;
   bool _obsSourceLoading = false;
   Timer? _obsRefreshDebounce;
-  Timer? _presenceTimer;
   final _widgetMenuLink = LayerLink();
   final _widgetMenuAnchorKey = GlobalKey();
   OverlayEntry? _widgetMenuEntry;
@@ -107,13 +106,11 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _previewOffsetX = TextEditingController();
     _previewOffsetY = TextEditingController();
     _installDocument();
-    _presence = OverlayPresence.disconnected(widget.resource.id);
-    unawaited(_loadPresenceReader());
-    unawaited(_loadObsConnections());
-    _presenceTimer = Timer.periodic(
-      const Duration(milliseconds: 2500),
-      (_) => unawaited(_refreshPresence()),
+    _presenceController = OverlayPresenceController(
+      widget.resource.id,
+      widget.presenceReaderFuture,
     );
+    unawaited(_loadObsConnections());
     GeneratedOverlayWidgetCatalog.load().then((widgets) {
       if (!mounted) return;
       setState(() => _overlayWidgetCatalog = widgets);
@@ -171,9 +168,10 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     }
     if (oldWidget.resource.id != widget.resource.id ||
         oldWidget.presenceReaderFuture != widget.presenceReaderFuture) {
-      _presenceReader = null;
-      _presence = OverlayPresence.disconnected(widget.resource.id);
-      unawaited(_loadPresenceReader());
+      _presenceController.configure(
+        widget.resource.id,
+        widget.presenceReaderFuture,
+      );
     }
     if (oldWidget.obsSourceService != widget.obsSourceService) {
       _obsConnections = const [];
@@ -186,7 +184,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   @override
   void dispose() {
     _closeWidgetMenu();
-    _presenceTimer?.cancel();
+    _presenceController.dispose();
     _obsRefreshDebounce?.cancel();
     _editor.dispose();
     _canvasFocus.dispose();
@@ -460,22 +458,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     if (id != null) unawaited(_refreshObsSource());
   }
 
-  Future<int> _overlayHttpPort() async {
-    var reader = _presenceReader;
-    final future = widget.presenceReaderFuture;
-    if (reader == null && future != null) {
-      try {
-        reader = await future;
-        if (mounted && identical(widget.presenceReaderFuture, future)) {
-          _presenceReader = reader;
-        }
-      } on Object {
-        // The editor remains available when the overlay runtime is offline.
-      }
-    }
-    final url = reader?.browserSourceUrl(widget.resource.id);
-    return Uri.tryParse(url ?? '')?.port ?? 8181;
-  }
+  Future<int> _overlayHttpPort() => _presenceController.port;
 
   void _scheduleObsSourceRefresh() {
     if (_selectedObsConnectionId == null) return;
@@ -680,10 +663,13 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                       ],
                     ),
                   ),
-                  icon: Icon(
-                    _presence.connected
-                        ? Icons.wifi_tethering
-                        : Icons.wifi_tethering_off,
+                  icon: ValueListenableBuilder<OverlayPresenceView>(
+                    valueListenable: _presenceController,
+                    builder: (context, view, _) => Icon(
+                      view.presence.connected
+                          ? Icons.wifi_tethering
+                          : Icons.wifi_tethering_off,
+                    ),
                   ),
                 ),
               CompositedTransformTarget(
@@ -788,13 +774,19 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
                                               _markDirty();
                                             },
                                           ),
-                                          Text(
-                                            _widgetListSubtitle(item),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodySmall,
+                                          ValueListenableBuilder<
+                                            OverlayPresenceView
+                                          >(
+                                            valueListenable:
+                                                _presenceController,
+                                            builder: (context, view, _) => Text(
+                                              _widgetListSubtitle(item, view),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -971,127 +963,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     );
   }
 
-  Widget _overlayBrowserSourceCard(BuildContext context) {
-    final connected = _presence.connected;
-    final url =
-        _presenceReader?.browserSourceUrl(widget.resource.id) ??
-        Uri(
-          scheme: 'http',
-          host: 'localhost',
-          port: 8181,
-          pathSegments: ['overlays', widget.resource.id],
-        ).toString();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Tooltip(
-                message: 'OBS Browser Source',
-                child: Icon(
-                  connected ? Icons.wifi_tethering : Icons.wifi_tethering_off,
-                  size: 15,
-                  color: connected
-                      ? const Color(0xff54d98c)
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                connected
-                    ? 'Connected (${_presence.subscribers})'
-                    : 'Disconnected',
-                key: const ValueKey('overlay-browser-source-status'),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: connected ? const Color(0xff54d98c) : null,
-                ),
-              ),
-              IconButton(
-                tooltip: 'Copy Browser Source URL',
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints.tightFor(
-                  width: 32,
-                  height: 32,
-                ),
-                padding: EdgeInsets.zero,
-                onPressed: () async {
-                  await Clipboard.setData(ClipboardData(text: url));
-                  if (context.mounted) {
-                    showShowRunnerFeedback(
-                      context,
-                      'Browser Source URL copied.',
-                      severity: ShowRunnerFeedbackSeverity.success,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.copy, size: 15),
-              ),
-              IconButton(
-                tooltip: 'Open Browser Source URL',
-                visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints.tightFor(
-                  width: 32,
-                  height: 32,
-                ),
-                padding: EdgeInsets.zero,
-                onPressed: () async {
-                  try {
-                    await openOAuthUrlInBrowser(Uri.parse(url));
-                  } on Object catch (error) {
-                    if (context.mounted) {
-                      showShowRunnerFeedback(
-                        context,
-                        'Could not open Browser Source URL: $error',
-                        severity: ShowRunnerFeedbackSeverity.error,
-                      );
-                    }
-                  }
-                },
-                icon: const Icon(Icons.open_in_new, size: 15),
-              ),
-            ],
-          ),
-          SelectableText(
-            url,
-            key: const ValueKey('overlay-browser-source-url'),
-            maxLines: 1,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _loadPresenceReader() async {
-    final future = widget.presenceReaderFuture;
-    if (future == null) return;
-    try {
-      final reader = await future;
-      if (!mounted || !identical(widget.presenceReaderFuture, future)) return;
-      _presenceReader = reader;
-      await _refreshPresence();
-    } on Object {
-      // Overlay editing remains available even if the runtime is unavailable.
-    }
-  }
-
-  Future<void> _refreshPresence() async {
-    final reader = _presenceReader;
-    if (reader == null) return;
-    try {
-      final presence = await reader.getPresence(widget.resource.id);
-      if (!mounted || presence == _presence) return;
-      setState(() => _presence = presence);
-    } on Object {
-      if (!mounted) return;
-      final disconnected = OverlayPresence.disconnected(widget.resource.id);
-      if (_presence != disconnected) {
-        setState(() => _presence = disconnected);
-      }
-    }
-  }
+  Widget _overlayBrowserSourceCard(BuildContext context) =>
+      OverlayBrowserSourcePanel(presence: _presenceController);
 
   Future<void> _showPreviewSettings(BuildContext context) async {
     await showDialog<void>(
@@ -1549,9 +1422,11 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _markDirty();
   }
 
-  String _widgetListSubtitle(JsonMap item) {
+  String _widgetListSubtitle(JsonMap item, OverlayPresenceView view) {
     if (item['visible'] == false) return 'Hidden in overlay';
-    if (_presence.connected) return 'Connected (${_presence.subscribers})';
+    if (view.presence.connected) {
+      return 'Connected (${view.presence.subscribers})';
+    }
     return 'OBS source disconnected';
   }
 
