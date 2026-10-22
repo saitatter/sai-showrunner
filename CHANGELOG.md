@@ -40,6 +40,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
+- Document workspace view-state conventions, editor/dialog ownership, responsive input contracts and measured Flutter/native/visual checks; track remaining Phase 05 work explicitly.
 - Document typed storage ownership, journal recovery and stale-write policy, provider editor/codec boundaries, secret handling and measured Phase 04 validation limits.
 
 ### CI & Build

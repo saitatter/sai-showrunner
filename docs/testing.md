@@ -256,6 +256,98 @@ Live credentials, provider permissions, external side-effect rollback and produc
 OBS resources are outside these isolated proofs. Raw reports/captures stay in
 ignored `.tmp/persistence-resources` and `.tmp/chat-qa`.
 
+## Flutter UI layout and editor ownership
+
+Phase 05 starts from integrated main `27d43fcdd`. Work so far covers overlay
+authoring/save ownership, responsive layout, preview isolation, structured style
+inputs and automation graph controls; shader, provider and dashboard decomposition
+remain outstanding.
+The initial overlay/exploratory/graph characterization passes 36 tests. Three
+valid-resource lifecycle reproducers fail against the integrated page: identity
+switching keeps the first document's inputs, delayed save completion publishes the
+wrong resource, and save errors interpolate arbitrary exception payloads. They
+pass with the controller owner. Earlier malformed test fixtures were corrected to
+include the required size object before using their results as regression evidence.
+
+| Contract | Evidence |
+| --- | --- |
+| Immutable snapshots, stable selection, equivalent commands stay clean, one undo step per gesture, unknown fields/state and ID-less shipped layers preserved | Eight `overlay_editor_controller_test.dart` fixtures |
+| Resource switching, stale save completion, retained failed-save draft and keyboard undo/redo/save | Four `overlay_editor_lifecycle_test.dart` fixtures |
+| Save/canvas reachability, panel/field retention and display scaling | Nine `overlay_editor_layout_test.dart` fixtures at 1024x640, 1280x720, 1440x900 and 1920x1080, each at DPR 1 and 1.5; Ctrl+I hide/reopen and resize retain the mounted editable state and saved content |
+| Native compact layout and shortcuts | Additional `integration_test/visual/overlay_alignment_test.dart` scenario uses an actual 1024x640 Windows window, a 300-pixel app-sidebar allowance and Ctrl+I/Ctrl+S to save a retained inspector draft |
+
+Presence characterization uses Flutter's test-only `debugOnRebuildDirtyWidget` hook,
+restoring it at teardown: the old observer increases canvas builds from 2 to 3 on
+one presence update; the scoped observer keeps the count at 2 while displaying
+the new status. A separate UI reproducer proves an old reply cannot replace the
+new document's subscriber count. Seven controller fixtures cover delayed reader
+startup/replies, one pending poll, synchronous failures/retry, close drains,
+foreign identities and already failed startup futures. No rebuild counters or
+profiling hooks are included in product output.
+
+OBS characterization uses only injected recording actions. The old create-dialog
+probe writes the newly selected overlay after a resource switch; the guarded
+owner rejects it before any provider write. A separate debug-only counter proves
+connection refresh no longer rebuilds the canvas. Ten controller fixtures cover
+captured dimensions/ports, immutable choices, A-to-B-to-A replies, replaced-service
+errors, stale dialog/lookup admission, duplicate writes, pre-write inspection,
+provider errors and borrowed-service shutdown. Four workspace fixtures also
+exercise keyboard history target refresh and verify ordinary rebuilds issue no
+additional OBS reads. No user OBS profile or portable scene is changed.
+
+Preview probes reproduce cross-document dialog/controller notifications during build
+and loss of additional nested configuration in the old implementation; both pass
+with the owned form. Four workspace fixtures cover those cases, disabled/reopened
+values and delayed inspector callbacks with a layer ID shared by two documents.
+Style probes reproduce an edited numeric field retaining 12.5 after an external
+restore to 4, and a font popover replacing an external 23.5 size with its old 65.
+The current inputs accept external changes while preserving partial signed decimal
+text/focus on model echoes. Tests distinguish absent, explicit-null and zero-width
+optional effects; existing font-control assertions now also check removed stroke
+and shadow remain absent in the saved document. The resource, input and automation
+workspace characterization passes 137 tests after these changes.
+
+Graph characterization uses 13 workspace fixtures: stale picker results, compact
+inspector replacement, concurrent subgraph parameter changes, old run completion,
+trace rebuild isolation, and four desktop sizes at DPR 1/1.5 with 150% text and long
+subgraph names. All 13 fail against the pre-extraction workspace: trace publication
+increases workspace builds from 1 to 2, a replaced pick inserts into the new graph,
+and long names overflow by thousands of pixels. Current fixtures pass without
+changing authoring/history ownership or the generic canvas. Two schema-field tests
+verify payload-free retry, no loader calls on ordinary rebuilds and rejection of
+late options from a replaced loader. The existing six graph workspace workflows
+remain intact, including Ctrl+F, inspector sheets, parameter validation and undo.
+
+Fifteen existing inspector/canvas fixtures now explicitly request the reviewed
+1440x900/DPR-1 standard viewport rather than relying on Flutter's implicit 800x600
+surface. Their assertions remain intact; compact behavior has dedicated coverage
+through the actual toggle flow. Splitter position and toolbar input state remain
+mounted across size classes. Standard/wide layout keeps the existing 352-pixel
+inspector, toolbar/footer spacing, crop contracts and thresholds. Compact layout
+intentionally overlays the panel and scrolls a height-limited toolbar; it is not a
+new docking system or a saved layout format.
+
+Combined validation uses Flutter 3.47.7 / Dart 3.13.5 on Windows:
+`scripts/ci-check.ps1 -Stage All` passes formatting, fatal-info analysis,
+generated/boundary/build checks, 1,198 Flutter tests (10 opt-in live skips),
+133 overlay/tooling tests across 22 files and parity for 18 workspaces. The
+matching application sources copied to ignored `.tmp/chat-qa` pass
+`scripts/ci-check.ps1 -Stage Parity -Integration -Visual`: 100 native tests,
+with one local-audio opt-in skip. The graph matrix was also rerun with both view
+and MediaQuery DPR explicitly set; all 13 ownership/layout fixtures pass.
+
+The intended visual changes are the compact overlay panel/scrolling toolbar and
+bounded long subgraph labels. Existing reviewed overlay label and font-popover
+regions retain the 1440x900/DPR-1 capture contract: label `(1088,210,352,345)` and
+font `(780,340,660,430)`. Both current regions have zero differing pixels after
+manual inspection of the full captures; channel threshold 3 and maximum 0.5%
+remain unchanged. Frozen Flutter/Electron references are untouched. Workspace
+catalog comparison reports no contract failures; its cross-runtime pixel deltas
+remain diagnostic and do not establish whole-application visual equivalence.
+Raw captures, comparisons and regression-before/after logs stay ignored under
+`.tmp/ui-layout` and `.tmp/chat-qa`. These fixtures establish local UI behavior,
+not live provider permissions, production OBS writes or audio-device validation.
+
 ## Local checks and CI
 
 ```powershell
