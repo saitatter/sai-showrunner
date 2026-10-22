@@ -7,6 +7,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Keep graph pickers, compact inspectors, parameter forms and run completion scoped to their document; prevent long subgraph names from overflowing the toolbar and hide provider error payloads in resource fields.
 - Refresh edited style inputs after undo or external changes, keep open font editors on current values, and preserve removed/null optional effects instead of restoring them from defaults.
 - Isolate open preview dialogs from document switches and preserve additional preview configuration fields during editing and saving.
 - Keep OBS source dialogs and delayed responses scoped to the selected overlay/connection, preventing old dialogs from creating sources for a new document.
@@ -26,6 +27,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Extract automation graph toolbar, node picker, inspector, parameter form and resource-field loading; refresh execution controls and node visuals without rebuilding the authoring workspace on trace updates.
 - Split structured overlay inputs into focused font, text/alignment, geometry, outline, background and gradient controls with shared inspector sections, optional groups and schema field rendering.
 - Give overlay preview settings an owned form with retained disabled values; reset inspector presentation on document identity changes and reject delayed inspector edits from old documents.
 - Separate overlay OBS orchestration from toolbar rendering, with captured operation targets, debounced/coalesced inspection, owned writes and payload-free retry status.
