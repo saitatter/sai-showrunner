@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/startup_health.dart';
+import '../../design_system/workspace_notice.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../runtime/action_queue.dart';
@@ -41,7 +42,11 @@ class DiagnosticsWorkspace extends StatelessWidget {
                   'Checking local data',
             ),
           ),
-          if (result?.error != null) Text('${result!.error}'),
+          if (result?.error != null)
+            const WorkspaceNotice(
+              message:
+                  'Startup checks failed. Check local storage and configuration.',
+            ),
           const SizedBox(height: 20),
           _QueueDiagnostics(queue: queue),
           const SizedBox(height: 16),
@@ -87,7 +92,7 @@ class _ProviderDiagnostics extends StatelessWidget {
               leading: const Icon(Icons.warning_amber, color: Colors.orange),
               title: const Text('Twitch subscriptions'),
               subtitle: Text(
-                providerEvents.twitchSubscriptionErrors.join('\n'),
+                '${providerEvents.twitchSubscriptionErrors.length} subscription(s) failed. Check permissions and reconnect Twitch.',
               ),
             ),
           ListTile(
@@ -126,7 +131,10 @@ String _providerStateText(
 }) {
   final details = <String>[state.label];
   if (attempts > 0) details.add('attempts $attempts');
-  if (error != null) details.add('$error');
+  if (error != null)
+    details.add(
+      'Last operation failed. Check authentication and connectivity.',
+    );
   return details.join(' | ');
 }
 
@@ -224,7 +232,7 @@ class _QueueDiagnostics extends StatelessWidget {
               if (queue.history.first.error != null)
                 Text(
                   queue.history.first.errorUserMessage ??
-                      queue.history.first.error!,
+                      'The queued action failed. Inspect its execution trace for details.',
                 ),
               if (queue.history.first.errorCode != null)
                 Text(
@@ -246,69 +254,102 @@ class _QueueDiagnostics extends StatelessWidget {
   );
 }
 
-class _PluginHealthDiagnostics extends StatelessWidget {
-  const _PluginHealthDiagnostics({required this.registryFuture});
+typedef _HealthRow = ({DartPluginManifest plugin, DartPluginHealth? health});
 
+class _PluginHealthDiagnostics extends StatefulWidget {
+  const _PluginHealthDiagnostics({required this.registryFuture});
   final Future<DartPluginRegistry> registryFuture;
+  @override
+  State<_PluginHealthDiagnostics> createState() =>
+      _PluginHealthDiagnosticsState();
+}
+
+class _PluginHealthDiagnosticsState extends State<_PluginHealthDiagnostics> {
+  late Future<List<_HealthRow>> _future;
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<DartPluginRegistry>(
-    future: registryFuture,
-    builder: (context, snapshot) {
-      final plugins = snapshot.data?.plugins.toList() ?? const [];
-      return Card(
-        child: Column(
-          children: [
-            const ListTile(
-              leading: Icon(Icons.extension_outlined),
-              title: Text('Plugin health'),
+  void didUpdateWidget(covariant _PluginHealthDiagnostics oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.registryFuture != widget.registryFuture) _reload();
+  }
+
+  void _reload() {
+    _future = _load(widget.registryFuture);
+  }
+
+  Future<List<_HealthRow>> _load(Future<DartPluginRegistry> future) async {
+    final registry = await future;
+    return List.unmodifiable(
+      await Future.wait([
+        for (final plugin in registry.plugins)
+          () async {
+            DartPluginHealth? health;
+            try {
+              health = await registry.checkHealthDetailsId(plugin.id);
+            } on Object {
+              /* Safe unavailable state below. */
+            }
+            return (plugin: plugin, health: health);
+          }(),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<_HealthRow>>(
+    future: _future,
+    builder: (context, snapshot) => Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.extension_outlined),
+            title: const Text('Plugin health'),
+            trailing: IconButton(
+              tooltip: 'Refresh plugin health',
+              onPressed: snapshot.connectionState == ConnectionState.waiting
+                  ? null
+                  : () => setState(_reload),
+              icon: const Icon(Icons.refresh),
             ),
-            if (snapshot.hasError)
+          ),
+          if (snapshot.hasError)
+            const WorkspaceNotice(
+              message:
+                  'Plugin health is unavailable. Retry after checking the configuration.',
+            )
+          else if (snapshot.connectionState == ConnectionState.waiting)
+            const ListTile(title: Text('Loading plugin registry'))
+          else if (snapshot.data!.isEmpty)
+            const ListTile(title: Text('No registered plugins'))
+          else
+            for (final row in snapshot.data!)
               ListTile(
-                leading: const Icon(
-                  Icons.error_outline,
-                  color: Colors.redAccent,
+                dense: true,
+                leading: Icon(
+                  row.health?.isHealthy == true
+                      ? Icons.check_circle
+                      : Icons.warning,
+                  color: row.health?.isHealthy == true
+                      ? Colors.teal
+                      : Colors.orange,
                 ),
-                title: Text('Registry error: ${snapshot.error}'),
-              )
-            else if (plugins.isEmpty)
-              const ListTile(title: Text('Loading plugin registry'))
-            else
-              for (final plugin in plugins)
-                FutureBuilder<DartPluginHealth>(
-                  future: snapshot.data!.checkHealthDetailsId(plugin.id),
-                  builder: (context, healthSnapshot) {
-                    final health = healthSnapshot.data;
-                    final healthy = health?.isHealthy == true;
-                    return ListTile(
-                      dense: true,
-                      leading: Icon(
-                        health?.status == DartPluginHealthStatus.error
-                            ? Icons.error_outline
-                            : healthy
-                            ? Icons.check_circle
-                            : Icons.warning,
-                        color: health?.status == DartPluginHealthStatus.error
-                            ? Colors.redAccent
-                            : healthy
-                            ? Colors.teal
-                            : Colors.orange,
-                      ),
-                      title: Text(plugin.name),
-                      subtitle: Text(
-                        health == null
-                            ? 'Checking'
-                            : health.isHealthy
-                            ? 'Ready'
-                            : health.message ?? health.status.name,
-                      ),
-                    );
-                  },
+                title: Text(row.plugin.name),
+                subtitle: Text(
+                  row.health == null
+                      ? 'Health check failed. Check the provider connection.'
+                      : row.health!.isHealthy
+                      ? 'Ready'
+                      : row.health!.status.name,
                 ),
-          ],
-        ),
-      );
-    },
+              ),
+        ],
+      ),
+    ),
   );
 }
 

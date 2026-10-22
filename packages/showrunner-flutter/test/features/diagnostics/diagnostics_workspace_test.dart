@@ -14,6 +14,9 @@ void main() {
   testWidgets('renders provider worker state and failure details', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final hub = DartPluginEventHub();
     final providerEvents = ProviderEventRuntime(
       dataService: ShowRunnerDataService(
@@ -26,35 +29,57 @@ void main() {
       eventHub: hub,
       onStatusChanged: providerEvents.notifyListeners,
       request: (method, path, query, body) async {
-        throw StateError('YouTube is offline');
+        throw StateError('YouTube is offline private-provider-marker');
       },
     );
     await providerEvents.youtube!.pollOnce();
     final queue = DartActionQueue();
+    var healthReads = 0;
+    final registry = DartPluginRegistry()
+      ..register(
+        const DartPluginManifest(id: PluginId('fixture'), name: 'Fixture'),
+        onHealthCheck: () async {
+          healthReads++;
+          return true;
+        },
+      );
+    final registryFuture = Future.value(registry);
+    Widget app() => MaterialApp(
+      home: Scaffold(
+        body: DiagnosticsWorkspace(
+          healthFuture: Future.value(
+            const StartupHealthSnapshot(state: StartupHealthState.ready),
+          ),
+          queue: queue,
+          providerEvents: providerEvents,
+          registryFuture: registryFuture,
+        ),
+      ),
+    );
 
     try {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: DiagnosticsWorkspace(
-              healthFuture: Future.value(
-                const StartupHealthSnapshot(state: StartupHealthState.ready),
-              ),
-              queue: queue,
-              providerEvents: providerEvents,
-              registryFuture: Future.value(DartPluginRegistry()),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 3; i++) {
+        await tester.pumpWidget(app());
+        await tester.pumpAndSettle();
+      }
+      expect(healthReads, 1);
       expect(find.text('YouTube Live Chat'), findsOneWidget);
       expect(find.textContaining('Error'), findsOneWidget);
       expect(find.textContaining('attempts 1'), findsOneWidget);
-      expect(find.textContaining('YouTube is offline'), findsOneWidget);
+      expect(find.textContaining('Last operation failed'), findsOneWidget);
+      expect(find.textContaining('private-provider-marker'), findsNothing);
+      await tester.ensureVisible(find.byTooltip('Refresh plugin health'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Refresh plugin health'));
+      await tester.pumpAndSettle();
+      expect(healthReads, 2);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
+      await registry.close();
+      await providerEvents.stop();
+      providerEvents.dispose();
       await queue.dispose();
       await hub.dispose();
     }

@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../services/showrunner_data_service.dart';
@@ -9,94 +6,9 @@ import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/remote/satellite.dart';
 import '../../plugins/twitch/account_runtime.dart';
 import 'remote_dashboard_view.dart';
-
-typedef RemoteDashboardFetcher =
-    Future<List<RemoteDashboardInfo>> Function(String accessToken);
-
-final class RemoteDashboardInfo {
-  const RemoteDashboardInfo({
-    required this.ownerId,
-    required this.dashboardId,
-    required this.name,
-  });
-
-  final String ownerId;
-  final String dashboardId;
-  final String name;
-
-  factory RemoteDashboardInfo.fromJson(Object? value) {
-    if (value is! Map) {
-      throw const FormatException('Remote dashboard must be an object.');
-    }
-    final json = Map<String, dynamic>.from(value);
-    final ownerId = json['ownerId']?.toString().trim() ?? '';
-    final dashboardId = json['dashboardId']?.toString().trim() ?? '';
-    final name = json['dashboardName']?.toString().trim() ?? '';
-    if (ownerId.isEmpty || dashboardId.isEmpty || name.isEmpty) {
-      throw const FormatException('Remote dashboard has incomplete identity.');
-    }
-    return RemoteDashboardInfo(
-      ownerId: ownerId,
-      dashboardId: dashboardId,
-      name: name,
-    );
-  }
-}
-
-final class RemoteDashboardService {
-  RemoteDashboardService({required this.dataService, this.fetcher});
-
-  final ShowRunnerDataService dataService;
-  final RemoteDashboardFetcher? fetcher;
-
-  Future<List<RemoteDashboardInfo>> listAvailable() async {
-    final settings = await loadTwitchChannelSettings(dataService);
-    final token = settings['accessToken']?.toString().trim() ?? '';
-    if (token.isEmpty) {
-      throw StateError(
-        'Twitch access token is required to discover remote dashboards.',
-      );
-    }
-    return (fetcher ?? _fetchFromCloud)(token);
-  }
-
-  Future<List<RemoteDashboardInfo>> _fetchFromCloud(String token) async {
-    final remoteSettings = await dataService.loadPluginSettings('remote');
-    final configured = remoteSettings['apiBase']?.toString().trim() ?? '';
-    final base = configured.isEmpty ? 'https://api.ShowRunner.io' : configured;
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(
-        Uri.parse('$base/api/dashboard-access/remote'),
-      );
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-      final response = await request.close();
-      final text = await utf8.decoder.bind(response).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'Remote dashboard discovery failed (${response.statusCode}): $text',
-        );
-      }
-      final decoded = text.isEmpty ? const <dynamic>[] : jsonDecode(text);
-      if (decoded is! List) {
-        throw const FormatException(
-          'Remote dashboard discovery must return a list.',
-        );
-      }
-      final dashboards = <RemoteDashboardInfo>[];
-      for (final item in decoded) {
-        try {
-          dashboards.add(RemoteDashboardInfo.fromJson(item));
-        } on FormatException {
-          // One malformed dashboard must not hide all valid dashboard entries.
-        }
-      }
-      return dashboards;
-    } finally {
-      client.close(force: true);
-    }
-  }
-}
+import 'remote_dashboard_service.dart';
+import '../../design_system/workspace_notice.dart';
+export 'remote_dashboard_service.dart';
 
 class RemoteWorkspace extends StatefulWidget {
   const RemoteWorkspace({
@@ -104,8 +16,10 @@ class RemoteWorkspace extends StatefulWidget {
     required this.dataService,
     this.connectionManager,
     this.registryFuture,
+    this.discoverDashboards,
   });
 
+  final Future<List<RemoteDashboardInfo>> Function()? discoverDashboards;
   final ShowRunnerDataService dataService;
   final RemoteSatelliteConnectionManager? connectionManager;
   final Future<DartPluginRegistry>? registryFuture;
@@ -115,27 +29,59 @@ class RemoteWorkspace extends StatefulWidget {
 }
 
 class _RemoteWorkspaceState extends State<RemoteWorkspace> {
-  late final RemoteDashboardService _service;
-  late final RemoteSatelliteConnectionManager _connectionManager;
-  late final bool _ownsConnectionManager;
+  late RemoteDashboardService _service;
+  late RemoteSatelliteConnectionManager _connectionManager;
+  late bool _ownsConnectionManager;
   Future<List<RemoteDashboardInfo>>? _dashboardsFuture;
   Object? _lastError;
+  Object _owner = Object();
+  bool _connecting = false;
+
+  bool _isCurrent(Object owner) => mounted && identical(owner, _owner);
 
   @override
   void initState() {
     super.initState();
+    _initialize();
+  }
+
+  void _initialize() {
+    _owner = Object();
+    _connecting = false;
+    _lastError = null;
     _service = RemoteDashboardService(dataService: widget.dataService);
+    final owner = _owner;
+    final registryFuture = widget.registryFuture;
     _ownsConnectionManager = widget.connectionManager == null;
     _connectionManager =
         widget.connectionManager ??
         RemoteSatelliteConnectionManager(
           dataService: widget.dataService,
-          resourceRpc: widget.registryFuture == null
+          resourceRpc: registryFuture == null
               ? null
-              : _invokeLocalResource,
+              : (slot, method, args) => _invokeLocalResource(
+                  owner,
+                  registryFuture,
+                  slot,
+                  method,
+                  args,
+                ),
         );
     _connectionManager.addListener(_connectionChanged);
     _refresh();
+  }
+
+  @override
+  void didUpdateWidget(covariant RemoteWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.dataService, widget.dataService) ||
+        oldWidget.connectionManager != widget.connectionManager ||
+        oldWidget.registryFuture != widget.registryFuture ||
+        oldWidget.discoverDashboards != widget.discoverDashboards) {
+      _connectionManager.removeListener(_connectionChanged);
+      if (_ownsConnectionManager) _connectionManager.dispose();
+      _initialize();
+    }
   }
 
   @override
@@ -151,29 +97,27 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
 
   void _refresh() {
     _lastError = null;
-    _dashboardsFuture = _service.listAvailable().catchError((error) {
-      if (mounted) setState(() => _lastError = error);
-      return <RemoteDashboardInfo>[];
-    });
+    _dashboardsFuture = (widget.discoverDashboards ?? _service.listAvailable)();
     if (mounted) setState(() {});
   }
 
   Future<void> _connect(RemoteDashboardInfo dashboard) async {
-    final settings = await loadTwitchChannelSettings(widget.dataService);
-    final satelliteId = settings['broadcasterId']?.toString().trim() ?? '';
-    if (satelliteId.isEmpty) {
-      if (mounted) {
-        setState(
-          () => _lastError = StateError(
-            'Twitch broadcaster ID is required before connecting to a dashboard.',
-          ),
-        );
-      }
-      return;
-    }
+    if (_connecting) return;
+    final owner = _owner;
+    final data = widget.dataService;
+    final manager = _connectionManager;
+    setState(() {
+      _connecting = true;
+      _lastError = null;
+    });
     try {
-      setState(() => _lastError = null);
-      await _connectionManager.connect(
+      final settings = await loadTwitchChannelSettings(data);
+      if (!_isCurrent(owner)) return;
+      final satelliteId = settings['broadcasterId']?.toString().trim() ?? '';
+      if (satelliteId.isEmpty) {
+        throw StateError('Twitch identity is unavailable.');
+      }
+      await manager.connect(
         SatelliteConnectionConfig(
           satelliteService: 'twitch',
           satelliteId: satelliteId,
@@ -183,13 +127,17 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
         ),
       );
     } catch (error) {
-      if (mounted) setState(() => _lastError = error);
+      if (_isCurrent(owner)) setState(() => _lastError = error);
+    } finally {
+      if (_isCurrent(owner)) setState(() => _connecting = false);
     }
   }
 
   Future<void> _disconnect() => _connectionManager.disconnect();
 
   Future<Object?> _invokeLocalResource(
+    Object owner,
+    Future<DartPluginRegistry> registryFuture,
     RemoteResourceSlot slot,
     String method,
     List<dynamic> args,
@@ -198,7 +146,13 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
     if (resourceId == null || resourceId.isEmpty) {
       throw StateError('Remote resource slot is not bound in Flutter.');
     }
-    final registry = await widget.registryFuture!;
+    if (!_isCurrent(owner)) {
+      throw StateError('Remote workspace is no longer current.');
+    }
+    final registry = await registryFuture;
+    if (!_isCurrent(owner)) {
+      throw StateError('Remote workspace is no longer current.');
+    }
     dynamic argument(int index) => index < args.length ? args[index] : null;
     final context = EvaluationContext();
     switch ('${slot.resourceType}:$method') {
@@ -295,13 +249,11 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
           ),
         ),
         if (_lastError != null)
-          Card(
-            color: Theme.of(context).colorScheme.errorContainer,
-            child: ListTile(
-              leading: const Icon(Icons.error_outline),
-              title: const Text('Remote dashboard discovery failed'),
-              subtitle: Text('$_lastError'),
-            ),
+          const WorkspaceNotice(
+            title: 'Remote dashboard connection failed',
+            message:
+                'Check Twitch authentication and the remote connection, then retry.',
+            icon: Icons.error_outline,
           ),
         const SizedBox(height: 12),
         Text(
@@ -315,6 +267,18 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
               return const Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) {
+              return WorkspaceNotice(
+                title: 'Remote dashboard discovery failed',
+                message:
+                    'Check Twitch authentication and the remote service, then retry.',
+                icon: Icons.error_outline,
+                action: TextButton(
+                  onPressed: _refresh,
+                  child: const Text('Retry'),
+                ),
               );
             }
             final dashboards = snapshot.data ?? const <RemoteDashboardInfo>[];
@@ -338,7 +302,9 @@ class _RemoteWorkspaceState extends State<RemoteWorkspace> {
                         'Owner ${dashboard.ownerId} · Dashboard ${dashboard.dashboardId}',
                       ),
                       trailing: FilledButton.icon(
-                        onPressed: () => _connect(dashboard),
+                        onPressed: _connecting
+                            ? null
+                            : () => _connect(dashboard),
                         icon: const Icon(Icons.link),
                         label: const Text('Connect'),
                       ),
