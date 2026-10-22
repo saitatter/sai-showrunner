@@ -16,6 +16,87 @@ import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 
 void main() {
+  for (final disposeDuringJoin in [false, true]) {
+    test(
+      'bounds and drains pending overlay joins: dispose=$disposeDuringJoin',
+      () async {
+        final started = Completer<void>();
+        final loaded = Completer<ResourceData?>();
+        var loads = 0;
+        final hub = DartPluginEventHub();
+        final registry = createDefaultPluginRegistry(eventHub: hub);
+        final server = DartHttpEndpointService(port: 0);
+        await server.start();
+        final bridge = DartOverlayWebSocketService(
+          server: server,
+          eventHub: hub,
+          registry: registry,
+          viewerDataRepository: InMemoryViewerDataRepository(),
+          maxPeers: 1,
+          overlayStore: OverlayResourceStore(
+            load: (_) {
+              loads++;
+              if (!started.isCompleted) started.complete();
+              return loaded.future;
+            },
+            save: (_) async {},
+          ),
+        );
+        final socket = await WebSocket.connect(
+          'ws://127.0.0.1:${server.boundPort}/?overlay=probe',
+        );
+        final messages = StreamIterator<dynamic>(socket);
+        try {
+          await started.future.timeout(const Duration(seconds: 2));
+          if (disposeDuringJoin) {
+            var disposed = false;
+            final closing = bridge.dispose().then((_) {
+              disposed = true;
+            });
+            await Future<void>.delayed(Duration.zero);
+            expect(disposed, isFalse);
+            loaded.complete(const ResourceData(id: 'probe', config: {}));
+            expect(await messages.moveNext(), isFalse);
+            await closing;
+            expect(socket.closeCode, WebSocketStatus.normalClosure);
+            expect((await bridge.getPresence('probe')).subscribers, 0);
+          } else {
+            final rejected = await WebSocket.connect(
+              'ws://127.0.0.1:${server.boundPort}/?overlay=probe',
+            );
+            await rejected.drain<void>().timeout(const Duration(seconds: 2));
+            expect(rejected.closeCode, WebSocketStatus.policyViolation);
+            expect(loads, 1);
+            loaded.complete(
+              const ResourceData(
+                id: 'probe',
+                config: {
+                  'name': 'Probe',
+                  'size': {'width': 100, 'height': 100},
+                  'widgets': [],
+                },
+              ),
+            );
+            expect(await messages.moveNext(), isTrue);
+            final config = jsonDecode(messages.current as String) as Map;
+            socket.add(
+              jsonEncode({'responseId': config['requestId'], 'result': null}),
+            );
+            expect((await bridge.getPresence('probe')).subscribers, 1);
+          }
+        } finally {
+          if (!loaded.isCompleted) loaded.complete(null);
+          await messages.cancel();
+          await socket.close();
+          await bridge.dispose();
+          await server.stop();
+          await registry.close();
+          await hub.dispose();
+        }
+      },
+    );
+  }
+
   for (final traffic in ['malformed', 'oversized', 'binary', 'silent']) {
     test('closes $traffic overlay peers without unhandled failures', () async {
       final directory = await Directory.systemTemp.createTemp(

@@ -36,6 +36,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Give overlay WebSocket peers owned request timers, bounded pending/in-flight calls and replay protection; drain pending joins on shutdown and cap connections before loading overlay resources.
 - Separate remote discovery transport from its workspace, cache plugin-health requests in an owned diagnostics panel and provide explicit health refresh without issuing reads during ordinary rendering.
 - Separate the virtualized chat timeline and command editor form; isolate live message notifications from workspace filters/search while leaving history, actions, permissions and cooldowns in their existing runtime owners.
 - Separate profile trigger selection and inline automation panels, guard asynchronous loading after close and remove an unused session/disposal path while retaining managed runtime ownership.
