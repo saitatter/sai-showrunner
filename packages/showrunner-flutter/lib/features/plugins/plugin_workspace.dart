@@ -1,12 +1,14 @@
+import 'plugin_setting_value.dart';
+import 'plugin_setting_text_field.dart';
+import 'plugin_details_view.dart';
+import 'plugin_settings_snapshot.dart';
+import '../../design_system/workspace_notice.dart';
 import '../../plugins/youtube/auth_service.dart';
 import '../../persistence/document_revision.dart';
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import '../../components/data_inputs/numeric_input_formatter.dart';
 
-import '../../app/app_feedback.dart';
 import '../../app/commands/app_command.dart';
 import '../../app/workspace_registry.dart';
 import '../../plugins/registry/plugin_registry.dart';
@@ -15,12 +17,9 @@ import '../../plugins/philips_hue/discovery.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import '../../plugins/twitch/account_runtime.dart';
 import '../../services/provider_settings_validator.dart';
-import '../../schema/json.dart';
-import '../../schema/data_input.dart';
 import '../../services/showrunner_data_service.dart';
 import 'plugin_visibility.dart';
 import 'plugin_metadata.dart';
-import 'plugin_usage.dart';
 
 class PluginWorkspace extends StatefulWidget {
   const PluginWorkspace({
@@ -51,13 +50,13 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
   final _settings = <String, Map<String, dynamic>>{};
   final _storageRevisions = <String, DocumentRevision>{};
   bool _loading = true;
+  bool _loadFailed = false;
   String? _saving;
   Object? _error;
   bool _huePairing = false;
   bool _huePaired = false;
   String _selectedPluginId = 'obs';
-  String _detailsTab = 'overview';
-  String _detailsFilter = '';
+  Object _loadOwner = Object();
 
   final _fields = <String, List<String>>{};
   final _definitions = <String, DartSettingContract>{};
@@ -74,47 +73,80 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
   @override
   void didUpdateWidget(covariant PluginWorkspace oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.registryFuture != widget.registryFuture ||
+        oldWidget.dataService.userDirectory.absolute.path !=
+            widget.dataService.userDirectory.absolute.path) {
+      _loadOwner = Object();
+      _loading = true;
+      _saving = null;
+      _error = null;
+      _load();
+    }
     final selectedPluginId = widget.selectedPluginId;
     if (selectedPluginId != null && selectedPluginId != _selectedPluginId) {
       setState(() {
         _selectedPluginId = selectedPluginId;
-        _detailsTab = 'overview';
-        _detailsFilter = '';
       });
     }
   }
 
   Future<void> _load() async {
+    final owner = _loadOwner;
+    final data = widget.dataService;
     try {
-      final registry = await widget.registryFuture;
-      for (final plugin in registry.plugins) {
-        _fields[plugin.id.value] = plugin.settings.map((setting) {
-          _definitions['${plugin.id.value}:${setting.id.value}'] = setting;
-          return setting.id.value;
-        }).toList();
+      final snapshot = await loadPluginSettingsSnapshot(
+        registryFuture: widget.registryFuture,
+        read: data.loadPluginSettings,
+      );
+      if (!mounted || !identical(owner, _loadOwner)) return;
+      for (final controller in _controllers.values) {
+        controller.dispose();
       }
-      for (final pluginId in _fields.keys) {
-        final values = await widget.dataService.loadPluginSettings(pluginId);
-        _settings[pluginId] = values;
-        _storageRevisions[pluginId] = DocumentRevision.of(values);
-        for (final field in _fields[pluginId]!) {
-          final key = '$pluginId:$field';
+      _controllers.clear();
+      _fields
+        ..clear()
+        ..addAll(snapshot.fields);
+      _definitions
+        ..clear()
+        ..addAll(snapshot.definitions);
+      _settings
+        ..clear()
+        ..addAll({
+          for (final entry in snapshot.values.entries)
+            entry.key: Map<String, dynamic>.from(entry.value),
+        });
+      _storageRevisions
+        ..clear()
+        ..addAll(snapshot.revisions);
+      for (final entry in _fields.entries) {
+        for (final field in entry.value) {
+          final key = '${entry.key}:$field';
           final definition = _definitions[key]!;
-          final value = values.containsKey(field)
-              ? values[field]
-              : definition.defaultValue;
+          final values = _settings[entry.key]!;
           _controllers[key] = TextEditingController(
-            text: _encodeSettingValue(value),
+            text: encodePluginSettingValue(
+              values.containsKey(field)
+                  ? values[field]
+                  : definition.defaultValue,
+            ),
           );
         }
       }
+      _error = null;
+      _loadFailed = false;
     } catch (error) {
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _error = error;
+      _loadFailed = true;
     }
-    if (mounted) setState(() => _loading = false);
+    if (mounted && identical(owner, _loadOwner)) {
+      setState(() => _loading = false);
+    }
   }
 
   Future<void> _save(String pluginId) async {
+    final owner = _loadOwner;
+    final dataService = widget.dataService;
     setState(() {
       _saving = pluginId;
       _error = null;
@@ -125,41 +157,50 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         final definition = _definitions['$pluginId:$field']!;
         final rawValue = _controllers['$pluginId:$field']!.text.trim();
         if (rawValue.isEmpty && definition.defaultValue == null) continue;
-        values[field] = _decodeSettingValue(definition, rawValue);
+        values[field] = decodePluginSettingValue(definition, rawValue);
       }
       final validation = validateProviderSettings(pluginId, values);
       if (!validation.isValid) {
         throw ArgumentError(validation.errors.join(' '));
       }
-      await widget.dataService.savePluginSettings(
+      await dataService.savePluginSettings(
         pluginId,
         values,
         expectedRevision: _storageRevisions[pluginId],
       );
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _storageRevisions[pluginId] = DocumentRevision.of(values);
       _settings[pluginId] = values;
     } catch (error) {
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _error = error;
     }
-    if (mounted) setState(() => _saving = null);
+    if (mounted && identical(owner, _loadOwner)) setState(() => _saving = null);
   }
 
   Future<void> _setEnabled(String pluginId, bool enabled) async {
+    final owner = _loadOwner;
+    final dataService = widget.dataService;
     setState(() => _error = null);
     try {
       final registry = await widget.registryFuture;
+      if (!mounted || !identical(owner, _loadOwner)) return;
       await persistPluginEnabled(
-        dataService: widget.dataService,
+        dataService: dataService,
         registry: registry,
         pluginId: pluginId,
         enabled: enabled,
       );
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted && identical(owner, _loadOwner)) {
+        setState(() => _error = error);
+      }
     }
   }
 
   Future<void> _authorize(String pluginId) async {
+    final owner = _loadOwner;
+    final dataService = widget.dataService;
     setState(() {
       _saving = pluginId;
       _error = null;
@@ -174,17 +215,18 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
           );
         }
         final shared = {...?_settings['twitch'], 'clientId': clientId};
-        await widget.dataService.savePluginSettings(
+        await dataService.savePluginSettings(
           'twitch',
           shared,
           expectedRevision: _storageRevisions['twitch'],
         );
+        if (!mounted || !identical(owner, _loadOwner)) return;
         _storageRevisions['twitch'] = DocumentRevision.of(shared);
         await TwitchAccountAuthService(
-          dataService: widget.dataService,
+          dataService: dataService,
         ).authorizeAccount('channel');
-        final values = await loadTwitchChannelSettings(widget.dataService);
-        if (!mounted) return;
+        final values = await loadTwitchChannelSettings(dataService);
+        if (!mounted || !identical(owner, _loadOwner)) return;
         _settings['twitch'] = values;
         for (final entry in values.entries) {
           _controllers['twitch:${entry.key}']?.text = '${entry.value ?? ''}';
@@ -207,30 +249,37 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         'clientId': clientId,
         'clientSecret': clientSecret,
       };
-      await widget.dataService.savePluginSettings(
+      await dataService.savePluginSettings(
         pluginId,
         configured,
         expectedRevision: _storageRevisions[pluginId],
       );
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _storageRevisions[pluginId] = DocumentRevision.of(configured);
       final connected = await YouTubeAuthService(
-        dataService: widget.dataService,
+        dataService: dataService,
       ).connect();
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _settings[pluginId] = connected;
       _storageRevisions[pluginId] = DocumentRevision.of(connected);
       for (final entry in connected.entries) {
-        _controllers['$pluginId:${entry.key}']?.text = _encodeSettingValue(
+        _controllers['$pluginId:${entry.key}']?.text = encodePluginSettingValue(
           entry.value,
         );
       }
     } catch (error) {
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _error = error;
     } finally {
-      if (mounted) setState(() => _saving = null);
+      if (mounted && identical(owner, _loadOwner)) {
+        setState(() => _saving = null);
+      }
     }
   }
 
   Future<void> _pairHueBridge() async {
+    final owner = _loadOwner;
+    final dataService = widget.dataService;
     setState(() {
       _huePairing = true;
       _huePaired = false;
@@ -238,6 +287,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
     });
     try {
       final pairing = await const PhilipsHueDiscoveryService().findAndPair();
+      if (!mounted || !identical(owner, _loadOwner)) return;
       if (pairing == null) {
         throw StateError(
           'No Philips Hue bridge was paired. Press the bridge button and try again.',
@@ -248,20 +298,24 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         'hubIp': pairing.host,
         'hubKey': pairing.applicationKey,
       };
-      await widget.dataService.savePluginSettings(
+      await dataService.savePluginSettings(
         'philips-hue',
         values,
         expectedRevision: _storageRevisions['philips-hue'],
       );
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _storageRevisions['philips-hue'] = DocumentRevision.of(values);
       _settings['philips-hue'] = values;
       _controllers['philips-hue:hubIp']?.text = pairing.host;
       _controllers['philips-hue:hubKey']?.text = pairing.applicationKey;
       _huePaired = true;
     } catch (error) {
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _error = error;
     }
-    if (mounted) setState(() => _huePairing = false);
+    if (mounted && identical(owner, _loadOwner)) {
+      setState(() => _huePairing = false);
+    }
   }
 
   @override
@@ -282,7 +336,28 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         }
         if (snapshot.hasError) {
           return Center(
-            child: Text('Plugin registry error: ${snapshot.error}'),
+            child: const Text(
+              'Plugin registry unavailable. Check plugin configuration and retry.',
+            ),
+          );
+        }
+        if (_loadFailed) {
+          return Center(
+            child: WorkspaceNotice(
+              title: 'Plugin settings unavailable',
+              message:
+                  'Settings could not be loaded. Check storage access and retry.',
+              action: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _loadOwner = Object();
+                    _loading = true;
+                  });
+                  _load();
+                },
+                child: const Text('Retry'),
+              ),
+            ),
           );
         }
         final registry = snapshot.data;
@@ -312,378 +387,33 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
                 ),
               );
             }
-            return _buildPluginDetails(context, selected, registry);
+            return PluginDetailsView(
+              key: ValueKey(selected.id.value),
+              plugin: selected,
+              registry: registry,
+              dataService: widget.dataService,
+              onEnabled: (value) => _setEnabled(selected.id.value, value),
+              settingsBuilder: (context, filter) =>
+                  _buildProviderSettings(context, selected.id.value, filter),
+            );
           },
         );
       },
     );
   }
 
-  Widget _buildPluginDetails(
+  Widget _buildProviderSettings(
     BuildContext context,
-    DartPluginManifest plugin,
-    DartPluginRegistry registry,
+    String selectedPluginId,
+    String filter,
   ) {
-    final isProvider = _fields[plugin.id.value]?.isNotEmpty == true;
-    final tabs = [
-      _PluginDetailsTab('overview', 'Overview', Icons.info_outline),
-      _PluginDetailsTab(
-        'usage',
-        'Usage',
-        Icons.account_tree_outlined,
-        count: null,
-      ),
-      if (plugin.settings.isNotEmpty)
-        _PluginDetailsTab(
-          'settings',
-          'Settings',
-          Icons.settings_outlined,
-          count: plugin.settings
-              .where(
-                (setting) => _matchesDetailFilter(
-                  '${setting.displayName} ${setting.id.value}',
-                ),
-              )
-              .length,
-        ),
-      _PluginDetailsTab(
-        'actions',
-        'Actions',
-        Icons.bolt,
-        count: plugin.actions
-            .where(
-              (action) => _matchesDetailFilter(
-                '${action.displayName ?? action.actionId.value} ${action.actionId.value}',
-              ),
-            )
-            .length,
-      ),
-      _PluginDetailsTab(
-        'triggers',
-        'Triggers',
-        Icons.notifications_active_outlined,
-        count: plugin.triggers
-            .where(
-              (trigger) => _matchesDetailFilter(
-                '${trigger.displayName} ${trigger.triggerId.value}',
-              ),
-            )
-            .length,
-      ),
-      _PluginDetailsTab(
-        'state',
-        'State',
-        Icons.data_object,
-        count: plugin.states
-            .where(
-              (state) => _matchesDetailFilter(
-                '${state.displayName} ${state.id.value}',
-              ),
-            )
-            .length,
-      ),
-    ];
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Row(
-          children: [
-            Icon(
-              pluginIconFor(plugin.id.value),
-              color: pluginColorFor(plugin.id.value),
-              size: 28,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'INTEGRATION PLUGIN',
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  Text(
-                    plugin.name,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  Text(
-                    '${plugin.id.value}  |  v${plugin.version}',
-                    style: const TextStyle(color: Colors.white54),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              tooltip: 'Check plugin health',
-              onPressed: () async {
-                final health = await widget.registryFuture.then(
-                  (r) => r.checkHealthDetailsId(plugin.id),
-                );
-                if (!context.mounted) return;
-                showShowRunnerFeedback(
-                  context,
-                  health.isHealthy
-                      ? '${plugin.name} is ready'
-                      : '${plugin.name}: ${health.message ?? health.status.name}',
-                  severity: health.isHealthy
-                      ? ShowRunnerFeedbackSeverity.success
-                      : ShowRunnerFeedbackSeverity.warning,
-                );
-              },
-              icon: const Icon(Icons.health_and_safety_outlined),
-            ),
-            Switch(
-              value: registry.isPluginEnabledId(plugin.id),
-              onChanged: (value) => _setEnabled(plugin.id.value, value),
-            ),
-          ],
-        ),
-        if (pluginDescriptionFor(plugin.id.value).trim().isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(pluginDescriptionFor(plugin.id.value)),
-        ],
-        const SizedBox(height: 20),
-        TextField(
-          decoration: const InputDecoration(
-            labelText: 'Search integration details',
-            prefixIcon: Icon(Icons.search),
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (value) => setState(() => _detailsFilter = value),
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (final tab in tabs)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    selected: _detailsTab == tab.id,
-                    avatar: Icon(tab.icon, size: 16),
-                    label: Text(
-                      tab.count == null
-                          ? tab.label
-                          : '${tab.label} ${tab.count}',
-                    ),
-                    onSelected: (_) => setState(() => _detailsTab = tab.id),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        switch (_detailsTab) {
-          'usage' => _buildUsageTab(plugin),
-          'settings' =>
-            isProvider
-                ? _buildProviderSettings(context, plugin.id.value)
-                : _buildManifestTab(
-                    context,
-                    title: 'Settings',
-                    icon: Icons.settings_outlined,
-                    values: plugin.settings
-                        .map(
-                          (setting) =>
-                              '${setting.displayName} · ${setting.id.value}',
-                        )
-                        .toList(),
-                  ),
-          'actions' => _buildActionTab(context, plugin),
-          'triggers' => _buildTriggerTab(context, plugin),
-          'state' => _buildStateTab(context, plugin, registry),
-          _ => _buildOverviewTab(context, plugin),
-        },
-      ],
-    );
-  }
-
-  Widget _buildOverviewTab(BuildContext context, DartPluginManifest plugin) =>
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Overview', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(
-            'Flutter runtime integration registered for ${plugin.name}.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _PluginStat(value: plugin.actions.length, label: 'actions'),
-              _PluginStat(value: plugin.triggers.length, label: 'triggers'),
-              _PluginStat(value: plugin.settings.length, label: 'settings'),
-              _PluginStat(value: plugin.states.length, label: 'state values'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _PluginUsageSummary(
-            dataService: widget.dataService,
-            pluginId: plugin.id.value,
-          ),
-        ],
-      );
-
-  Widget _buildUsageTab(DartPluginManifest plugin) => _PluginUsageDetails(
-    dataService: widget.dataService,
-    pluginId: plugin.id.value,
-    filter: _detailsFilter,
-  );
-
-  Widget _buildStateTab(
-    BuildContext context,
-    DartPluginManifest plugin,
-    DartPluginRegistry registry,
-  ) {
-    final values = registry.stateValues(plugin.id.value);
-    final rows = plugin.states
-        .where(
-          (state) =>
-              _matchesDetailFilter('${state.displayName} ${state.id.value}'),
-        )
-        .map(
-          (state) => ListTile(
-            dense: true,
-            title: Text(state.displayName),
-            subtitle: Text(state.id.value),
-            trailing: Text(values[state.id.value]?.toString() ?? 'null'),
-          ),
-        )
-        .toList();
-    return _buildRowsCard(
-      context,
-      title: 'State',
-      icon: Icons.data_object,
-      rows: rows,
-      emptyLabel: 'No runtime state registered',
-    );
-  }
-
-  Widget _buildManifestTab(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required List<String> values,
-  }) {
-    final rows = values
-        .where(_matchesDetailFilter)
-        .map((value) => ListTile(dense: true, title: Text(value)))
-        .toList();
-    return _buildRowsCard(
-      context,
-      title: title,
-      icon: icon,
-      rows: rows,
-      emptyLabel: _detailsFilter.trim().isEmpty
-          ? 'Nothing registered yet'
-          : 'No matches for "${_detailsFilter.trim()}".',
-    );
-  }
-
-  Widget _buildActionTab(BuildContext context, DartPluginManifest plugin) {
-    final rows = plugin.actions
-        .where(
-          (action) => _matchesDetailFilter(
-            '${action.displayName ?? action.actionId.value} ${action.actionId.value}',
-          ),
-        )
-        .map(
-          (action) => ListTile(
-            dense: true,
-            leading: const Icon(Icons.bolt),
-            title: Text(action.displayName ?? action.actionId.value),
-            subtitle: Text(
-              '${action.actionId.value}\n'
-              'Config: ${_schemaSummary(action.configSchema)}\n'
-              'Result: ${_schemaSummary(action.resultSchema)}',
-            ),
-          ),
-        )
-        .toList();
-    return _buildRowsCard(
-      context,
-      title: 'Actions',
-      icon: Icons.bolt,
-      rows: rows,
-      emptyLabel: _detailsFilter.trim().isEmpty
-          ? 'Nothing registered yet'
-          : 'No matches for "${_detailsFilter.trim()}".',
-    );
-  }
-
-  Widget _buildTriggerTab(BuildContext context, DartPluginManifest plugin) {
-    final rows = plugin.triggers
-        .where(
-          (trigger) => _matchesDetailFilter(
-            '${trigger.displayName} ${trigger.triggerId.value}',
-          ),
-        )
-        .map(
-          (trigger) => ListTile(
-            dense: true,
-            leading: const Icon(Icons.notifications_active_outlined),
-            title: Text(trigger.displayName),
-            subtitle: Text(
-              '${trigger.triggerId.value}\n'
-              'Config: ${_schemaSummary(trigger.configSchema)}',
-            ),
-          ),
-        )
-        .toList();
-    return _buildRowsCard(
-      context,
-      title: 'Triggers',
-      icon: Icons.notifications_active_outlined,
-      rows: rows,
-      emptyLabel: _detailsFilter.trim().isEmpty
-          ? 'Nothing registered yet'
-          : 'No matches for "${_detailsFilter.trim()}".',
-    );
-  }
-
-  Widget _buildRowsCard(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required List<Widget> rows,
-    required String emptyLabel,
-  }) => Card(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ListTile(
-          leading: Icon(icon),
-          title: Text(title),
-          subtitle: Text('${rows.length} visible'),
-        ),
-        if (rows.isEmpty)
-          ListTile(dense: true, title: Text(emptyLabel))
-        else
-          ...rows,
-      ],
-    ),
-  );
-
-  bool _matchesDetailFilter(String value) {
-    final query = _detailsFilter.trim().toLowerCase();
-    return query.isEmpty || value.toLowerCase().contains(query);
-  }
-
-  Widget _buildProviderSettings(BuildContext context, String selectedPluginId) {
     final fields = _fields[selectedPluginId] ?? const <String>[];
     final visibleFields = fields.where((field) {
       final definition = _definitions['$selectedPluginId:$field'];
       return definition != null &&
-          _matchesDetailFilter('${definition.displayName} $field');
+          ('${definition.displayName} $field').toLowerCase().contains(
+            filter.trim().toLowerCase(),
+          );
     }).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,14 +423,18 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
-        if (_error != null) Text('Settings error: $_error'),
+        if (_error != null)
+          const WorkspaceNotice(
+            message:
+                'Plugin settings could not be updated. Check the fields, permissions and storage access, then retry.',
+          ),
         if (visibleFields.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              _detailsFilter.trim().isEmpty
+              filter.trim().isEmpty
                   ? 'No plugin settings registered.'
-                  : 'No matches for "${_detailsFilter.trim()}".',
+                  : 'No matches for "${filter.trim()}".',
             ),
           )
         else
@@ -798,7 +532,7 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
       return Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: CheckboxListTile(
-          value: _decodeBoolean(controller.text) ?? false,
+          value: decodePluginSettingBoolean(controller.text) ?? false,
           title: Text(definition.displayName),
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
@@ -809,93 +543,10 @@ class _PluginWorkspaceState extends State<PluginWorkspace> {
         ),
       );
     }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: controller,
-        obscureText: definition.secret,
-        keyboardType: definition.valueType == DartSettingType.number
-            ? const TextInputType.numberWithOptions(decimal: true)
-            : TextInputType.text,
-        inputFormatters: definition.valueType == DartSettingType.number
-            ? const [NumericInputFormatter()]
-            : null,
-        decoration: InputDecoration(
-          labelText: definition.displayName,
-          border: const OutlineInputBorder(),
-        ),
-      ),
+    return PluginSettingTextField(
+      definition: definition,
+      controller: controller,
     );
-  }
-}
-
-String _schemaSummary(DartDataInputSchema? schema) {
-  if (schema == null) return 'none';
-  if (schema.kind != DartDataInputKind.object) {
-    return '${schema.label}: ${_schemaTypeName(schema)}';
-  }
-  if (schema.fields.isEmpty) return 'none';
-  return schema.fields
-      .map((field) {
-        final required = field.required ? ', required' : '';
-        return '${field.label}: ${_schemaTypeName(field)}$required';
-      })
-      .join(', ');
-}
-
-String _schemaTypeName(DartDataInputSchema schema) {
-  if (schema.kind == DartDataInputKind.resource &&
-      schema.resourceType?.value.isNotEmpty == true) {
-    return 'resource<${schema.resourceType}>';
-  }
-  return switch (schema.kind) {
-    DartDataInputKind.multilineText => 'text',
-    DartDataInputKind.filePath => 'file',
-    DartDataInputKind.lightColor => 'light color',
-    DartDataInputKind.obsTransform => 'OBS transform',
-    DartDataInputKind.keyboardKey => 'keyboard key',
-    DartDataInputKind.keyCombo => 'key combo',
-    DartDataInputKind.array => 'array',
-    DartDataInputKind.object => 'object',
-    DartDataInputKind.enumeration => 'enum',
-    _ => schema.kind.name,
-  };
-}
-
-String _encodeSettingValue(Object? value) => value?.toString() ?? '';
-
-dynamic _decodeSettingValue(DartSettingContract definition, String rawValue) {
-  if (definition.valueType == DartSettingType.boolean) {
-    return _decodeBoolean(rawValue) ?? definition.defaultValue ?? false;
-  }
-  if (definition.valueType == DartSettingType.number) {
-    final parsed = definition.defaultValue is int
-        ? int.tryParse(rawValue)
-        : double.tryParse(rawValue);
-    if (parsed == null) {
-      throw FormatException(
-        '${definition.displayName} must be a valid number.',
-      );
-    }
-    return parsed;
-  }
-  return rawValue;
-}
-
-bool? _decodeBoolean(String rawValue) {
-  switch (rawValue.trim().toLowerCase()) {
-    case 'true':
-    case '1':
-    case 'yes':
-    case 'on':
-      return true;
-    case 'false':
-    case '0':
-    case 'no':
-    case 'off':
-      return false;
-    default:
-      return null;
   }
 }
 
@@ -929,204 +580,4 @@ class _OAuthDiagnostics extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PluginDetailsTab {
-  const _PluginDetailsTab(this.id, this.label, this.icon, {this.count});
-
-  final String id;
-  final String label;
-  final IconData icon;
-  final int? count;
-}
-
-class _PluginStat extends StatelessWidget {
-  const _PluginStat({required this.value, required this.label});
-
-  final int value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Card(
-    margin: EdgeInsets.zero,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$value', style: Theme.of(context).textTheme.headlineSmall),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
-    ),
-  );
-}
-
-class _PluginUsageSummary extends StatefulWidget {
-  const _PluginUsageSummary({
-    required this.dataService,
-    required this.pluginId,
-  });
-
-  final ShowRunnerDataService dataService;
-  final String pluginId;
-
-  @override
-  State<_PluginUsageSummary> createState() => _PluginUsageSummaryState();
-}
-
-class _PluginUsageSummaryState extends State<_PluginUsageSummary> {
-  late Future<List<String>> _usageFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _usageFuture = _loadUsage();
-  }
-
-  @override
-  void didUpdateWidget(covariant _PluginUsageSummary oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataService != widget.dataService ||
-        oldWidget.pluginId != widget.pluginId) {
-      _usageFuture = _loadUsage();
-    }
-  }
-
-  Future<List<String>> _loadUsage() async {
-    final usage = await loadPluginUsage(
-      loadEntries: widget.dataService.storage.listAutomations,
-      pluginId: widget.pluginId,
-    );
-    return usage.map((entry) => entry.automationFile).toSet().toList()..sort();
-  }
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<List<String>>(
-    future: _usageFuture,
-    builder: (context, snapshot) {
-      final usage = snapshot.data ?? const <String>[];
-      return Card(
-        child: ListTile(
-          leading: const Icon(Icons.account_tree_outlined),
-          title: const Text('Automation usage'),
-          subtitle: snapshot.connectionState == ConnectionState.waiting
-              ? const Text('Scanning saved automations...')
-              : Text(
-                  usage.isEmpty
-                      ? 'Not used in saved automations'
-                      : '${usage.length} automation${usage.length == 1 ? '' : 's'}: ${usage.join(', ')}',
-                ),
-        ),
-      );
-    },
-  );
-}
-
-final class _PluginUsageDetails extends StatefulWidget {
-  const _PluginUsageDetails({
-    required this.dataService,
-    required this.pluginId,
-    required this.filter,
-  });
-
-  final ShowRunnerDataService dataService;
-  final String pluginId;
-  final String filter;
-
-  @override
-  State<_PluginUsageDetails> createState() => _PluginUsageDetailsState();
-}
-
-final class _PluginUsageDetailsState extends State<_PluginUsageDetails> {
-  late Future<List<PluginUsageEntry>> _usageFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _usageFuture = _load();
-  }
-
-  @override
-  void didUpdateWidget(covariant _PluginUsageDetails oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataService != widget.dataService ||
-        oldWidget.pluginId != widget.pluginId) {
-      _usageFuture = _load();
-    }
-  }
-
-  Future<List<PluginUsageEntry>> _load() => loadPluginUsage(
-    loadEntries: widget.dataService.storage.listAutomations,
-    pluginId: widget.pluginId,
-  );
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<List<PluginUsageEntry>>(
-    future: _usageFuture,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Card(
-          child: ListTile(title: Text('Scanning saved automations...')),
-        );
-      }
-      if (snapshot.hasError) {
-        return Card(
-          child: ListTile(title: Text('Usage error: ${snapshot.error}')),
-        );
-      }
-      final query = widget.filter.trim().toLowerCase();
-      final usage = (snapshot.data ?? const <PluginUsageEntry>[]).where((
-        entry,
-      ) {
-        if (query.isEmpty) return true;
-        return '${entry.automationName} ${entry.kind} ${entry.name} '
-                '${entry.automationFile} ${entry.config}'
-            .toLowerCase()
-            .contains(query);
-      }).toList();
-      return Card(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const ListTile(
-              leading: Icon(Icons.account_tree_outlined),
-              title: Text('Used in automations'),
-            ),
-            if (usage.isEmpty)
-              ListTile(
-                dense: true,
-                title: Text(
-                  query.isEmpty
-                      ? 'No current automations use this plugin.'
-                      : 'No matches for "${widget.filter.trim()}".',
-                ),
-              )
-            else
-              for (final entry in usage)
-                ListTile(
-                  dense: true,
-                  title: Text(entry.automationName),
-                  subtitle: Text(
-                    '${entry.kind} · ${entry.name} · ${entry.automationFile}'
-                    '${entry.config.isEmpty ? '' : '\n${_formatConfig(entry.config)}'}',
-                  ),
-                ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-String _formatConfig(JsonMap config) {
-  try {
-    return const JsonEncoder.withIndent('  ').convert(config);
-  } on Object {
-    return config.toString();
-  }
-}
-
-extension<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }
