@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Keep overlay canvas/save actions usable in compact desktop layouts, with a keyboard-toggleable inspector/layers panel that retains draft and focus state across resizing.
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
@@ -21,7 +22,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
-- Move overlay authoring, semantic dirty state, immutable snapshots and save ownership into an independently testable editor controller.
+- Move overlay authoring, semantic dirty state, immutable snapshots and save ownership into an independently testable editor controller; give responsive layout and the inspector/layers splitter separate presentation owners.
 - Validate resource configurations through provider-owned codecs shared by storage and editors, with distinct unsupported-schema diagnostics and semantic JSON/YAML round-trip coverage for every resource family.
 - Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers and route project commands, chat/usage catalogs, provider automation loading and profile activation through the same owners.
 - Share typed single-document storage across automation/profile/queue repositories, with explicit domain store contracts and validation under the same owner lock as atomic publication.

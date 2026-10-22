@@ -12,6 +12,13 @@ import 'package:showrunner_flutter/plugins/obs/overlay_source_service.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/system_font_catalog.dart';
 
+void _standardViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1440, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
 Future<void> _selectOverlayWidget(WidgetTester tester, String widgetId) async {
   final title = find.byKey(ValueKey('overlay-widget-row-title-$widgetId'));
   await tester.ensureVisible(title);
@@ -126,6 +133,7 @@ void main() {
   testWidgets('overlay editor exposes the canonical visual widget editor', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
     final editor = definition.builder(
@@ -240,6 +248,7 @@ void main() {
   testWidgets(
     'canvas dragging snaps to integer pixels without losing small movements',
     (tester) async {
+      _standardViewport(tester);
       ResourceData? latest;
       await tester.pumpWidget(
         MaterialApp(
@@ -339,6 +348,7 @@ void main() {
   testWidgets(
     'snap shows guides, Shift bypasses alignment and toggle disables it',
     (tester) async {
+      _standardViewport(tester);
       ResourceData? latest;
       await tester.pumpWidget(
         MaterialApp(
@@ -438,6 +448,7 @@ void main() {
   testWidgets(
     'empty canvas deselects while widget and resize handle clicks keep selection',
     (tester) async {
+      _standardViewport(tester);
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -509,6 +520,7 @@ void main() {
   testWidgets('overlay canvas resizes the selected widget directly', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -588,6 +600,7 @@ void main() {
   testWidgets('overlay label text updates the canvas and persists', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -646,6 +659,7 @@ void main() {
   testWidgets('overlay label draws its configured shadow only once', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
     final editor = definition.builder(
@@ -802,6 +816,7 @@ void main() {
   testWidgets('overlay widget visibility and lock controls are interactive', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -854,6 +869,7 @@ void main() {
   testWidgets('overlay font control previews and edits text style', (
     tester,
   ) async {
+    _standardViewport(tester);
     await tester.runAsync(() => SystemFontCatalog.instance.load());
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
@@ -982,6 +998,7 @@ void main() {
   });
 
   testWidgets('label inspector matches Vue alignment controls', (tester) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -1199,6 +1216,7 @@ void main() {
   testWidgets('overlay editor preserves canonical widget resources', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -1249,6 +1267,7 @@ void main() {
   testWidgets('overlay editor writes canonical size and preview settings', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -1284,6 +1303,7 @@ void main() {
   testWidgets('overlay editor adds a canonical widget from the catalog', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -1334,6 +1354,7 @@ void main() {
   });
 
   testWidgets('new widgets get distinct catalog names', (tester) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
@@ -1398,6 +1419,7 @@ void main() {
   testWidgets('double click renames a layer and inspector has no Name field', (
     tester,
   ) async {
+    _standardViewport(tester);
     final definition = createDefaultResourceEditorRegistry().find('Overlay')!;
     ResourceData? saved;
     await tester.pumpWidget(const MaterialApp(home: Scaffold()));
