@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Keep chat moderation and command dialogs on their original runtime/manager, retain newer composer drafts after sends and prevent duplicate submissions or raw provider error displays.
 - Keep profile trigger choices, activation and save completion scoped to the selected profile; retain newer edits during saves and keep profile/condition controls usable with enlarged text.
 - Keep resource catalogs, open dialogs and Stream Plan actions tied to their original project; reject stale CRUD submissions and show safe retry feedback after failed operations.
 - Keep plugin/settings loads and OAuth completion scoped to their form owner; reject malformed numeric settings, retain failed drafts and redact credential-bearing configuration previews and provider error payloads.
@@ -34,6 +35,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Separate the virtualized chat timeline and command editor form; isolate live message notifications from workspace filters/search while leaving history, actions, permissions and cooldowns in their existing runtime owners.
 - Separate profile trigger selection and inline automation panels, guard asynchronous loading after close and remove an unused session/disposal path while retaining managed runtime ownership.
 - Separate resource creation forms from catalog routing and capture repository, registry and runtime owners before asynchronous editor work.
 - Separate integration metadata/search/usage from settings drafts and interface preferences, share typed setting fields and load one coherent settings baseline outside rendering without reading plugins that declare no settings.
