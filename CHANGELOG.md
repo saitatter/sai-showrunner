@@ -16,7 +16,7 @@
 - Stop chat messages from rebuilding Twitch controls and triggering health reads; keep dashboard queue counters scoped to each named queue and observe live queue, plan and provider status at the corresponding card.
 - Prevent delayed viewer-table queries from replacing newer sorting/project results, and refresh displayed variable values without rebuilding unrelated viewer controls.
 - Retain shader palette search across panel toggles, reject picker results from a reset graph and show unsupported shader documents without raw exception payloads.
-- Keep graph pickers, compact inspectors, parameter forms and run completion scoped to their document; prevent long subgraph names from overflowing the toolbar and hide provider error payloads in resource fields.
+- Keep graph pickers, diagnostics, compact inspectors, parameter forms and run completion scoped to their document; prevent long subgraph names from overflowing the toolbar and hide provider error payloads in resource fields.
 - Refresh edited style inputs after undo or external changes, keep open font editors on current values, and preserve removed/null optional effects instead of restoring them from defaults.
 - Isolate open preview dialogs from document switches and preserve additional preview configuration fields during editing and saving.
 - Keep OBS source dialogs and delayed responses scoped to the selected overlay/connection, preventing old dialogs from creating sources for a new document.

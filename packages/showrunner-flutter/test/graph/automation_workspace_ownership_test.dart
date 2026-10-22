@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:sai_nodes_core/sai_nodes_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/graph/controller/automation_editor_controller.dart';
@@ -39,6 +40,39 @@ void main() {
         onRun: onRun,
       ),
     ),
+  );
+  testWidgets(
+    'diagnostics opened for an old document cannot select in its replacement',
+    (tester) async {
+      first.graph.execute(
+        AddNodeCommand(
+          first.graph.activeSpaceId!,
+          GraphNode(id: 'unavailable', type: 'missing.type'),
+        ),
+      );
+      second.graph.execute(
+        AddNodeCommand(
+          second.graph.activeSpaceId!,
+          GraphNode(id: 'unavailable', type: 'missing.type'),
+        ),
+      );
+      await tester.pumpWidget(app(first));
+      await tester.tap(find.textContaining('graph issue(s)'));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(app(second));
+      await tester.pump();
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(AlertDialog),
+              matching: find.byType(ListTile),
+            )
+            .first,
+      );
+      await tester.pumpAndSettle();
+      expect(second.graph.selection.nodes, isEmpty);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
   );
   testWidgets(
     'node picker opened for a replaced document cannot insert into its replacement',
