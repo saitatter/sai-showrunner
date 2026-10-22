@@ -49,6 +49,27 @@ void main() {
       ),
     );
     await _until(tester, find.text('Session counter'));
+    var viewerBuilds = 0;
+    final previousRebuild = debugOnRebuildDirtyWidget;
+    debugOnRebuildDirtyWidget = (element, once) {
+      previousRebuild?.call(element, once);
+      if (element.widget is ViewerDataWorkspacePanel) viewerBuilds++;
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = previousRebuild);
+    await tester.runAsync(() => runtime.setValue('counter', 26));
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+    expect(viewerBuilds, 0);
+    final liveValue = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.labelText == 'Current value',
+    );
+    expect(tester.widget<TextField>(liveValue).controller!.text, '26');
     await tester.runAsync(() => tester.tap(find.byTooltip('Reset to default')));
     await _settleIo(tester, () => runtime.valueOf('counter') == 10);
     expect(runtime.valueOf('counter'), 10);
