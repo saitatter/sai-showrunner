@@ -150,6 +150,8 @@ void main() {
       const GraphPoint(80, 80),
     );
     await tester.pump();
+    final firstEditor = graph.editor;
+    expect(firstEditor.isDirty, isTrue);
     await tester.tap(find.byTooltip('Create Automations'));
     await _pumpApplication(tester);
     await tester.enterText(
@@ -171,10 +173,15 @@ void main() {
     );
     await tester.pump();
     await _runFileCommand(tester, 'Save all');
-    // Save All writes tabs sequentially; animation pumps do not await disk I/O.
-    for (var attempt = 0; graph.editor.isDirty && attempt < 100; attempt++) {
-      await tester.pump(const Duration(milliseconds: 50));
-    }
+    // A rendered frame is not a filesystem completion signal. Await the
+    // command's owned writes before checking either tab or persisted document.
+    await flushShowRunnerTestApp(tester);
+    await tester.pump();
+    expect(
+      firstEditor.isDirty,
+      isFalse,
+      reason: 'Save All must save the first tab',
+    );
     expect(graph.editor.isDirty, isFalse, reason: 'Save All must complete');
     expect(
       (await AutomationRepository(
