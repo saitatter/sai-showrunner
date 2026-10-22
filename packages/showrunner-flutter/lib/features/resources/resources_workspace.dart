@@ -5,9 +5,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../persistence/resource_repository.dart';
 import '../../app/app_feedback.dart';
-import '../../persistence/secret_settings_store.dart';
 import '../plugins/plugin_metadata.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/dashboards/cloud_sync.dart';
@@ -15,11 +13,11 @@ import '../../plugins/stream_plans/manifest.dart';
 import '../../plugins/variables/runtime.dart';
 import '../../schema/stream_plan.dart';
 import 'resource_editor_registry.dart';
-import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import '../../services/showrunner_data_service.dart';
 import 'media_picker.dart';
 import 'resource_options.dart';
+import 'new_resource_dialog.dart';
 
 typedef _ResourceWorkspaceCatalog = ({
   Map<String, List<ResourceData>> values,
@@ -62,11 +60,31 @@ class ResourcesWorkspace extends StatefulWidget {
 class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
   Future<_ResourceWorkspaceCatalog>? _resourcesFuture;
   String? _lastOpenedResourceId;
+  Object _resourceOwner = Object();
+  bool _busy = false;
+
+  Future<void> _runResourceAction(Future<void> Function() action) async {
+    if (_busy || !mounted) return;
+    final owner = _resourceOwner;
+    setState(() => _busy = true);
+    try {
+      await action();
+    } on Object {
+      if (!mounted || !_isCurrent(owner)) return;
+      showShowRunnerFeedback(
+        context,
+        'Resource operation failed. Check storage and the configuration, then retry.',
+        severity: ShowRunnerFeedbackSeverity.error,
+      );
+    } finally {
+      if (_isCurrent(owner)) setState(() => _busy = false);
+    }
+  }
+
+  bool _isCurrent(Object owner) => mounted && identical(owner, _resourceOwner);
 
   ShowRunnerDataService get dataService => widget.dataService;
   DartResourceEditorRegistry get editorRegistry => widget.editorRegistry;
-
-  SecretSettingsStore get secretSettings => dataService.secretSettingsStore;
 
   @override
   void initState() {
@@ -81,19 +99,28 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
   @override
   void didUpdateWidget(covariant ResourcesWorkspace oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.resourceType != widget.resourceType ||
+    final sourceChanged =
+        !identical(oldWidget.dataService, widget.dataService) ||
+        !identical(oldWidget.editorRegistry, widget.editorRegistry) ||
+        oldWidget.registryFuture != widget.registryFuture;
+    if (sourceChanged ||
+        oldWidget.resourceType != widget.resourceType ||
         oldWidget.resourceId != widget.resourceId) {
+      _resourceOwner = Object();
+      _busy = false;
       _lastOpenedResourceId = null;
     }
-    if (oldWidget.revision != widget.revision) _reload();
+    if (sourceChanged || oldWidget.revision != widget.revision) _reload();
   }
 
   Future<_ResourceWorkspaceCatalog> _loadAll() async {
+    final data = dataService;
+    final editors = editorRegistry;
     final resources = <String, List<ResourceData>>{};
     final issues = <PersistenceIssue>[];
-    for (final def in editorRegistry.definitions) {
+    for (final def in editors.definitions) {
       try {
-        final entries = await dataService.storage
+        final entries = await data.storage
             .resource(def.resourceTypeId)
             .listWithErrors();
         resources[def.resourceType] = [
@@ -154,8 +181,11 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
               .firstOrNull;
           if (resource != null && resourceId != _lastOpenedResourceId) {
             _lastOpenedResourceId = resourceId;
+            final owner = _resourceOwner;
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) unawaited(_edit(context, resource, focusedType));
+              if (_isCurrent(owner)) {
+                unawaited(_edit(context, resource, focusedType));
+              }
             });
           }
         }
@@ -309,10 +339,24 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     BuildContext context,
     ResourceData resource,
     String resourceType,
+  ) => _runResourceAction(() => _editCurrent(context, resource, resourceType));
+
+  Future<void> _editCurrent(
+    BuildContext context,
+    ResourceData resource,
+    String resourceType,
   ) async {
-    final editor = editorRegistry.find(resourceType);
-    final registry = await widget.registryFuture;
-    if (!context.mounted) return;
+    final owner = _resourceOwner;
+    final data = dataService;
+    final editors = editorRegistry;
+    final registryFuture = widget.registryFuture;
+    final variableRuntime = widget.variableRuntime;
+    final planRuntime = widget.streamPlanRuntime;
+    final onOpenResource = widget.onOpenResource;
+    final repository = data.storage.resource(ResourceTypeId(resourceType));
+    final editor = editors.find(resourceType);
+    final registry = await registryFuture;
+    if (!_isCurrent(owner) || !context.mounted) return;
     final enabled =
         registry == null ||
         (editor != null &&
@@ -322,7 +366,7 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
         editor.readOnlyReason(resource, enabled: enabled) != null) {
       await showDialog<void>(
         context: context,
-        builder: (context) => editorRegistry.build(
+        builder: (context) => editors.build(
           ResourceTypeId(resourceType),
           context,
           resource,
@@ -333,8 +377,8 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       return;
     }
     if ((resourceType == 'Overlay' || resourceType == 'StreamPlan') &&
-        widget.onOpenResource != null) {
-      await widget.onOpenResource!.call(resource, resourceType);
+        onOpenResource != null) {
+      await onOpenResource.call(resource, resourceType);
       return;
     }
     if (resourceType == 'Overlay') return;
@@ -343,15 +387,18 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       context: context,
       builder: (context) {
         Future<void> save(ResourceData updated) async {
+          if (!_isCurrent(owner)) {
+            throw StateError('The resource editor is no longer current.');
+          }
           if (registry != null && !registry.isPluginEnabledId(editor.ownerId)) {
             throw StateError('The owning plugin is disabled.');
           }
-          final repository = _repository(resourceType);
           await repository.save(updated, expectedRevision: storageRevision);
           storageRevision = DocumentRevision.of(updated.toJson());
+          if (!_isCurrent(owner)) return;
           if (resourceType == 'Dashboard') {
             final synchronized = await DashboardCloudSyncService(
-              dataService: dataService,
+              dataService: data,
             ).synchronize(updated);
             await repository.save(
               synchronized,
@@ -360,9 +407,9 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
             storageRevision = DocumentRevision.of(synchronized.toJson());
           }
           if (resourceType == 'Variable') {
-            await widget.variableRuntime?.reload();
+            await variableRuntime?.reload();
           }
-          final streamPlanRuntime = widget.streamPlanRuntime;
+          final streamPlanRuntime = planRuntime;
           if (resourceType == 'StreamPlan' &&
               streamPlanRuntime?.activePlanId == updated.id) {
             await streamPlanRuntime!.updateActivePlan(
@@ -376,46 +423,66 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
           context,
           resource,
           save,
-          registryFuture: widget.registryFuture,
-          resourceOptionsLoader: (type) =>
-              loadResourceOptions(dataService, type),
+          registryFuture: registryFuture,
+          resourceOptionsLoader: (type) => loadResourceOptions(data, type),
         );
         return MediaPickerScope(
-          directory: Directory('${dataService.userDirectory.path}/media'),
+          directory: Directory('${data.userDirectory.path}/media'),
           child: content,
         );
       },
     );
-    if (mounted) setState(_reload);
+    if (_isCurrent(owner)) setState(_reload);
   }
 
-  Future<void> _create(BuildContext context) async {
+  Future<void> _create(BuildContext context) =>
+      _runResourceAction(() => _createCurrent(context));
+
+  Future<void> _createCurrent(BuildContext context) async {
+    final owner = _resourceOwner;
+    final data = dataService;
+    final editors = editorRegistry;
+    final variableRuntime = widget.variableRuntime;
     final selection = await showDialog<(String, String)?>(
       context: context,
-      builder: (context) => _NewResourceDialog(
-        editorRegistry: editorRegistry,
+      builder: (context) => NewResourceDialog(
+        editorRegistry: editors,
         resourceType: widget.resourceType,
         resourceTypes: widget.resourceTypes,
       ),
     );
-    if (selection == null || !mounted) return;
+    if (selection == null || !_isCurrent(owner)) return;
     final (resourceType, name) = selection;
     final resource = ResourceData(
       id: 'resource-${DateTime.now().microsecondsSinceEpoch}',
-      config: _defaultConfig(resourceType, name),
+      config: editors.find(resourceType)?.defaultConfig(name) ?? {'name': name},
     );
-    await _repository(resourceType).save(resource, requireAbsent: true);
+    await data.storage
+        .resource(ResourceTypeId(resourceType))
+        .save(resource, requireAbsent: true);
+    if (!_isCurrent(owner)) return;
     if (resourceType == 'Variable') {
-      await widget.variableRuntime?.reload();
+      await variableRuntime?.reload();
     }
-    if (mounted) setState(_reload);
+    if (_isCurrent(owner)) setState(_reload);
   }
 
   Future<void> _delete(
     BuildContext context,
     ResourceData resource,
     String resourceType,
+  ) =>
+      _runResourceAction(() => _deleteCurrent(context, resource, resourceType));
+
+  Future<void> _deleteCurrent(
+    BuildContext context,
+    ResourceData resource,
+    String resourceType,
   ) async {
+    final owner = _resourceOwner;
+    final data = dataService;
+    final repository = data.storage.resource(ResourceTypeId(resourceType));
+    final variableRuntime = widget.variableRuntime;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -433,12 +500,11 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
         ],
       ),
     );
-    if (confirmed != true) return;
-    final repository = _repository(resourceType);
+    if (confirmed != true || !_isCurrent(owner)) return;
     if (resourceType == 'Dashboard') {
       // Remove the public share before the local dashboard file. Keep the
       // ordering so a failed cloud request never leaves an orphaned share.
-      await DashboardCloudSyncService(dataService: dataService).synchronize(
+      await DashboardCloudSyncService(dataService: data).synchronize(
         ResourceData(
           id: resource.id,
           config: {...resource.config, 'remoteTwitchIds': const <String>[]},
@@ -450,16 +516,11 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
       resource.id,
       expectedRevision: DocumentRevision.of(resource.toJson()),
     );
+    if (!_isCurrent(owner)) return;
     if (resourceType == 'Variable') {
-      await widget.variableRuntime?.reload();
+      await variableRuntime?.reload();
     }
-    if (mounted) setState(_reload);
-  }
-
-  JsonMap _defaultConfig(String resourceType, String name) {
-    final def = editorRegistry.find(resourceType);
-    if (def != null) return def.defaultConfig(name);
-    return {'name': name};
+    if (_isCurrent(owner)) setState(_reload);
   }
 
   List<Widget> _buildPluginResources(
@@ -578,10 +639,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
             onPressed: active
                 ? () => _runStreamPlanAction(
                     context,
-                    () async => runtime.transitionToPreviousSegment(
+                    (registry) async => runtime.transitionToPreviousSegment(
                       resource.id,
                       StreamPlanData.fromConfig(resource.config),
-                      registry: await widget.registryFuture!,
+                      registry: registry,
                     ),
                   )
                 : null,
@@ -592,16 +653,15 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
             onPressed: () => active
                 ? _runStreamPlanAction(
                     context,
-                    () async => runtime.deactivatePlan(
-                      registry: await widget.registryFuture!,
-                    ),
+                    (registry) async =>
+                        runtime.deactivatePlan(registry: registry),
                   )
                 : _runStreamPlanAction(
                     context,
-                    () async => runtime.activatePlan(
+                    (registry) async => runtime.activatePlan(
                       resource.id,
                       StreamPlanData.fromConfig(resource.config),
-                      registry: await widget.registryFuture!,
+                      registry: registry,
                     ),
                   ),
             icon: Icon(active ? Icons.stop_circle : Icons.play_circle),
@@ -611,10 +671,10 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
             onPressed: active
                 ? () => _runStreamPlanAction(
                     context,
-                    () async => runtime.transitionToNextSegment(
+                    (registry) async => runtime.transitionToNextSegment(
                       resource.id,
                       StreamPlanData.fromConfig(resource.config),
-                      registry: await widget.registryFuture!,
+                      registry: registry,
                     ),
                   )
                 : null,
@@ -627,23 +687,24 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
 
   Future<void> _runStreamPlanAction(
     BuildContext context,
-    Future<Object?> Function() action,
+    Future<Object?> Function(DartPluginRegistry registry) action,
   ) async {
-    if (widget.registryFuture == null) return;
+    final owner = _resourceOwner;
+    final registryFuture = widget.registryFuture;
+    if (registryFuture == null) return;
     try {
-      await action();
-    } on Object catch (error) {
-      if (!mounted || !context.mounted) return;
+      final registry = await registryFuture;
+      if (!_isCurrent(owner)) return;
+      await action(registry);
+    } on Object {
+      if (!_isCurrent(owner) || !context.mounted) return;
       showShowRunnerFeedback(
         context,
-        'Stream Plan action failed: $error',
+        'Stream Plan action failed. Check the connection and retry.',
         severity: ShowRunnerFeedbackSeverity.error,
       );
     }
   }
-
-  ResourceRepository _repository(String resourceType) =>
-      dataService.storage.resource(ResourceTypeId(resourceType));
 
   String _descriptionFor(String resourceType) => switch (resourceType) {
     'OBSConnection' =>
@@ -659,83 +720,4 @@ class _ResourcesWorkspaceState extends State<ResourcesWorkspace> {
     'Variable' => 'Manage persistent variables used by automations.',
     _ => 'Manage persisted $resourceType resources used by ShowRunner.',
   };
-}
-
-class _NewResourceDialog extends StatefulWidget {
-  const _NewResourceDialog({
-    required this.editorRegistry,
-    this.resourceType,
-    this.resourceTypes,
-  });
-
-  final DartResourceEditorRegistry editorRegistry;
-  final String? resourceType;
-  final Set<String>? resourceTypes;
-
-  @override
-  State<_NewResourceDialog> createState() => _NewResourceDialogState();
-}
-
-class _NewResourceDialogState extends State<_NewResourceDialog> {
-  final _name = TextEditingController();
-  late final List<String> _types;
-  late String _type;
-
-  @override
-  void initState() {
-    super.initState();
-    _types = widget.resourceType == null
-        ? widget.editorRegistry.definitions
-              .map((def) => def.resourceType)
-              .where(
-                (type) =>
-                    widget.resourceTypes == null ||
-                    widget.resourceTypes!.contains(type),
-              )
-              .toList()
-        : [widget.resourceType!];
-    _type = _types.firstOrNull ?? 'Overlay';
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('New resource'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        DropdownButtonFormField<String>(
-          initialValue: _type,
-          decoration: const InputDecoration(labelText: 'Type'),
-          items: [
-            for (final type in _types)
-              DropdownMenuItem(value: type, child: Text(type)),
-          ],
-          onChanged: (value) => setState(() => _type = value ?? _types.first),
-        ),
-        TextField(
-          controller: _name,
-          decoration: const InputDecoration(labelText: 'Name'),
-          onChanged: (_) => setState(() {}),
-        ),
-      ],
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: _name.text.trim().isEmpty
-            ? null
-            : () => Navigator.pop(context, (_type, _name.text.trim())),
-        child: const Text('Create'),
-      ),
-    ],
-  );
 }
