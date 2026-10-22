@@ -964,6 +964,14 @@ void main() {
     await tester.pumpAndSettle();
     final widget = (saved!.config['widgets'] as List).single as Map;
     expect(((widget['config'] as Map)['font'] as Map)['fontFamily'], 'Arial');
+    expect(
+      ((widget['config'] as Map)['font'] as Map).containsKey('stroke'),
+      isFalse,
+    );
+    expect(
+      ((widget['config'] as Map)['font'] as Map).containsKey('shadow'),
+      isFalse,
+    );
   });
 
   testWidgets('overlay inspector matches the Vue sidebar width', (
