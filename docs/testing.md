@@ -356,9 +356,15 @@ inspector, toolbar/footer spacing, crop contracts and thresholds. Compact layout
 intentionally overlays the panel and scrolls a height-limited toolbar; it is not a
 new docking system or a saved layout format.
 
+Native Save All assertions await the application's owned document writes through
+`flushShowRunnerTestApp`, then check both tab dirty states and persisted graphs.
+A frame-count loop is not a disk completion signal on hosted Windows runners.
+An injected writer probe blocks each sequential save independently and verifies
+that `flush()` remains pending until both complete, with both undo histories intact.
+
 Combined validation uses Flutter 3.47.7 / Dart 3.13.5 on Windows:
 `scripts/ci-check.ps1 -Stage All` passes formatting, fatal-info analysis,
-generated/boundary/build checks, 1,239 Flutter tests (10 opt-in live skips),
+generated/boundary/build checks, 1,240 Flutter tests (10 opt-in live skips),
 133 overlay/tooling tests across 22 files and parity for 18 workspaces. The
 matching application sources copied to ignored `.tmp/chat-qa` pass
 `scripts/ci-check.ps1 -Stage Parity -Integration -Visual`: 100 native tests,
