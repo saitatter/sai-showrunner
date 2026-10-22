@@ -187,8 +187,9 @@ class _BooleanGroupEditor extends StatelessWidget {
                   const SizedBox(width: 4),
                 ],
                 SizedBox(
-                  width: 94,
+                  width: 94 * MediaQuery.textScalerOf(context).scale(14) / 14,
                   child: DropdownButtonFormField<String>(
+                    isExpanded: true,
                     key: ValueKey(group['operator'] == 'and' ? 'and' : 'or'),
                     initialValue: group['operator'] == 'and' ? 'and' : 'or',
                     isDense: true,
