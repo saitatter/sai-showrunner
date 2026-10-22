@@ -41,11 +41,19 @@ void main() {
     }
 
     await show(first);
-    await tester.tap(find.text('New resource'));
+    final create = tester
+        .widget<FilledButton>(find.widgetWithText(FilledButton, 'New resource'))
+        .onPressed!;
+    late Future<void> operation;
+    await tester.runAsync(() async {
+      operation = (create as dynamic)() as Future<void>;
+    });
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Old project draft');
     await show(second);
     await tester.tap(find.text('Create'));
+    await tester.runAsync(() => operation);
+    await show(second);
     await tester.pumpAndSettle();
     await tester.runAsync(() async {
       expect(
