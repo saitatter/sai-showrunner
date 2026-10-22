@@ -258,10 +258,11 @@ ignored `.tmp/persistence-resources` and `.tmp/chat-qa`.
 
 ## Flutter UI layout and editor ownership
 
-Phase 05 starts from integrated main `27d43fcdd`. Work so far covers overlay
-authoring/save ownership, responsive layout, preview isolation, structured style
-inputs and automation graph controls; shader, provider and dashboard decomposition
-remain outstanding.
+Phase 05 starts from integrated main `27d43fcdd` and covers overlay authoring,
+responsive layout, structured inputs, automation/shader controls, provider/status
+views, resource/profile forms, settings, variables, chat/commands and remote/support
+ownership. Tests use borrowed fake services, isolated storage and loopback transports;
+these are UI/lifecycle proofs rather than live account/device certification.
 The initial overlay/exploratory/graph characterization passes 36 tests. Three
 valid-resource lifecycle reproducers fail against the integrated page: identity
 switching keeps the first document's inputs, delayed save completion publishes the
@@ -307,16 +308,44 @@ optional effects; existing font-control assertions now also check removed stroke
 and shadow remain absent in the saved document. The resource, input and automation
 workspace characterization passes 137 tests after these changes.
 
-Graph characterization uses 13 workspace fixtures: stale picker results, compact
+Graph characterization uses 14 workspace fixtures: stale picker results, compact
 inspector replacement, concurrent subgraph parameter changes, old run completion,
 trace rebuild isolation, and four desktop sizes at DPR 1/1.5 with 150% text and long
-subgraph names. All 13 fail against the pre-extraction workspace: trace publication
-increases workspace builds from 1 to 2, a replaced pick inserts into the new graph,
+subgraph names. The original 13 fail against the pre-extraction workspace: trace
+publication increases workspace builds from 1 to 2, a replaced pick inserts into the new graph,
 and long names overflow by thousands of pixels. Current fixtures pass without
 changing authoring/history ownership or the generic canvas. Two schema-field tests
 verify payload-free retry, no loader calls on ordinary rebuilds and rejection of
 late options from a replaced loader. The existing six graph workspace workflows
 remain intact, including Ctrl+F, inspector sheets, parameter validation and undo.
+
+Shader ownership probes cover retained palette search, reset picker admission and
+Ctrl+F without invalidating compiled output. The shader matrix tests four desktop
+sizes at DPR 1/1.5 and 150% text; the focused shader suites pass 39 tests. Global
+variable probes measure zero catalog reads/notifications for 30 value updates and
+verify that viewer queries/forms retain their repository generation. Twitch message
+publication leaves workspace build and health-read counters unchanged; dashboard
+channel refresh leaves catalog/workspace builds unchanged, and named queue cards
+show their own counters. Plugin/settings probes cover declared-settings-only reads,
+strict numeric parsing, secret/unknown configuration redaction and delayed load
+replacement in both plugin and preferences forms.
+
+Auxiliary owner probes replace the project, selected profile or command manager
+while a dialog remains open. The resource probe awaits the accepted operation
+before reading storage: the previous implementation writes into the replacement
+project; the current implementation writes neither project. A 30-message chat burst
+changes search build counts from 1 to 31 before isolation and leaves them at 1 now.
+Chat layout probes reserve 300 logical pixels for the application sidebar at all
+four desktop sizes, DPR 1/1.5 and 150% text, with the send action hit-testable. Profile
+controls are resized through the same eight size/DPI combinations with enlarged
+text. A fixed-width condition dropdown and profile heading now adapt to scaling.
+A layer popup opened before reordering deletes its original layer and restores the
+expected order with undo. Graph diagnostic navigation opened for an old document
+cannot select a same-ID node in its replacement (the old implementation does).
+Remote discovery tests deliver a newer success before an older failure and verify
+retained results, safe errors and no reads on ordinary rebuilds. Support diagnostics
+perform one plugin-health read across three rebuilds and another only on explicit
+refresh, while retaining provider retry counters without echoing private errors.
 
 Fifteen existing inspector/canvas fixtures now explicitly request the reviewed
 1440x900/DPR-1 standard viewport rather than relying on Flutter's implicit 800x600
@@ -329,16 +358,17 @@ new docking system or a saved layout format.
 
 Combined validation uses Flutter 3.47.7 / Dart 3.13.5 on Windows:
 `scripts/ci-check.ps1 -Stage All` passes formatting, fatal-info analysis,
-generated/boundary/build checks, 1,198 Flutter tests (10 opt-in live skips),
+generated/boundary/build checks, 1,239 Flutter tests (10 opt-in live skips),
 133 overlay/tooling tests across 22 files and parity for 18 workspaces. The
 matching application sources copied to ignored `.tmp/chat-qa` pass
 `scripts/ci-check.ps1 -Stage Parity -Integration -Visual`: 100 native tests,
 with one local-audio opt-in skip. The graph matrix was also rerun with both view
-and MediaQuery DPR explicitly set; all 13 ownership/layout fixtures pass.
+and MediaQuery DPR explicitly set; all 14 ownership/layout fixtures pass.
 
-The intended visual changes are the compact overlay panel/scrolling toolbar and
-bounded long subgraph labels. Existing reviewed overlay label and font-popover
-regions retain the 1440x900/DPR-1 capture contract: label `(1088,210,352,345)` and
+The intended UI changes are the compact overlay panel/scrolling toolbar, bounded
+long subgraph labels, shader find/snapping controls, scale-aware profile headings
+and condition controls, and explicit diagnostic health refresh. Existing reviewed
+overlay label and font-popover regions retain the 1440x900/DPR-1 capture contract: label `(1088,210,352,345)` and
 font `(780,340,660,430)`. Both current regions have zero differing pixels after
 manual inspection of the full captures; channel threshold 3 and maximum 0.5%
 remain unchanged. Frozen Flutter/Electron references are untouched. Workspace
