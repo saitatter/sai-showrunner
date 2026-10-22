@@ -110,6 +110,62 @@ void main() {
     },
   );
 
+  test('flush waits for both sequential Save All writes', () async {
+    final firstStarted = Completer<void>(), secondStarted = Completer<void>();
+    final releaseFirst = Completer<void>(), releaseSecond = Completer<void>();
+    final documents = DocumentSessionCoordinator(
+      dataService: data,
+      scratchDocument: AutomationDocument.empty(),
+      streamPlans: DartStreamPlanRuntime(),
+      automationWriter: (file, document) async {
+        if (file == 'one.yaml') {
+          firstStarted.complete();
+          await releaseFirst.future;
+        } else {
+          secondStarted.complete();
+          await releaseSecond.future;
+        }
+      },
+    );
+    addTearDown(documents.dispose);
+    addTearDown(() {
+      if (!releaseFirst.isCompleted) releaseFirst.complete();
+      if (!releaseSecond.isCompleted) releaseSecond.complete();
+    });
+    final first = documents.automations.open(
+      AutomationDocument.empty(),
+      'one.yaml',
+      unsaved: true,
+    );
+    final second = documents.automations.open(
+      AutomationDocument.empty(),
+      'two.yaml',
+      unsaved: true,
+    );
+    first.editor.addNode('showrunner.if', GraphPoint.zero);
+    second.editor.addNode('showrunner.return', GraphPoint.zero);
+    final saving = documents.saveAll();
+    await firstStarted.future;
+    var flushed = false;
+    final flushing = documents.flush().then((_) => flushed = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(flushed, isFalse);
+    expect(first.dirty, isTrue);
+    expect(second.dirty, isTrue);
+    releaseFirst.complete();
+    await secondStarted.future;
+    expect(first.dirty, isFalse);
+    expect(second.dirty, isTrue);
+    expect(flushed, isFalse);
+    releaseSecond.complete();
+    await flushing;
+    await saving;
+    expect(flushed, isTrue);
+    expect(documents.hasUnsavedChanges, isFalse);
+    expect(first.editor.graph.canUndo, isTrue);
+    expect(second.editor.graph.canUndo, isTrue);
+  });
+
   test(
     'save all writes every dirty session and preserves each history',
     () async {
