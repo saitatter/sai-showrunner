@@ -21,7 +21,7 @@
 - Isolate open preview dialogs from document switches and preserve additional preview configuration fields during editing and saving.
 - Keep OBS source dialogs and delayed responses scoped to the selected overlay/connection, preventing old dialogs from creating sources for a new document.
 - Reject delayed overlay presence replies from previously selected documents instead of displaying another resource's connection status.
-- Keep overlay inputs and save completion isolated when switching resources, preserve unrelated layer selection after deletion and show save failures without exception payloads.
+- Keep overlay inputs and save completion isolated when switching resources, preserve layer selection after deletion, keep open layer menus on their original layer after reordering and show save failures without exception payloads.
 - Persist variable values without replacing concurrent authoring edits, unrelated state or deleted resources; serialize ID/alias updates and initialize defaults before reset.
 - Preserve unbounded queue timeouts and unknown Stream Plan segment fields across restart/editing; reject malformed nested resource data before overwriting it.
 - Preserve unrelated settings during OAuth refresh and save verified YouTube credentials/channel identity together; reject outdated login/account writes.
@@ -49,7 +49,7 @@
 - Give overlay preview settings an owned form with retained disabled values; reset inspector presentation on document identity changes and reject delayed inspector edits from old documents.
 - Separate overlay OBS orchestration from toolbar rendering, with captured operation targets, debounced/coalesced inspection, owned writes and payload-free retry status.
 - Own overlay presence polling separately and refresh only status/URL widgets, avoiding canvas rebuilds, overlapping polls and exception-bearing browser errors.
-- Move overlay authoring, semantic dirty state, immutable snapshots and save ownership into an independently testable editor controller; give responsive layout and the inspector/layers splitter separate presentation owners.
+- Move overlay authoring, semantic dirty state, immutable snapshots and save ownership into an independently testable editor controller; give responsive layout, the inspector/layers splitter and layer list/actions separate presentation owners.
 - Validate resource configurations through provider-owned codecs shared by storage and editors, with distinct unsupported-schema diagnostics and semantic JSON/YAML round-trip coverage for every resource family.
 - Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers and route project commands, chat/usage catalogs, provider automation loading and profile activation through the same owners.
 - Share typed single-document storage across automation/profile/queue repositories, with explicit domain store contracts and validation under the same owner lock as atomic publication.
