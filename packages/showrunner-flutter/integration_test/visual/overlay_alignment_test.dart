@@ -13,6 +13,89 @@ import 'package:window_manager/window_manager.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
+    'Windows compact overlay keeps inspector drafts and keyboard save accessible',
+    (tester) async {
+      await windowManager.ensureInitialized();
+      final previous = await windowManager.getSize();
+      addTearDown(() => windowManager.setSize(previous));
+      await windowManager.setSize(const Size(1024, 640));
+      ResourceData? saved;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildShowRunnerTheme(),
+          home: Scaffold(
+            body: Row(
+              children: [
+                const SizedBox(width: 300),
+                Expanded(
+                  child: OverlayEditorPage(
+                    resource: const ResourceData(
+                      id: 'compact',
+                      config: {
+                        'name': 'Compact overlay',
+                        'size': {'width': 1920, 'height': 1080},
+                        'widgets': [
+                          {
+                            'id': 'title',
+                            'name': 'Title',
+                            'plugin': 'overlays',
+                            'widget': 'label',
+                            'position': {'x': 20, 'y': 20},
+                            'size': {'width': 500, 'height': 160},
+                            'config': {'message': 'Initial'},
+                          },
+                        ],
+                      },
+                    ),
+                    onSave: (value) async => saved = value,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(FilledButton, 'Save').hitTestable(),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('overlay-canvas-region')))
+            .width,
+        greaterThanOrEqualTo(480),
+      );
+      await tester.tap(find.byTooltip('Inspector and layers (Ctrl+I)'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('overlay-widget-row-title-title')),
+      );
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      final text = find.widgetWithText(TextField, 'Text');
+      await tester.ensureVisible(text);
+      await tester.enterText(text, 'Windows compact draft');
+      await tester.pumpAndSettle();
+      Future<void> shortcut(LogicalKeyboardKey key) async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(key);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pumpAndSettle();
+      }
+
+      await shortcut(LogicalKeyboardKey.keyI);
+      expect(text, findsNothing);
+      await shortcut(LogicalKeyboardKey.keyS);
+      expect(
+        ((saved!.config['widgets'] as List).single['config'] as Map)['message'],
+        'Windows compact draft',
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
     'Windows canvas snaps movement and resize with alignment guides',
     (tester) async {
       await windowManager.ensureInitialized();
