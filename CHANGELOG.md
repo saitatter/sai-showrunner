@@ -3,10 +3,12 @@
 ## Unreleased
 
 ### Features
+- Add shader graph node search with Ctrl+F and a snap-to-grid toggle using the shared immutable canvas controls.
 - Keep overlay canvas/save actions usable in compact desktop layouts, with a keyboard-toggleable inspector/layers panel that retains draft and focus state across resizing.
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Retain shader palette search across panel toggles, reject picker results from a reset graph and show unsupported shader documents without raw exception payloads.
 - Keep graph pickers, compact inspectors, parameter forms and run completion scoped to their document; prevent long subgraph names from overflowing the toolbar and hide provider error payloads in resource fields.
 - Refresh edited style inputs after undo or external changes, keep open font editors on current values, and preserve removed/null optional effects instead of restoring them from defaults.
 - Isolate open preview dialogs from document switches and preserve additional preview configuration fields during editing and saving.
@@ -27,6 +29,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Separate shader toolbar, palette, inspector, search and compile-result presentation; palette filtering no longer rebuilds the shader workspace or invalidates compiled output.
 - Extract automation graph toolbar, node picker, inspector, parameter form and resource-field loading; refresh execution controls and node visuals without rebuilding the authoring workspace on trace updates.
 - Split structured overlay inputs into focused font, text/alignment, geometry, outline, background and gradient controls with shared inspector sections, optional groups and schema field rendering.
 - Give overlay preview settings an owned form with retained disabled values; reset inspector presentation on document identity changes and reject delayed inspector edits from old documents.

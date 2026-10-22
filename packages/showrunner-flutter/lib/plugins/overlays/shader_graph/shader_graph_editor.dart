@@ -1,9 +1,13 @@
+import 'shader_graph_toolbar.dart';
+import 'shader_find_dialog.dart';
+import 'shader_graph_inspector.dart';
+import 'shader_compile_panel.dart';
+import 'shader_node_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:sai_nodes_core/sai_nodes_core.dart';
 import 'package:sai_nodes/sai_nodes.dart'
     show NodeEditor, GraphSceneBuilder, GraphNodePickerRequest;
 
-import '../../../graph/ui/graph_value_input.dart';
 import '../../../graph/ui/showrunner_node_widgets.dart';
 import 'shader_graph_compiler.dart';
 import 'shader_graph_controller.dart';
@@ -38,9 +42,10 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
   ShaderGraphCompileResult? result;
   ShaderDocument? compiledDocument;
   bool showPalette = true, showInspector = true, showGlsl = false;
-  String search = '';
   String? starter;
   int resultRevision = -1;
+  Object _documentLease = Object();
+  bool snapping = false;
   GraphSize viewport = const GraphSize(800, 600);
   final invalidFields = <(String, String)>{};
   @override
@@ -81,6 +86,30 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
     super.dispose();
   }
 
+  Future<void> _find() async {
+    final lease = _documentLease;
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => ShaderFindDialog(document: editor.document),
+    );
+    if (!mounted ||
+        selected == null ||
+        !identical(lease, _documentLease) ||
+        !editor.document.space.nodes.containsKey(selected)) {
+      return;
+    }
+    editor.graph.select(GraphSelection(nodes: {selected}));
+    final scene = GraphSceneBuilder().build(editor.graph);
+    editor.graph.focusNodes(
+      {selected},
+      {
+        for (final node in scene.nodes.values)
+          node.node.id: node.geometry.bounds,
+      },
+      viewport,
+    );
+  }
+
   void _fit() {
     final scene = GraphSceneBuilder().build(editor.graph);
     editor.graph.fitSpace({
@@ -89,6 +118,7 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
   }
 
   void _load(ShaderDocument document) {
+    _documentLease = Object();
     invalidFields.clear();
     result = null;
     compiledDocument = null;
@@ -114,9 +144,10 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
     editor.graph.select(GraphSelection(nodes: {id}));
   }
 
-  Future<GraphNode?> _pick(GraphNodePickerRequest request) {
+  Future<GraphNode?> _pick(GraphNodePickerRequest request) async {
+    final lease = _documentLease;
     var query = '';
-    return showDialog<GraphNode>(
+    final node = await showDialog<GraphNode>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, refresh) => AlertDialog(
@@ -164,6 +195,7 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
         ),
       ),
     );
+    return mounted && identical(lease, _documentLease) ? node : null;
   }
 
   Future<void> _addFromPicker() async {
@@ -259,9 +291,13 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
     _fit();
   }
 
-  void _error(Object error) => ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$error')));
+  void _error(Object error) => ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text(
+        'Shader action could not be completed. Check the graph and retry.',
+      ),
+    ),
+  );
   @override
   Widget build(BuildContext context) => Dialog(
     insetPadding: const EdgeInsets.all(16),
@@ -277,7 +313,9 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: SelectableText('$loadError'),
+                  child: const Text(
+                    'The shader document is unsupported or malformed. Its saved data has not been changed.',
+                  ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
@@ -287,119 +325,31 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
             )
           : Column(
               children: [
-                Material(
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text(
-                          'Shader Graph',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Add shader node',
-                        onPressed: _addFromPicker,
-                        icon: const Icon(Icons.add),
-                      ),
-                      DropdownButton<String>(
-                        value: starter,
-                        hint: const Text('Starter graph'),
-                        items: [
-                          for (final item in shaderGraphStarters)
-                            DropdownMenuItem(
-                              value: item.id,
-                              child: Text(item.name),
-                            ),
-                        ],
-                        onChanged: (id) {
-                          if (id != null) {
-                            starter = id;
-                            _load(createShaderGraphStarter(id));
-                          }
-                        },
-                      ),
-                      IconButton(
-                        tooltip: 'Reset graph',
-                        icon: const Icon(Icons.restart_alt),
-                        onPressed: () {
-                          starter = null;
-                          _load(initial);
-                        },
-                      ),
-                      IconButton(
-                        tooltip: 'Undo',
-                        icon: const Icon(Icons.undo),
-                        onPressed: editor.graph.canUndo
-                            ? editor.graph.undo
-                            : null,
-                      ),
-                      IconButton(
-                        tooltip: 'Redo',
-                        icon: const Icon(Icons.redo),
-                        onPressed: editor.graph.canRedo
-                            ? editor.graph.redo
-                            : null,
-                      ),
-                      IconButton(
-                        tooltip: 'Fit graph',
-                        icon: const Icon(Icons.fit_screen),
-                        onPressed: _fit,
-                      ),
-                      IconButton(
-                        tooltip: 'Auto layout',
-                        icon: const Icon(Icons.auto_fix_high),
-                        onPressed: _autoLayout,
-                      ),
-                      IconButton(
-                        tooltip: 'Delete selection',
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: editor.graph.selection.isEmpty
-                            ? null
-                            : editor.graph.deleteSelection,
-                      ),
-                      IconButton(
-                        tooltip: 'Add frame from selection',
-                        icon: const Icon(Icons.crop_free),
-                        onPressed: editor.graph.selection.nodes.isEmpty
-                            ? null
-                            : _frame,
-                      ),
-                      IconButton(
-                        tooltip: 'Toggle node palette',
-                        icon: const Icon(Icons.add_box_outlined),
-                        onPressed: () =>
-                            setState(() => showPalette = !showPalette),
-                      ),
-                      IconButton(
-                        tooltip: 'Inspector',
-                        icon: const Icon(Icons.tune),
-                        onPressed: _toggleInspector,
-                      ),
-                      IconButton(
-                        tooltip: 'Show GLSL',
-                        icon: const Icon(Icons.code),
-                        onPressed: () => setState(() => showGlsl = !showGlsl),
-                      ),
-                      IconButton(
-                        tooltip: 'Preview selected node',
-                        icon: const Icon(Icons.visibility_outlined),
-                        onPressed: editor.graph.selection.nodes.length == 1
-                            ? () => _compile(preview: true)
-                            : null,
-                      ),
-                      FilledButton.icon(
-                        onPressed: invalidFields.isEmpty ? _compile : null,
-                        icon: const Icon(Icons.check),
-                        label: const Text('Compile & apply'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                    ],
-                  ),
+                ShaderGraphToolbar(
+                  editor: editor,
+                  starter: starter,
+                  canCompile: invalidFields.isEmpty,
+                  snapping: snapping,
+                  onSnap: () => setState(() => snapping = !snapping),
+                  onStarter: (id) {
+                    starter = id;
+                    _load(createShaderGraphStarter(id));
+                  },
+                  onAdd: _addFromPicker,
+                  onReset: () {
+                    starter = null;
+                    _load(initial);
+                  },
+                  onFit: _fit,
+                  onFind: _find,
+                  onAutoLayout: _autoLayout,
+                  onFrame: _frame,
+                  onPalette: () => setState(() => showPalette = !showPalette),
+                  onInspector: _toggleInspector,
+                  onGlsl: () => setState(() => showGlsl = !showGlsl),
+                  onPreview: () => _compile(preview: true),
+                  onCompile: _compile,
+                  onCancel: () => Navigator.pop(context),
                 ),
                 Expanded(
                   child: LayoutBuilder(
@@ -416,61 +366,22 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
                       );
                       return Row(
                         children: [
-                          if (palette)
-                            SizedBox(
-                              width: 210,
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8),
-                                    child: TextField(
-                                      decoration: const InputDecoration(
-                                        labelText: 'Search shader nodes',
-                                      ),
-                                      onChanged: (value) =>
-                                          setState(() => search = value),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: ListView(
-                                      children: [
-                                        for (final category
-                                            in shaderNodeCategories)
-                                          ExpansionTile(
-                                            initiallyExpanded: true,
-                                            title: Text(category),
-                                            children: [
-                                              for (final definition
-                                                  in shaderNodeDefinitions.where(
-                                                    (item) =>
-                                                        item.category ==
-                                                            category &&
-                                                        '${item.name} ${item.id}'
-                                                            .toLowerCase()
-                                                            .contains(
-                                                              search
-                                                                  .toLowerCase(),
-                                                            ),
-                                                  ))
-                                                ListTile(
-                                                  dense: true,
-                                                  title: Text(definition.name),
-                                                  onTap: () => _add(definition),
-                                                ),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          SizedBox(
+                            key: const ValueKey('shader-node-palette'),
+                            width: palette ? 210 : 0,
+                            child: Offstage(
+                              offstage: !palette,
+                              child: ShaderNodePalette(onAdd: _add),
                             ),
+                          ),
                           Expanded(
                             child: NodeEditor(
                               controller: editor.graph,
                               headerBuilder: showrunnerNodeHeader,
                               portLabelBuilder: showrunnerPortLabel,
                               onCreateNode: _pick,
+                              snapToGrid: snapping,
+                              onFind: _find,
                               onError: _error,
                             ),
                           ),
@@ -490,124 +401,39 @@ class _ShaderGraphEditorDialogState extends State<ShaderGraphEditorDialog> {
             ),
     ),
   );
-  Widget _inspector() {
-    final document = editor.document;
-    final node = editor.graph.selection.nodes.singleOrNull;
-    final selected = document.space.nodes[node];
-    final fields =
-        editor.graph.resolution.structures[shaderSpaceId]?[node]?.fields ??
-        <ResolvedField>[];
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        const Text('Output', style: TextStyle(fontWeight: FontWeight.bold)),
-        DropdownButton<String>(
-          isExpanded: true,
-          value:
-              document.space.nodes[document.outputNodeId]?.shaderDefinitionId ==
-                  'fragment_output'
-              ? document.outputNodeId
-              : null,
-          hint: const Text('Select fragment output'),
-          items: [
-            for (final output in document.nodes.where(
-              (node) => node.shaderDefinitionId == 'fragment_output',
-            ))
-              DropdownMenuItem(
-                value: output.id,
-                child: Text(
-                  document.space.nodePresentations[output.id]?.title ??
-                      output.id,
-                ),
-              ),
-          ],
-          onChanged: editor.setOutput,
-        ),
-        Text('Nodes: ${document.nodes.length}'),
-        Text('Connections: ${document.connections.length}'),
-        if (selected != null) ...[
-          const Divider(),
-          Text(
-            shaderNodeDefinitionById[selected.shaderDefinitionId]?.name ??
-                selected.type,
-          ),
-          SelectableText(selected.id),
-          for (final field in fields)
-            GraphValueInput(
-              key: ValueKey('${selected.id}/${field.id}'),
-              field: field,
-              value: selected.shaderValues.containsKey(field.id)
-                  ? selected.shaderValues[field.id]
-                  : field.metadata['defaultValue'],
-              onChanged: (value) =>
-                  editor.updateField(selected.id, field, value),
-              onValidityChanged: (valid) => setState(() {
-                if (valid) {
-                  invalidFields.remove((selected.id, field.id));
-                } else {
-                  invalidFields.add((selected.id, field.id));
-                }
-              }),
-            ),
-        ],
-        const Divider(),
-        const Text('Frames', style: TextStyle(fontWeight: FontWeight.bold)),
-        for (final frame in document.space.frames.values)
-          ListTile(
-            dense: true,
-            title: Text(frame.title),
-            subtitle: Text('${frame.memberNodeIds.length} nodes'),
-            onTap: () =>
-                editor.graph.select(GraphSelection(frames: {frame.id})),
-            trailing: IconButton(
-              tooltip: 'Delete frame',
-              icon: const Icon(Icons.delete_outline),
-              onPressed: () => editor.graph.execute(
-                RemoveFrameCommand(shaderSpaceId, frame.id),
-                label: 'Delete frame',
-              ),
-            ),
-          ),
-        for (final issue in editor.graph.resolution.diagnostics)
-          Text(
-            issue.message,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
-      ],
-    );
-  }
+  Widget _inspector() => ShaderGraphInspector(
+    key: ObjectKey(_documentLease),
+    editor: editor,
+    onValidityChanged: (node, field, valid) => setState(() {
+      if (valid) {
+        invalidFields.remove((node, field));
+      } else {
+        invalidFields.add((node, field));
+      }
+    }),
+  );
 
-  Widget _compilePanel() => ListView(
-    shrinkWrap: true,
-    padding: const EdgeInsets.all(12),
-    children: [
-      for (final error in result!.errors)
-        Text(
-          error,
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
-        ),
-      for (final warning in result!.warnings) Text(warning),
-      if (result!.isValid) const Text('Shader compiled successfully.'),
-      if (showGlsl) SelectableText(result!.glsl),
-      if (result!.isValid && compiledDocument != null && invalidFields.isEmpty)
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(
-            onPressed: () {
-              final document = compiledDocument!;
-              Navigator.pop(
-                context,
-                ShaderGraphEditorResult(
-                  graph: document,
-                  glsl: result!.glsl,
-                  uniforms: collectShaderUniformDefaults(document),
-                  bindings: collectShaderUniformBindings(document),
-                ),
-              );
-            },
-            child: const Text('Apply'),
-          ),
-        ),
-    ],
+  Widget _compilePanel() => ShaderCompilePanel(
+    result: result!,
+    showGlsl: showGlsl,
+    onApply:
+        result!.isValid && compiledDocument != null && invalidFields.isEmpty
+        ? () {
+            if (resultRevision != editor.graph.semanticRevision ||
+                invalidFields.isNotEmpty) {
+              return;
+            }
+            final document = compiledDocument!;
+            Navigator.pop(
+              context,
+              ShaderGraphEditorResult(
+                graph: document,
+                glsl: result!.glsl,
+                uniforms: collectShaderUniformDefaults(document),
+                bindings: collectShaderUniformBindings(document),
+              ),
+            );
+          }
+        : null,
   );
 }
