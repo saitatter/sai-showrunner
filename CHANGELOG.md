@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Prevent delayed viewer-table queries from replacing newer sorting/project results, and refresh displayed variable values without rebuilding unrelated viewer controls.
 - Retain shader palette search across panel toggles, reject picker results from a reset graph and show unsupported shader documents without raw exception payloads.
 - Keep graph pickers, compact inspectors, parameter forms and run completion scoped to their document; prevent long subgraph names from overflowing the toolbar and hide provider error payloads in resource fields.
 - Refresh edited style inputs after undo or external changes, keep open font editors on current values, and preserve removed/null optional effects instead of restoring them from defaults.
@@ -29,6 +30,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Separate global variables, viewer queries and value forms; cache the variable catalog, coalesce refreshes and keep per-value notifications away from filesystem reads.
 - Separate shader toolbar, palette, inspector, search and compile-result presentation; palette filtering no longer rebuilds the shader workspace or invalidates compiled output.
 - Extract automation graph toolbar, node picker, inspector, parameter form and resource-field loading; refresh execution controls and node visuals without rebuilding the authoring workspace on trace updates.
 - Split structured overlay inputs into focused font, text/alignment, geometry, outline, background and gradient controls with shared inspector sections, optional groups and schema field rendering.
