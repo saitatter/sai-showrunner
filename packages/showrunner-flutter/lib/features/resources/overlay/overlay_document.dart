@@ -79,6 +79,17 @@ JsonMap mergeOverlayWidgetDefaults(DartDataInputSchema schema, Object? value) {
   final defaults = constructDartDataInputDefault(schema);
   if (defaults is Map) {
     for (final entry in defaults.entries) {
+      // An existing structured style owns presence of optional subgroups.
+      // Defaults initialize new styles; they must not resurrect removed effects.
+      final field = schema.fields
+          .where((field) => (field.key ?? field.label) == entry.key)
+          .firstOrNull;
+      if (schema.editor != null &&
+          value is Map &&
+          field?.kind == DartDataInputKind.object &&
+          field?.required == false) {
+        continue;
+      }
       current.putIfAbsent(entry.key.toString(), () => entry.value);
     }
   }
@@ -87,6 +98,7 @@ JsonMap mergeOverlayWidgetDefaults(DartDataInputSchema schema, Object? value) {
     if (!current.containsKey(key)) continue;
     final fieldValue = current[key];
     if (field.kind == DartDataInputKind.object) {
+      if (fieldValue == null && !field.required) continue;
       current[key] = mergeOverlayWidgetDefaults(field, fieldValue);
     }
   }
