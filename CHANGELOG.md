@@ -7,6 +7,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Reject delayed overlay presence replies from previously selected documents instead of displaying another resource's connection status.
 - Keep overlay inputs and save completion isolated when switching resources, preserve unrelated layer selection after deletion and show save failures without exception payloads.
 - Persist variable values without replacing concurrent authoring edits, unrelated state or deleted resources; serialize ID/alias updates and initialize defaults before reset.
 - Preserve unbounded queue timeouts and unknown Stream Plan segment fields across restart/editing; reject malformed nested resource data before overwriting it.
@@ -22,6 +23,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Own overlay presence polling separately and refresh only status/URL widgets, avoiding canvas rebuilds, overlapping polls and exception-bearing browser errors.
 - Move overlay authoring, semantic dirty state, immutable snapshots and save ownership into an independently testable editor controller; give responsive layout and the inspector/layers splitter separate presentation owners.
 - Validate resource configurations through provider-owned codecs shared by storage and editors, with distinct unsupported-schema diagnostics and semantic JSON/YAML round-trip coverage for every resource family.
 - Route application and provider storage through typed project factories anchored to the app directory, including public config, journals, locks and encrypted credentials; remove unused untyped resource writers and route project commands, chat/usage catalogs, provider automation loading and profile activation through the same owners.
