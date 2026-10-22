@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Stop chat messages from rebuilding Twitch controls and triggering health reads; keep dashboard queue counters scoped to each named queue and observe live queue, plan and provider status at the corresponding card.
 - Prevent delayed viewer-table queries from replacing newer sorting/project results, and refresh displayed variable values without rebuilding unrelated viewer controls.
 - Retain shader palette search across panel toggles, reject picker results from a reset graph and show unsupported shader documents without raw exception payloads.
 - Keep graph pickers, compact inspectors, parameter forms and run completion scoped to their document; prevent long subgraph names from overflowing the toolbar and hide provider error payloads in resource fields.
@@ -30,6 +31,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Give Twitch chat activity and channel refresh independent view owners, split dashboard cards and share reusable workspace notices without moving provider workers into widgets.
 - Separate global variables, viewer queries and value forms; cache the variable catalog, coalesce refreshes and keep per-value notifications away from filesystem reads.
 - Separate shader toolbar, palette, inspector, search and compile-result presentation; palette filtering no longer rebuilds the shader workspace or invalidates compiled output.
 - Extract automation graph toolbar, node picker, inspector, parameter form and resource-field loading; refresh execution controls and node visuals without rebuilding the authoring workspace on trace updates.

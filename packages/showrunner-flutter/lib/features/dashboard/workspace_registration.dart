@@ -8,6 +8,7 @@ Widget buildHomeWorkspace(BuildContext context, WorkspaceHostContext host) =>
     MainDashboardWorkspace(
       dataService: host.runtime.dataService,
       actionQueue: host.runtime.actionQueue,
+      queueManager: host.runtime.queueManager,
       providerEvents: host.runtime.providerEvents,
       registryFuture: host.runtime.pluginRegistryFuture,
       streamPlanRuntime: host.runtime.streamPlanRuntime,
