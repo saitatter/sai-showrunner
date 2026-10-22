@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Keep resource catalogs, open dialogs and Stream Plan actions tied to their original project; reject stale CRUD submissions and show safe retry feedback after failed operations.
 - Keep plugin/settings loads and OAuth completion scoped to their form owner; reject malformed numeric settings, retain failed drafts and redact credential-bearing configuration previews and provider error payloads.
 - Stop chat messages from rebuilding Twitch controls and triggering health reads; keep dashboard queue counters scoped to each named queue and observe live queue, plan and provider status at the corresponding card.
 - Prevent delayed viewer-table queries from replacing newer sorting/project results, and refresh displayed variable values without rebuilding unrelated viewer controls.
@@ -32,6 +33,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Separate resource creation forms from catalog routing and capture repository, registry and runtime owners before asynchronous editor work.
 - Separate integration metadata/search/usage from settings drafts and interface preferences, share typed setting fields and load one coherent settings baseline outside rendering without reading plugins that declare no settings.
 - Give Twitch chat activity and channel refresh independent view owners, split dashboard cards and share reusable workspace notices without moving provider workers into widgets.
 - Separate global variables, viewer queries and value forms; cache the variable catalog, coalesce refreshes and keep per-value notifications away from filesystem reads.
