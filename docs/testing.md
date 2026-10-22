@@ -356,8 +356,10 @@ inspector, toolbar/footer spacing, crop contracts and thresholds. Compact layout
 intentionally overlays the panel and scrolls a height-limited toolbar; it is not a
 new docking system or a saved layout format.
 
-Native Save All assertions await the application's owned document writes through
-`flushShowRunnerTestApp`, then check both tab dirty states and persisted graphs.
+Native Save All assertions wait for the requested document to become the active
+editor before modifying it, verify that menu commands are enabled and dismissed,
+and await the application's owned document writes through `flushShowRunnerTestApp`
+until both tabs are clean before checking persisted graphs.
 A frame-count loop is not a disk completion signal on hosted Windows runners.
 An injected writer probe blocks each sequential save independently and verifies
 that `flush()` remains pending until both complete, with both undo histories intact.
