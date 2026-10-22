@@ -9,6 +9,87 @@ import 'package:showrunner_flutter/runtime/expression.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
+  test('serializes concurrent starts and stop during startup', () async {
+    final service = DartHttpEndpointService(port: 0);
+    await Future.wait([service.start(), service.start()]);
+    expect(service.boundPort, isNotNull);
+    await service.stop();
+    final starting = service.start();
+    final stopping = service.stop();
+    await Future.wait([starting, stopping]);
+    expect(service.boundPort, isNull);
+    await service.start();
+    expect(service.boundPort, isNotNull);
+    await service.stop();
+  });
+
+  for (final interruption in ['remove', 'stop', 'timeout']) {
+    test(
+      'does not resume obsolete HTTP dispatch after $interruption',
+      () async {
+        final service = DartHttpEndpointService(
+          port: 0,
+          requestTimeout: interruption == 'timeout'
+              ? const Duration(milliseconds: 50)
+              : const Duration(seconds: 3),
+        );
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        final resumed = Completer<void>();
+        var calls = 0;
+        service.addRequestHandler((_) async {
+          entered.complete();
+          await release.future;
+          resumed.complete();
+          return false;
+        });
+        Future<bool> second(HttpRequest request) async {
+          calls++;
+          request.response.statusCode = HttpStatus.noContent;
+          await request.response.close();
+          return true;
+        }
+
+        service.addRequestHandler(second);
+        await service.start();
+        final client = HttpClient();
+        try {
+          final request = await client.getUrl(
+            Uri.parse('http://127.0.0.1:${service.boundPort}/probe'),
+          );
+          final response = request.close();
+          // Observe forced-close errors before stopping the server.
+          final observed = response.then<int>((value) async {
+            await value.drain<void>();
+            return value.statusCode;
+          }, onError: (Object _, StackTrace _) => -1);
+          await entered.future;
+          if (interruption == 'remove') {
+            service.removeRequestHandler(second);
+          } else if (interruption == 'stop') {
+            await service.stop();
+          } else {
+            expect(await observed, HttpStatus.requestTimeout);
+          }
+          release.complete();
+          await resumed.future;
+          if (interruption == 'remove') {
+            expect(await observed, HttpStatus.notFound);
+          } else {
+            await observed;
+          }
+          // Flush the dispatch continuation after its blocked handler resolves.
+          await Future<void>.delayed(Duration.zero);
+          expect(calls, 0);
+        } finally {
+          if (!release.isCompleted) release.complete();
+          client.close(force: true);
+          await service.stop();
+        }
+      },
+    );
+  }
+
   test(
     'LAN binding accepts local IP and machine hostname authorities',
     () async {

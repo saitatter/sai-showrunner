@@ -32,6 +32,8 @@ final class DartHttpEndpointService {
   final String host;
   final int port;
   HttpServer? _server;
+  Future<void> _lifecycle = Future<void>.value();
+  int _generation = 0;
   Set<String> _trustedHosts = {};
   final _routes = <_HttpEndpointRoute>[];
   final _requestHandlers = <DartHttpRequestHandler>[];
@@ -55,12 +57,29 @@ final class DartHttpEndpointService {
     _webSocketHandlers.remove(handler);
   }
 
-  Future<void> start() async {
-    if (_server != null) return;
-    _trustedHosts = await trustedHttpHosts(host);
-    final server = await HttpServer.bind(host, port);
-    _server = server;
-    server.listen(_handleRequest);
+  Future<void> _serialize(Future<void> Function() operation) {
+    final result = _lifecycle.then((_) => operation());
+    _lifecycle = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
+  }
+
+  Future<void> start() {
+    final generation = _generation;
+    return _serialize(() async {
+      if (_server != null || generation != _generation) return;
+      final hosts = await trustedHttpHosts(host);
+      final server = await HttpServer.bind(host, port);
+      if (generation != _generation) {
+        await server.close(force: true);
+        return;
+      }
+      _trustedHosts = hosts;
+      _server = server;
+      server.listen((request) => _handleRequest(request, generation));
+    });
   }
 
   Stream<RuntimeMap> register(HttpEndpointConfig config) {
@@ -88,29 +107,34 @@ final class DartHttpEndpointService {
     return controller.stream;
   }
 
-  Future<void> stop() async {
-    final server = _server;
-    _server = null;
+  Future<void> stop() {
+    _generation++;
     final routes = List<_HttpEndpointRoute>.of(_routes);
     _routes.clear();
-    for (final route in routes) {
-      await route.controller.close();
-    }
-    await server?.close(force: true);
+    return _serialize(() async {
+      final server = _server;
+      _server = null;
+      await server?.close(force: true);
+      await Future.wait(routes.map((route) => route.controller.close()));
+    });
   }
 
-  Future<void> _handleRequest(HttpRequest request) async {
+  Future<void> _handleRequest(HttpRequest request, int generation) async {
+    var active = true;
+    bool isActive() => active && generation == _generation;
     try {
+      if (!isActive()) return;
       if (!isTrustedHttpRequest(request, hosts: _trustedHosts)) {
         await _respond(request, HttpStatus.forbidden);
         return;
       }
-      await _dispatchRequest(request).timeout(requestTimeout);
+      await _dispatchRequest(request, isActive).timeout(requestTimeout);
     } on HttpBodyLimitException catch (error) {
       if (!error.responseSent) {
         await _respondQuietly(request, HttpStatus.requestEntityTooLarge);
       }
     } on TimeoutException {
+      active = false;
       await _respondQuietly(request, HttpStatus.requestTimeout);
     } on ArgumentError {
       await _respondQuietly(request, HttpStatus.badRequest);
@@ -124,6 +148,8 @@ final class DartHttpEndpointService {
         stackTrace: stackTrace,
       );
       await _respondQuietly(request, HttpStatus.internalServerError);
+    } finally {
+      active = false;
     }
   }
 
@@ -138,7 +164,10 @@ final class DartHttpEndpointService {
     }
   }
 
-  Future<void> _dispatchRequest(HttpRequest request) async {
+  Future<void> _dispatchRequest(
+    HttpRequest request,
+    bool Function() isActive,
+  ) async {
     if (WebSocketTransformer.isUpgradeRequest(request)) {
       if (request.uri.path != '/' ||
           request.uri.queryParameters['overlay']?.isNotEmpty != true ||
@@ -151,6 +180,8 @@ final class DartHttpEndpointService {
         for (final handler in List<DartHttpWebSocketHandler>.of(
           _webSocketHandlers,
         )) {
+          if (!isActive()) break;
+          if (!_webSocketHandlers.contains(handler)) continue;
           if (await handler(request, socket)) return;
         }
         await socket.close(WebSocketStatus.normalClosure);
@@ -161,8 +192,11 @@ final class DartHttpEndpointService {
       return;
     }
     for (final handler in List<DartHttpRequestHandler>.of(_requestHandlers)) {
+      if (!isActive()) return;
+      if (!_requestHandlers.contains(handler)) continue;
       if (await handler(request)) return;
     }
+    if (!isActive()) return;
     final path = request.uri.path;
     if (!path.startsWith('$_endpointPrefix/')) {
       await _respond(request, HttpStatus.notFound);
@@ -185,6 +219,7 @@ final class DartHttpEndpointService {
     }
 
     final body = await _readRequestBody(request);
+    if (!isActive()) return;
     final query = <String, dynamic>{
       for (final key in request.uri.queryParametersAll.keys)
         key: request.uri.queryParametersAll[key]!.length == 1
@@ -192,6 +227,10 @@ final class DartHttpEndpointService {
             : request.uri.queryParametersAll[key],
     };
     for (final match in matches) {
+      if (!isActive()) return;
+      if (!_routes.contains(match.route) || match.route.controller.isClosed) {
+        continue;
+      }
       match.route.controller.add({
         'method': method,
         'route': match.route.contextRoute,

@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Prevent stopped, timed-out or unregistered HTTP handlers and endpoint routes from continuing dispatch; serialize listener startup/shutdown so concurrent starts cannot leak a server.
 - Ignore obsolete remote discovery failures and connection/RPC continuations after workspace replacement; keep provider, startup, registry and queue errors out of public diagnostic payloads.
 - Keep chat moderation and command dialogs on their original runtime/manager, retain newer composer drafts after sends and prevent duplicate submissions or raw provider error displays.
 - Keep profile trigger choices, activation and save completion scoped to the selected profile; retain newer edits during saves and keep profile/condition controls usable with enlarged text.
