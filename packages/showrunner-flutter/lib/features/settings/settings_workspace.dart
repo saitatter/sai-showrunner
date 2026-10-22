@@ -1,4 +1,4 @@
-import '../../persistence/document_revision.dart';
+import 'plugin_preferences_panel.dart';
 import 'package:flutter/material.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
@@ -24,11 +24,6 @@ class SettingsWorkspace extends StatefulWidget {
 class _SettingsWorkspaceState extends State<SettingsWorkspace>
     with SingleTickerProviderStateMixin {
   final _filterController = TextEditingController();
-  final _pluginValues = <String, Map<String, dynamic>>{};
-  final _storageRevisions = <String, DocumentRevision>{};
-  final _controllers = <String, TextEditingController>{};
-  final _savingPlugins = <String>{};
-  late final Future<void> _pluginSettingsFuture;
   late final TabController _tabController;
   String _filter = '';
   Object? _error;
@@ -37,42 +32,13 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _pluginSettingsFuture = _loadPluginSettings();
   }
 
   @override
   void dispose() {
     _filterController.dispose();
     _tabController.dispose();
-    for (final controller in _controllers.values) {
-      controller.dispose();
-    }
     super.dispose();
-  }
-
-  Future<void> _loadPluginSettings() async {
-    final registry = await widget.registryFuture;
-    for (final plugin in registry.plugins) {
-      if (plugin.settings.isEmpty) continue;
-      final values = await widget.dataService.loadPluginSettings(
-        plugin.id.value,
-      );
-      _storageRevisions[plugin.id.value] = DocumentRevision.of(values);
-      _pluginValues[plugin.id.value] = {
-        ...values,
-        for (final setting in plugin.settings)
-          setting.id.value: values[setting.id.value] ?? setting.defaultValue,
-      };
-      for (final setting in plugin.settings) {
-        if (setting.defaultValue is bool) continue;
-        final key = '${plugin.id.value}:${setting.id.value}';
-        _controllers[key] = TextEditingController(
-          text: _displaySettingValue(
-            _pluginValues[plugin.id.value]![setting.id.value],
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _setValue(String key, bool value) async {
@@ -109,37 +75,6 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
       await widget.preferences.enableAllPlugins(registry);
     } catch (error) {
       if (mounted) setState(() => _error = error);
-    }
-  }
-
-  Future<void> _savePlugin(DartPluginManifest plugin) async {
-    setState(() {
-      _error = null;
-      _savingPlugins.add(plugin.id.value);
-    });
-    try {
-      final values = <String, dynamic>{...?_pluginValues[plugin.id.value]};
-      for (final setting in plugin.settings) {
-        final controller =
-            _controllers['${plugin.id.value}:${setting.id.value}'];
-        if (controller != null) {
-          values[setting.id.value] = _parseSettingValue(
-            controller.text,
-            setting.defaultValue,
-          );
-        }
-      }
-      await widget.dataService.savePluginSettings(
-        plugin.id.value,
-        values,
-        expectedRevision: _storageRevisions[plugin.id.value],
-      );
-      _storageRevisions[plugin.id.value] = DocumentRevision.of(values);
-      _pluginValues[plugin.id.value] = values;
-    } catch (error) {
-      if (mounted) setState(() => _error = error);
-    } finally {
-      if (mounted) setState(() => _savingPlugins.remove(plugin.id.value));
     }
   }
 
@@ -199,7 +134,9 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
                 child: ListTile(
                   leading: const Icon(Icons.error_outline),
                   title: const Text('Settings error'),
-                  subtitle: Text('$_error'),
+                  subtitle: const Text(
+                    'Settings could not be updated. Check storage access and retry.',
+                  ),
                 ),
               ),
             ),
@@ -252,7 +189,11 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
       if (definitions.isNotEmpty) _buildInterfaceCard(context, definitions),
       if (closeMatches) _buildCloseBehaviorCard(context),
       const SizedBox(height: 16),
-      _buildPluginSettings(context, filter),
+      PluginPreferencesPanel(
+        dataService: widget.dataService,
+        registryFuture: widget.registryFuture,
+        filter: filter,
+      ),
     ]);
   }
 
@@ -263,7 +204,13 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
   ]);
 
   Widget _buildPluginsTab(BuildContext context, String filter) =>
-      _settingsList([_buildPluginSettings(context, filter)]);
+      _settingsList([
+        PluginPreferencesPanel(
+          dataService: widget.dataService,
+          registryFuture: widget.registryFuture,
+          filter: filter,
+        ),
+      ]);
 
   Widget _settingsList(List<Widget> children) => ListView(
     padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
@@ -319,131 +266,6 @@ class _SettingsWorkspaceState extends State<SettingsWorkspace>
       ),
     ),
   );
-
-  Widget _buildPluginSettings(BuildContext context, String filter) =>
-      FutureBuilder<void>(
-        future: _pluginSettingsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Card(
-              color: Theme.of(context).colorScheme.errorContainer,
-              child: ListTile(
-                leading: const Icon(Icons.error_outline),
-                title: const Text('Plugin settings unavailable'),
-                subtitle: Text('${snapshot.error}'),
-              ),
-            );
-          }
-          return FutureBuilder<DartPluginRegistry>(
-            future: widget.registryFuture,
-            builder: (context, registrySnapshot) {
-              final registry = registrySnapshot.data;
-              if (registry == null) return const SizedBox.shrink();
-              final sections = _buildPluginSections(context, registry, filter);
-              return sections.isEmpty
-                  ? const ListTile(
-                      leading: Icon(Icons.search_off),
-                      title: Text('No plugin settings found'),
-                      subtitle: Text('Try a different search.'),
-                    )
-                  : Column(children: sections);
-            },
-          );
-        },
-      );
-
-  List<Widget> _buildPluginSections(
-    BuildContext context,
-    DartPluginRegistry registry,
-    String filter,
-  ) {
-    final sections = <Widget>[];
-    for (final plugin in registry.plugins) {
-      final settings = plugin.settings.where((setting) {
-        return filter.isEmpty ||
-            '${plugin.name} ${setting.displayName} ${setting.id.value}'
-                .toLowerCase()
-                .contains(filter);
-      }).toList();
-      if (settings.isEmpty) continue;
-      sections.add(
-        Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.extension_outlined),
-                  title: Text(plugin.name),
-                  subtitle: Text('${settings.length} settings'),
-                ),
-                for (final setting in settings)
-                  _buildPluginSetting(context, plugin, setting),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _savingPlugins.contains(plugin.id.value)
-                        ? null
-                        : () => _savePlugin(plugin),
-                    icon: _savingPlugins.contains(plugin.id.value)
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save),
-                    label: const Text('Save plugin settings'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-    return sections;
-  }
-
-  Widget _buildPluginSetting(
-    BuildContext context,
-    DartPluginManifest plugin,
-    DartSettingContract setting,
-  ) {
-    final values = _pluginValues[plugin.id.value] ?? const <String, dynamic>{};
-    final value = values[setting.id.value] ?? setting.defaultValue;
-    if (setting.defaultValue is bool) {
-      return SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(setting.displayName),
-        subtitle: Text(setting.id.value),
-        value: value == true,
-        onChanged: _savingPlugins.contains(plugin.id.value)
-            ? null
-            : (next) => setState(() => values[setting.id.value] = next),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: _controllers['${plugin.id.value}:${setting.id.value}'],
-        obscureText: setting.secret,
-        keyboardType: setting.defaultValue is num
-            ? TextInputType.number
-            : TextInputType.text,
-        decoration: InputDecoration(
-          labelText: setting.displayName,
-          helperText: setting.id.value,
-          border: const OutlineInputBorder(),
-        ),
-      ),
-    );
-  }
 }
 
 String _windowCloseBehaviorLabel(WindowCloseBehavior behavior) =>
@@ -452,16 +274,3 @@ String _windowCloseBehaviorLabel(WindowCloseBehavior behavior) =>
       WindowCloseBehavior.hideToTray => 'Always hide to tray',
       WindowCloseBehavior.alwaysClose => 'Always close',
     };
-
-String _displaySettingValue(dynamic value) {
-  if (value is Map || value is List) return value.toString();
-  return value?.toString() ?? '';
-}
-
-dynamic _parseSettingValue(String text, dynamic defaultValue) {
-  if (defaultValue is int) return int.tryParse(text.trim()) ?? defaultValue;
-  if (defaultValue is double) {
-    return double.tryParse(text.trim()) ?? defaultValue;
-  }
-  return text;
-}
