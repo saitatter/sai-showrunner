@@ -61,6 +61,7 @@
 - Document typed storage ownership, journal recovery and stale-write policy, provider editor/codec boundaries, secret handling and measured Phase 04 validation limits.
 
 ### CI & Build
+- Verify workspace/dialog replacement, scoped chat and health rebuilds, layer-menu identity and desktop size/DPI behavior; await accepted resource operations before checking persisted results.
 - Add isolated persistence failure probes for mixed credential/config generations, hidden decryption failures, unsupported envelopes and resource identity confusion; await real filesystem completion in variable UI fixtures and ignore generated fixture owner locks; verify malformed resources survive native application restart without hiding healthy data or exposing parser source.
 
 ## 2.1.0 - 2026-10-21

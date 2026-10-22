@@ -131,10 +131,11 @@ String _providerStateText(
 }) {
   final details = <String>[state.label];
   if (attempts > 0) details.add('attempts $attempts');
-  if (error != null)
+  if (error != null) {
     details.add(
       'Last operation failed. Check authentication and connectivity.',
     );
+  }
   return details.join(' | ');
 }
 
