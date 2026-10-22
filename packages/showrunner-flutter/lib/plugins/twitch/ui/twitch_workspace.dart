@@ -1,3 +1,4 @@
+import 'twitch_chat_activity.dart';
 import '../../../components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
 
@@ -30,10 +31,8 @@ class TwitchWorkspace extends StatefulWidget {
 }
 
 class _TwitchWorkspaceState extends State<TwitchWorkspace> {
-  StreamSubscription<RuntimeMap>? _chatSubscription;
-  String? _latestMessage;
-  String? _latestAuthor;
-  final _messageHistory = <String>[];
+  late final TwitchChatActivityController _chatActivity;
+  late Future<bool> _healthFuture;
   late final TextEditingController _messageController;
   late final TextEditingController _markerController;
   late final TextEditingController _viewerController;
@@ -95,25 +94,29 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
     _reloadAccounts();
     unawaited(_refreshChannelInfo());
     _reloadRewards();
-    _chatSubscription = widget.providerEvents.eventHub.stream('chat').listen((
-      event,
-    ) {
-      if (!mounted) return;
-      setState(() {
-        _latestAuthor = event['chatter_user_name']?.toString();
-        _latestMessage = event['message']?.toString();
-        _messageHistory.insert(
-          0,
-          '${_latestAuthor ?? 'Unknown'}: ${_latestMessage ?? 'Empty message'}',
-        );
-        if (_messageHistory.length > 20) _messageHistory.removeLast();
-      });
-    });
+    _chatActivity = TwitchChatActivityController(
+      widget.providerEvents.eventHub.stream('chat'),
+    );
+    _healthFuture = _loadHealth();
+  }
+
+  Future<bool> _loadHealth() => widget.registryFuture.then(
+    (registry) => registry.checkHealthId(const PluginId('twitch')),
+  );
+  @override
+  void didUpdateWidget(TwitchWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.registryFuture != widget.registryFuture) {
+      _healthFuture = _loadHealth();
+    }
+    if (oldWidget.providerEvents != widget.providerEvents) {
+      _chatActivity.configure(widget.providerEvents.eventHub.stream('chat'));
+    }
   }
 
   @override
   void dispose() {
-    unawaited(_chatSubscription?.cancel());
+    _chatActivity.dispose();
     _messageController.dispose();
     _markerController.dispose();
     _viewerController.dispose();
@@ -285,9 +288,7 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
         _buildAccountSection(context),
         const SizedBox(height: 16),
         FutureBuilder<bool>(
-          future: widget.registryFuture.then(
-            (registry) => registry.checkHealthId(const PluginId('twitch')),
-          ),
+          future: _healthFuture,
           builder: (context, snapshot) {
             final state = widget.providerEvents.twitchState;
             final running = state == ProviderWorkerState.running;
@@ -392,13 +393,7 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
             child: _buildChannelPointRewards(context),
           ),
         ),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.chat_bubble_outline),
-            title: Text(_latestMessage ?? 'No Twitch chat messages yet'),
-            subtitle: Text(_latestAuthor ?? 'Latest Twitch message'),
-          ),
-        ),
+        TwitchChatSummary(activity: _chatActivity),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -785,17 +780,7 @@ class _TwitchWorkspaceState extends State<TwitchWorkspace> {
               subtitle: Text('$_error'),
             ),
           ),
-        if (_messageHistory.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text('Activity', style: Theme.of(context).textTheme.titleLarge),
-          ..._messageHistory.map(
-            (message) => ListTile(
-              dense: true,
-              leading: const Icon(Icons.chat_outlined),
-              title: Text(message),
-            ),
-          ),
-        ],
+        TwitchChatHistory(activity: _chatActivity),
       ],
     ),
   );
