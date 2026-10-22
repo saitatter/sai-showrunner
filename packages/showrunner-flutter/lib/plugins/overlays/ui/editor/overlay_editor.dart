@@ -1,3 +1,4 @@
+import 'overlay_preview_settings_dialog.dart';
 import 'overlay_obs_controller.dart';
 import 'overlay_obs_source_control.dart';
 import 'overlay_presence_controller.dart';
@@ -8,7 +9,6 @@ import 'overlay_editor_toolbar.dart';
 import 'overlay_widget_palette.dart';
 import 'overlay_widget_rename_dialog.dart';
 import 'overlay_layer_title.dart';
-import 'package:showrunner_flutter/components/data_inputs/numeric_input_formatter.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -58,9 +58,6 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
   late final TextEditingController _name;
   late final TextEditingController _width;
   late final TextEditingController _height;
-  late final TextEditingController _previewSource;
-  late final TextEditingController _previewOffsetX;
-  late final TextEditingController _previewOffsetY;
   late OverlayEditorController _editor;
   final _canvasFocus = FocusNode(debugLabel: 'Overlay canvas');
   List<JsonMap> get _widgets => _editor.widgets;
@@ -70,11 +67,11 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _editor.selectIndex(value);
   }
 
-  late bool _previewEnabled;
-  late bool _previewFromObs;
+  late OverlayPreviewSettings _previewDraft;
+  bool get _previewEnabled => _editor.resource.config['preview'] is Map;
   List<GeneratedOverlayWidget> _overlayWidgetCatalog =
       GeneratedOverlayWidgetCatalog.widgets;
-  final _layoutKey = GlobalKey<OverlayEditorLayoutState>();
+  var _layoutKey = GlobalKey<OverlayEditorLayoutState>();
   bool get _dirty => _editor.dirty;
   bool get _saving => _editor.saving;
   int _reportedRevision = 0;
@@ -98,9 +95,6 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _name = TextEditingController();
     _width = TextEditingController();
     _height = TextEditingController();
-    _previewSource = TextEditingController();
-    _previewOffsetX = TextEditingController();
-    _previewOffsetY = TextEditingController();
     _installDocument();
     _presenceController = OverlayPresenceController(
       widget.resource.id,
@@ -133,12 +127,9 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _name.text = overlay.name;
     _width.text = '${overlay.width}';
     _height.text = '${overlay.height}';
-    final preview = resource.config['preview'] as Map? ?? const {};
-    _previewEnabled = resource.config['preview'] is Map;
-    _previewFromObs = preview['source'] == 'obs';
-    _previewSource.text = _previewFromObs ? '' : '${preview['source'] ?? ''}';
-    _previewOffsetX.text = '${preview['offsetX'] ?? 0}';
-    _previewOffsetY.text = '${preview['offsetY'] ?? 0}';
+    _previewDraft = OverlayPreviewSettings.fromConfig(
+      resource.config['preview'],
+    );
   }
 
   void _editorChanged() {
@@ -160,6 +151,7 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
         oldWidget.presenceReaderFuture != widget.presenceReaderFuture;
     if (changedIdentity) {
       _closeWidgetMenu();
+      _layoutKey = GlobalKey<OverlayEditorLayoutState>();
       _editor.dispose();
       _installDocument();
       _canvasTransformItem = null;
@@ -195,9 +187,6 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     _name.dispose();
     _width.dispose();
     _height.dispose();
-    _previewSource.dispose();
-    _previewOffsetX.dispose();
-    _previewOffsetY.dispose();
     super.dispose();
   }
 
@@ -407,7 +396,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       return const Center(child: Text('Select a widget to edit it.'));
     }
     final selected = _widgets[index];
-    final layerKey = _editor.keyAt(index);
+    final owner = _editor;
+    final layerKey = owner.keyAt(index);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
       child: Theme(
@@ -431,7 +421,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
           key: ValueKey('overlay-widget-inspector-${selected['id']}'),
           widgetConfig: selected,
           onChanged: (key, value) {
-            _editor.updateWidget(layerKey, {key: value});
+            if (!mounted || !identical(owner, _editor)) return;
+            owner.updateWidget(layerKey, {key: value});
             _markDirty();
           },
           catalog: _overlayWidgetCatalog,
@@ -781,90 +772,23 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
       OverlayBrowserSourcePanel(presence: _presenceController);
 
   Future<void> _showPreviewSettings(BuildContext context) async {
+    final owner = _editor;
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Preview settings'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Enable preview'),
-                  value: _previewEnabled,
-                  onChanged: (value) {
-                    setState(() => _previewEnabled = value);
-                    _markDirty();
-                    setDialogState(() {});
-                  },
-                ),
-                if (_previewEnabled) ...[
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Preview OBS output'),
-                    value: _previewFromObs,
-                    onChanged: (value) {
-                      setState(() => _previewFromObs = value);
-                      _markDirty();
-                      setDialogState(() {});
-                    },
-                  ),
-                  if (!_previewFromObs)
-                    TextField(
-                      controller: _previewSource,
-                      decoration: const InputDecoration(
-                        labelText: 'Preview image',
-                        hintText: 'Optional PNG/JPG/BMP/WebP path',
-                      ),
-                      onChanged: (_) => _markDirty(),
-                    ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _previewOffsetX,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
-                          inputFormatters: const [NumericInputFormatter()],
-                          decoration: const InputDecoration(
-                            labelText: 'Offset X',
-                          ),
-                          onChanged: (_) => _markDirty(),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _previewOffsetY,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
-                          inputFormatters: const [NumericInputFormatter()],
-                          decoration: const InputDecoration(
-                            labelText: 'Offset Y',
-                          ),
-                          onChanged: (_) => _markDirty(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
+      builder: (context) => OverlayPreviewSettingsDialog(
+        initial: _previewDraft,
+        onChanged: (settings) {
+          if (!mounted || !identical(owner, _editor)) return;
+          _previewDraft = settings;
+          owner.replace(
+            owner.compose(
+              name: _name.text.trim(),
+              width: _canvasDimension(_width, 1920),
+              height: _canvasDimension(_height, 1080),
+              preview: settings.toConfig(),
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -873,15 +797,8 @@ class _OverlayEditorState extends State<OverlayEditorPage> {
     name: _name.text.trim(),
     width: _canvasDimension(_width, 1920),
     height: _canvasDimension(_height, 1080),
-    preview: _previewEnabled
-        ? {
-            'offsetX': num.tryParse(_previewOffsetX.text) ?? 0,
-            'offsetY': num.tryParse(_previewOffsetY.text) ?? 0,
-            if (_previewFromObs)
-              'source': 'obs'
-            else if (_previewSource.text.trim().isNotEmpty)
-              'source': _previewSource.text.trim(),
-          }
+    preview: _editor.resource.config['preview'] is Map
+        ? Map<String, dynamic>.from(_editor.resource.config['preview'] as Map)
         : null,
   );
 

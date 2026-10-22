@@ -7,6 +7,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Isolate open preview dialogs from document switches and preserve additional preview configuration fields during editing and saving.
 - Keep OBS source dialogs and delayed responses scoped to the selected overlay/connection, preventing old dialogs from creating sources for a new document.
 - Reject delayed overlay presence replies from previously selected documents instead of displaying another resource's connection status.
 - Keep overlay inputs and save completion isolated when switching resources, preserve unrelated layer selection after deletion and show save failures without exception payloads.
@@ -24,6 +25,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Give overlay preview settings an owned form with retained disabled values; reset inspector presentation on document identity changes and reject delayed inspector edits from old documents.
 - Separate overlay OBS orchestration from toolbar rendering, with captured operation targets, debounced/coalesced inspection, owned writes and payload-free retry status.
 - Own overlay presence polling separately and refresh only status/URL widgets, avoiding canvas rebuilds, overlapping polls and exception-bearing browser errors.
 - Move overlay authoring, semantic dirty state, immutable snapshots and save ownership into an independently testable editor controller; give responsive layout and the inspector/layers splitter separate presentation owners.
