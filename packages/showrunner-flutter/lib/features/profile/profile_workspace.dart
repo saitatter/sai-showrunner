@@ -1,6 +1,7 @@
 import '../../persistence/document_revision.dart';
 import '../../graph/domain/automation_document.dart';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -8,7 +9,8 @@ import '../../components/data_inputs/data_input.dart';
 import '../../app/name_dialog.dart';
 import '../../graph/controller/automation_editor_controller.dart';
 import '../../graph/domain/automation_factories.dart';
-import '../../graph/ui/inline_automation_graph.dart';
+import 'profile_inline_automation_panel.dart';
+import 'profile_trigger_picker.dart';
 import 'package:sai_nodes_core/sai_nodes_core.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
@@ -113,8 +115,8 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   final _nameController = TextEditingController();
   late final AutomationEditorController _activationEditor;
   late final AutomationEditorController _deactivationEditor;
-  late final Future<DartPluginRegistry> _triggerRegistryFuture;
-  late final Future<List<String>> _queueOptionsFuture;
+  late Future<DartPluginRegistry> _triggerRegistryFuture;
+  late Future<List<String>> _queueOptionsFuture;
   DartPluginRegistry? _triggerRegistry;
   List<ProfileEntry> _entries = [];
   int? _selectedIndex;
@@ -125,12 +127,43 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   bool _loading = true;
   bool _saving = false;
   bool _profileActive = false;
-  DartProfileSession? _profileSession;
   bool _ownsProfileActivation = false;
   Object? _error;
   bool _profileDirty = false;
   bool _synchronizing = false;
   late Future<void> _initialLoad;
+  Object _selectionOwner = Object();
+  Object _loadOwner = Object();
+  String? _selectedFileName;
+  bool _isCurrent(Object owner) => mounted && identical(owner, _selectionOwner);
+
+  @override
+  void didUpdateWidget(covariant ProfileWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.detach();
+      widget.controller?.attach(
+        _confirmClose,
+        openProfile: _openProfile,
+        reloadEntries: _load,
+      );
+    }
+    if (!identical(oldWidget.dataService, widget.dataService) ||
+        oldWidget.registryFuture != widget.registryFuture) {
+      _selectionOwner = Object();
+      _selectedFileName = null;
+      _selectedIndex = null;
+      _saving = false;
+      _profileActive = false;
+      _ownsProfileActivation = false;
+      _triggerRegistry = null;
+      _triggerRegistryFuture =
+          widget.registryFuture ?? Future.value(createDefaultPluginRegistry());
+      _queueOptionsFuture = _resourceOptions('ActionQueue');
+      _initialLoad = _load();
+      unawaited(_loadTriggerRegistry());
+    }
+  }
 
   @override
   void initState() {
@@ -157,15 +190,18 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<void> _loadTriggerRegistry() async {
+    final future = _triggerRegistryFuture;
     try {
-      final registry = await _triggerRegistryFuture;
-      if (mounted) {
+      final registry = await future;
+      if (mounted && identical(future, _triggerRegistryFuture)) {
         _activationEditor.bindRegistry(registry);
         _deactivationEditor.bindRegistry(registry);
         setState(() => _triggerRegistry = registry);
       }
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted && identical(future, _triggerRegistryFuture)) {
+        setState(() => _error = error);
+      }
     }
   }
 
@@ -176,7 +212,6 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     _activationEditor.graph.removeDocumentListener(_graphChanged);
     _deactivationEditor.graph.removeDocumentListener(_graphChanged);
     _nameController.dispose();
-    unawaited(_profileSession?.dispose());
     _activationEditor.dispose();
     _deactivationEditor.dispose();
     super.dispose();
@@ -199,9 +234,16 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    if (!mounted) return;
+    final owner = _loadOwner = Object();
+    final data = widget.dataService;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final entries = await widget.dataService.storage.listProfiles();
+      final entries = await data.storage.listProfiles();
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _entries = [
         for (final entry in entries)
           (
@@ -218,26 +260,34 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         _selectProfile(_selectedIndex!);
       }
     } catch (error) {
+      if (!mounted || !identical(owner, _loadOwner)) return;
       _error = error;
     }
-    if (mounted) setState(() => _loading = false);
+    if (mounted && identical(owner, _loadOwner)) {
+      setState(() => _loading = false);
+    }
   }
 
   Future<void> _openProfile(String fileName) async {
+    if (_saving) return;
+    final data = widget.dataService;
     if (_loading) await _initialLoad;
+    if (!mounted || !identical(data, widget.dataService)) return;
+    if (!await _confirmClose()) return;
+    if (!mounted || !identical(data, widget.dataService)) return;
     final index = _entries.indexWhere((entry) => entry.fileName == fileName);
-    if (index < 0 || !await _confirmClose()) return;
-    if (!mounted) return;
+    if (index < 0) return;
     setState(() => _selectProfile(index));
   }
 
   void _selectProfile(int index) {
     _synchronizing = true;
-    final changed = _selectedIndex != index;
+    _selectionOwner = Object();
+    _saving = false;
+    final changed = _selectedFileName != _entries[index].fileName;
+    _selectedFileName = _entries[index].fileName;
     _selectedIndex = index;
     if (changed) {
-      unawaited(_profileSession?.dispose());
-      _profileSession = null;
       _profileActive = false;
       _ownsProfileActivation = false;
     }
@@ -272,8 +322,17 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   Future<void> _syncRuntimeActive(String fileName) async {
     final runtimeFuture = widget.runtimeFuture;
     if (runtimeFuture == null) return;
-    final runtime = await runtimeFuture;
-    if (!mounted ||
+    final owner = _selectionOwner;
+    DartProfileRuntime runtime;
+    try {
+      runtime = await runtimeFuture;
+    } catch (_) {
+      if (_isCurrent(owner)) {
+        setState(() => _error = 'Profile runtime is unavailable.');
+      }
+      return;
+    }
+    if (!_isCurrent(owner) ||
         _selectedIndex == null ||
         _selectedIndex! >= _entries.length ||
         _entries[_selectedIndex!].fileName != fileName) {
@@ -285,6 +344,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<bool> _confirmClose() async {
+    final owner = _selectionOwner;
     if (!_profileDirty || _selectedIndex == null) {
       return _stopCurrentProfile();
     }
@@ -313,14 +373,14 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         ],
       ),
     );
-    if (!mounted ||
+    if (!_isCurrent(owner) ||
         decision == null ||
         decision == _ProfileCloseDecision.cancel) {
       return false;
     }
     if (decision == _ProfileCloseDecision.save) {
       await _saveProfile();
-      if (!mounted || _profileDirty) return false;
+      if (!_isCurrent(owner) || _profileDirty) return false;
       return _stopCurrentProfile();
     }
     _markClean();
@@ -329,19 +389,18 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
 
   Future<bool> _stopCurrentProfile() async {
     if (!_ownsProfileActivation || _selectedIndex == null) {
-      await _profileSession?.dispose();
-      _profileSession = null;
       _profileActive = false;
       _ownsProfileActivation = false;
       return true;
     }
+    final owner = _selectionOwner;
+    final providerEvents = widget.providerEvents;
     final entry = _entries[_selectedIndex!];
     try {
       final runtime = widget.runtimeFuture == null
           ? null
           : await widget.runtimeFuture;
-      await _profileSession?.dispose();
-      _profileSession = null;
+      if (!_isCurrent(owner)) return false;
       if (runtime != null && entry.profile != null) {
         await runtime.setManagedActive(
           entry.fileName,
@@ -349,14 +408,13 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
           active: false,
         );
       }
-      widget.providerEvents.updateProfileActivity(
-        entry.fileName,
-        active: false,
-      );
+      providerEvents.updateProfileActivity(entry.fileName, active: false);
+      if (!_isCurrent(owner)) return false;
       _profileActive = false;
       _ownsProfileActivation = false;
       return true;
     } catch (error) {
+      if (!_isCurrent(owner)) return false;
       _error = error;
       if (mounted) setState(() {});
       return false;
@@ -366,12 +424,14 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   Future<void> _createProfile() async {
     if (!await _confirmClose()) return;
     if (!mounted) return;
+    final owner = _selectionOwner;
+    final data = widget.dataService;
     final name = await showShowRunnerNameDialog(
       context,
       title: 'New profile',
       initialName: 'New Profile',
     );
-    if (name == null || !mounted) return;
+    if (name == null || !_isCurrent(owner)) return;
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileName = 'profile_$timestamp.yaml';
     final profile = ShowRunnerProfile(
@@ -382,8 +442,9 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       activationAutomation: _emptyAutomation(),
       deactivationAutomation: _emptyAutomation(),
     );
-    final repo = widget.dataService.storage.profile(fileName);
+    final repo = data.storage.profile(fileName);
     await repo.save(profile, requireAbsent: true);
+    if (!_isCurrent(owner)) return;
     await _load();
     final index = _entries.indexWhere((entry) => entry.fileName == fileName);
     if (index != -1 && mounted) {
@@ -392,8 +453,28 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     widget.onEntriesChanged?.call();
   }
 
+  ShowRunnerProfile _draft(ShowRunnerProfile? original) => ShowRunnerProfile(
+    name: _nameController.text.trim(),
+    activationMode: _activationMode,
+    triggers: [
+      for (final trigger in _triggers)
+        Map<String, dynamic>.from(jsonDecode(jsonEncode(trigger)) as Map),
+    ],
+    activationCondition: Map<String, dynamic>.from(
+      jsonDecode(jsonEncode(_activationCondition)) as Map,
+    ),
+    activationAutomation: _activationEditor.document,
+    deactivationAutomation: _deactivationEditor.document,
+    extra: original?.extra ?? const {},
+  );
+
   Future<void> _saveProfile() async {
-    if (_selectedIndex == null || _selectedIndex! >= _entries.length) return;
+    if (_saving ||
+        _selectedIndex == null ||
+        _selectedIndex! >= _entries.length) {
+      return;
+    }
+    final owner = _selectionOwner;
     if (_invalidTriggerIds.isNotEmpty) {
       setState(
         () => _error = 'Fix invalid trigger configuration before saving.',
@@ -404,15 +485,7 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     try {
       final entry = _entries[_selectedIndex!];
       final original = entry.profile;
-      final updated = ShowRunnerProfile(
-        name: _nameController.text.trim(),
-        activationMode: _activationMode,
-        triggers: _triggers,
-        activationCondition: _activationCondition,
-        activationAutomation: _activationEditor.document,
-        deactivationAutomation: _deactivationEditor.document,
-        extra: original?.extra ?? const {},
-      );
+      final updated = _draft(original);
       final repo = widget.dataService.storage.profile(entry.fileName);
       await repo.save(
         updated,
@@ -420,47 +493,64 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
             ? null
             : DocumentRevision.of(original.toJson()),
       );
-      await _load();
+      if (!_isCurrent(owner)) return;
+      _entries[_selectedIndex!] = (
+        fileName: entry.fileName,
+        profile: updated,
+        error: null,
+      );
+      if (DocumentRevision.of(_draft(original).toJson()) ==
+          DocumentRevision.of(updated.toJson())) {
+        _markClean();
+      }
       widget.onEntriesChanged?.call();
     } catch (error) {
-      _error = error;
+      if (_isCurrent(owner)) _error = error;
     }
-    if (mounted) setState(() => _saving = false);
+    if (_isCurrent(owner)) setState(() => _saving = false);
   }
 
   Future<void> _toggleProfile() async {
     final index = _selectedIndex;
-    if (index == null || index >= _entries.length) return;
+    if (_saving || index == null || index >= _entries.length) return;
     final entry = _entries[index];
     final profile = entry.profile;
     final runtimeFuture = widget.runtimeFuture;
     if (profile == null || runtimeFuture == null) return;
+    final owner = _selectionOwner;
+    final providerEvents = widget.providerEvents;
+    final active = !_profileActive;
     setState(() => _saving = true);
     try {
       final runtime = await runtimeFuture;
-      final active = !_profileActive;
+      if (!_isCurrent(owner)) return;
       await runtime.setManagedActive(entry.fileName, profile, active: active);
-      widget.providerEvents.updateProfileActivity(
+      providerEvents.updateProfileActivity(
         entry.fileName,
         active: active,
         triggers: active ? profile.triggers : const [],
       );
-      _ownsProfileActivation = true;
-      if (mounted) setState(() => _profileActive = active);
+      if (!_isCurrent(owner)) return;
+      _ownsProfileActivation = active;
+      setState(() => _profileActive = active);
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (_isCurrent(owner)) setState(() => _error = error);
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (_isCurrent(owner)) setState(() => _saving = false);
     }
   }
 
   Future<void> _deleteProfile(String fileName) async {
+    if (_saving) return;
+    final owner = _selectionOwner;
+    final data = widget.dataService;
     if (_selectedIndex != null &&
         _selectedIndex! < _entries.length &&
         _entries[_selectedIndex!].fileName == fileName &&
         !await _confirmClose()) {
       return;
     }
+    if (!_isCurrent(owner)) return;
     final entry = _entries
         .where((entry) => entry.fileName == fileName)
         .firstOrNull;
@@ -468,9 +558,10 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
     if (original == null) {
       throw StateError('Cannot delete an unreadable profile.');
     }
-    await widget.dataService.storage
+    await data.storage
         .profile(fileName)
         .delete(expectedRevision: DocumentRevision.of(original.toJson()));
+    if (!_isCurrent(owner)) return;
     _selectedIndex = null;
     _markClean();
     await _load();
@@ -478,13 +569,22 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
   }
 
   Future<void> _addTrigger() async {
-    final registry = await _triggerRegistryFuture;
-    if (!mounted) return;
+    final owner = _selectionOwner;
+    DartPluginRegistry registry;
+    try {
+      registry = await _triggerRegistryFuture;
+    } on Object {
+      if (_isCurrent(owner)) {
+        setState(() => _error = 'Trigger catalog is unavailable.');
+      }
+      return;
+    }
+    if (!mounted || !_isCurrent(owner)) return;
     final selected = await showDialog<TriggerSpec>(
       context: context,
-      builder: (context) => _TriggerPickerDialog(registry: registry),
+      builder: (context) => ProfileTriggerPickerDialog(registry: registry),
     );
-    if (selected == null || !mounted) return;
+    if (selected == null || !_isCurrent(owner)) return;
     final initialConfig = selected.configSchema == null
         ? <String, dynamic>{}
         : constructDartDataInputDefault(selected.configSchema!);
@@ -558,14 +658,17 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
         children: [
           Row(
             children: [
-              Text(
-                'Edit Profile${_profileDirty ? ' *' : ''}',
-                style: Theme.of(context).textTheme.headlineSmall,
+              Expanded(
+                child: Text(
+                  'Edit Profile${_profileDirty ? ' *' : ''}',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
               ),
-              const Spacer(),
               IconButton(
                 icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () => _deleteProfile(selectedEntry.fileName),
+                onPressed: _saving
+                    ? null
+                    : () => _deleteProfile(selectedEntry.fileName),
                 tooltip: 'Delete Profile',
               ),
               const SizedBox(width: 8),
@@ -594,7 +697,10 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text('Error: $_error', style: const TextStyle(color: Colors.red)),
+            const Text(
+              'Profile operation failed. Check the configuration and retry.',
+              style: TextStyle(color: Colors.red),
+            ),
           ],
           const SizedBox(height: 16),
           TextField(
@@ -729,14 +835,14 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
             },
           ),
           const SizedBox(height: 16),
-          _InlineAutomationPanel(
+          ProfileInlineAutomationPanel(
             label: 'On Activate',
             editor: _activationEditor,
             registryFuture:
                 widget.registryFuture ?? Future.value(DartPluginRegistry()),
           ),
           const SizedBox(height: 12),
-          _InlineAutomationPanel(
+          ProfileInlineAutomationPanel(
             label: 'On Deactivate',
             editor: _deactivationEditor,
             registryFuture:
@@ -746,73 +852,6 @@ class _ProfileWorkspaceState extends State<ProfileWorkspace> {
       ),
     );
   }
-}
-
-class _TriggerPickerDialog extends StatelessWidget {
-  const _TriggerPickerDialog({required this.registry});
-
-  final DartPluginRegistry? registry;
-
-  @override
-  Widget build(BuildContext context) {
-    final triggers = [
-      for (final plugin in registry?.plugins ?? const <DartPluginManifest>[])
-        for (final trigger in plugin.triggers) trigger,
-    ];
-    return AlertDialog(
-      title: const Text('Add profile trigger'),
-      content: SizedBox(
-        width: 420,
-        child: triggers.isEmpty
-            ? const Text('No registered triggers are available.')
-            : ListView(
-                shrinkWrap: true,
-                children: [
-                  for (final trigger in triggers)
-                    ListTile(
-                      leading: const Icon(Icons.bolt),
-                      title: Text(trigger.displayName),
-                      subtitle: Text(
-                        '${trigger.pluginId}:${trigger.triggerId}',
-                      ),
-                      onTap: () => Navigator.of(context).pop(trigger),
-                    ),
-                ],
-              ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-      ],
-    );
-  }
-}
-
-class _InlineAutomationPanel extends StatelessWidget {
-  const _InlineAutomationPanel({
-    required this.label,
-    required this.editor,
-    required this.registryFuture,
-  });
-
-  final String label;
-  final AutomationEditorController editor;
-  final Future<DartPluginRegistry> registryFuture;
-
-  @override
-  Widget build(BuildContext context) => Card(
-    clipBehavior: Clip.antiAlias,
-    child: ExpansionTile(
-      leading: const Icon(Icons.account_tree_outlined),
-      title: Text(label),
-      subtitle: Text('${editor.graph.activeSpace!.nodes.length} nodes'),
-      children: [
-        InlineAutomationGraph(editor: editor, registryFuture: registryFuture),
-      ],
-    ),
-  );
 }
 
 AutomationDocument _emptyAutomation() => AutomationDocument.empty();
