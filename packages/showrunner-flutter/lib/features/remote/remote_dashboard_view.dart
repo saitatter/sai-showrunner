@@ -72,7 +72,7 @@ class _RemoteConnectionProgress extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
                 child: Text(
-                  '${connection.lastError}',
+                  'The remote connection failed. Check the service and retry.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
