@@ -57,7 +57,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
-- Document completed workspace view-state boundaries, editor/dialog ownership, responsive input contracts and measured Flutter/native/visual checks, including owned Save All completion, with explicit live-provider/device limitations.
+- Document completed workspace view-state boundaries, editor/dialog ownership, responsive input contracts and measured Flutter/native/visual checks, including active-document identity and owned Save All completion, with explicit live-provider/device limitations.
 - Document typed storage ownership, journal recovery and stale-write policy, provider editor/codec boundaries, secret handling and measured Phase 04 validation limits.
 
 ### CI & Build
