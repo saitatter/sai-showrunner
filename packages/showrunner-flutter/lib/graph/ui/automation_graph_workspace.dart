@@ -375,41 +375,51 @@ class AutomationGraphWorkspaceState extends State<AutomationGraphWorkspace> {
     );
   }
 
-  void _showDiagnostics() => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Graph issues'),
-      content: SizedBox(
-        width: 600,
-        height: 400,
-        child: ListView(
-          children: [
-            for (final issue in editor.graph.resolution.diagnostics)
-              ListTile(
-                title: Text(issue.message),
-                subtitle: Text('${issue.spaceId ?? ''} · ${issue.entityId}'),
-                onTap: () {
-                  final sid = issue.spaceId;
-                  if (sid != null &&
-                      editor.graph.document.spaces.containsKey(sid)) {
-                    editor.graph.setActiveSpace(sid);
-                    editor.graph.select(
-                      GraphSelection(nodes: {issue.entityId}),
-                    );
-                    _fit();
-                  }
-                  Navigator.of(context).pop();
-                },
-              ),
+  void _showDiagnostics() {
+    final owner = editor;
+    final issues = List.of(owner.graph.resolution.diagnostics);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Graph issues'),
+          content: SizedBox(
+            width: 600,
+            height: 400,
+            child: ListView(
+              children: [
+                for (final issue in issues)
+                  ListTile(
+                    title: Text(issue.message),
+                    subtitle: Text(
+                      '${issue.spaceId ?? ''} · ${issue.entityId}',
+                    ),
+                    onTap: () {
+                      final sid = issue.spaceId;
+                      if (mounted &&
+                          identical(owner, editor) &&
+                          sid != null &&
+                          owner.graph.document.spaces.containsKey(sid)) {
+                        owner.graph.setActiveSpace(sid);
+                        owner.graph.select(
+                          GraphSelection(nodes: {issue.entityId}),
+                        );
+                        _fit();
+                      }
+                      Navigator.of(context).pop();
+                    },
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
-        ),
-      ],
-    ),
-  );
+    );
+  }
 }
