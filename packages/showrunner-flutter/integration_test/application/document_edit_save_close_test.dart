@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:showrunner_flutter/graph/ui/automation_graph_workspace.dart';
+import 'package:showrunner_flutter/app/showrunner_page.dart';
 import 'package:showrunner_flutter/persistence/automation_repository.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
@@ -163,7 +164,7 @@ void main() {
       'Second',
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Create'));
-    await _pumpApplication(tester);
+    await _waitForActiveAutomation(tester, 'Second');
     graph = tester.widget<AutomationGraphWorkspace>(
       find.byType(AutomationGraphWorkspace),
     );
@@ -172,10 +173,25 @@ void main() {
       const GraphPoint(80, 80),
     );
     await tester.pump();
+    expect(
+      graph.editor,
+      isNot(same(firstEditor)),
+      reason: 'Creation must activate a separate editor',
+    );
+    expect(firstEditor.graph.activeSpace!.nodes, hasLength(2));
+    expect(graph.editor.graph.activeSpace!.nodes, hasLength(1));
+    final application = tester
+        .widget<ShowRunnerPage>(find.byType(ShowRunnerPage))
+        .application!;
+    expect(application.documents.automations.documents, hasLength(2));
+    expect(application.documents.hasUnsavedChanges, isTrue);
     await _runFileCommand(tester, 'Save all');
     // A rendered frame is not a filesystem completion signal. Await the
     // command's owned writes before checking either tab or persisted document.
-    await flushShowRunnerTestApp(tester);
+    await _waitForApplication(tester, () async {
+      await flushShowRunnerTestApp(tester);
+      return !application.documents.hasUnsavedChanges;
+    }, 'Save All completion');
     await tester.pump();
     expect(
       firstEditor.isDirty,
@@ -207,14 +223,72 @@ Future<void> _openAutomation(WidgetTester tester, String title) async {
   }
   await _pumpUntilVisible(tester, find.text(title));
   await tester.tap(find.text(title).last);
-  await _pumpApplication(tester);
+  await _waitForActiveAutomation(tester, title);
+}
+
+Future<void> _waitForActiveAutomation(WidgetTester tester, String name) =>
+    _waitForApplication(tester, () async {
+      final graphs = tester.widgetList<AutomationGraphWorkspace>(
+        find.byType(AutomationGraphWorkspace),
+      );
+      if (graphs.length != 1) return false;
+      final application = tester
+          .widget<ShowRunnerPage>(find.byType(ShowRunnerPage))
+          .application!;
+      final active = application.documents.automations.active;
+      return active?.data.metadata['name'] == name &&
+          identical(active?.editor, graphs.single.editor);
+    }, 'active automation $name');
+
+Future<void> _waitForApplication(
+  WidgetTester tester,
+  Future<bool> Function() ready,
+  String operation,
+) async {
+  final elapsed = Stopwatch()..start();
+  while (elapsed.elapsed < const Duration(seconds: 5)) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (await ready()) return;
+    // Native pump durations advance frames; yield actual wall time for I/O.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+  }
+  final application = tester
+      .widget<ShowRunnerPage>(find.byType(ShowRunnerPage))
+      .application!;
+  final sessions = application.documents.automations.documents
+      .map(
+        (session) =>
+            '${session.fileName}: ${session.data.metadata['name']}, dirty=${session.dirty}, nodes=${session.editor.graph.activeSpace!.nodes.length}',
+      )
+      .join('; ');
+  final failures = tester
+      .widgetList<Text>(find.byType(Text))
+      .map((text) => text.data ?? '')
+      .where((text) => text.startsWith('Unable to save document'))
+      .join('; ');
+  throw TestFailure(
+    'Timed out waiting for $operation. Sessions: $sessions. $failures',
+  );
 }
 
 Future<void> _runFileCommand(WidgetTester tester, String command) async {
   await tester.tap(find.text('File').first);
   await _pumpApplication(tester);
-  await tester.tap(find.text(command));
+  final item = find.ancestor(
+    of: find.text(command),
+    matching: find.byType(PopupMenuItem<String>),
+  );
+  expect(item, findsOneWidget);
+  expect(
+    tester.widget<PopupMenuItem<String>>(item).enabled,
+    isTrue,
+    reason: '$command must be available',
+  );
+  await tester.tap(item);
   await _pumpApplication(tester);
+  expect(item, findsNothing, reason: '$command must dismiss the menu');
 }
 
 Future<void> _pumpApplication(WidgetTester tester) async {
