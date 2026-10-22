@@ -57,6 +57,7 @@ final class OverlayEditorController extends ChangeNotifier {
   bool get canUndo => _undo.isNotEmpty;
   bool get canRedo => _redo.isNotEmpty;
   Object keyAt(int index) => _keys[index];
+  int indexOfKey(Object key) => _keys.indexOf(key);
   int? get selectedIndex {
     final index = _keys.indexOf(selection.value ?? const _NoSelection());
     return index < 0 ? null : index;
