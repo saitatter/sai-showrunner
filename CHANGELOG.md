@@ -37,6 +37,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Separate overlay browser RPC dispatch, validate method arguments before repository/event access, cap viewer pages and state subscriptions, and reject widget calls targeting another overlay or a deleted widget.
 - Generate one strict, versioned overlay WebSocket envelope for Dart and TypeScript, bind messages to their overlay resource and return payload-free RPC errors; reject unsupported wire formats and bound browser connection/send lifetimes.
 - Give overlay WebSocket peers owned request timers, bounded pending/in-flight calls and replay protection; drain pending joins on shutdown, cap connections before loading resources and bound browser-side pending RPCs before allocating timers.
 - Separate remote discovery transport from its workspace, cache plugin-health requests in an owned diagnostics panel and provide explicit health refresh without issuing reads during ordinary rendering.
