@@ -14,6 +14,25 @@ function createRegistry(timeoutMs = 25): {
 }
 
 describe("PendingRPCRegistry", () => {
+	it("bounds pending calls before allocating timers and releases capacity on completion", async () => {
+		vi.useFakeTimers()
+		try {
+			const sent: OverlayTransportMessage[] = []
+			const registry = new PendingRPCRegistry(message => { sent.push(message) }, 25, 1)
+			const first = registry.call("one")
+			await expect(registry.call("two")).rejects.toThrow("request limit")
+			expect(sent).toHaveLength(1)
+			expect(vi.getTimerCount()).toBe(1)
+			registry.handleResponse({responseId: sent[0].requestId, result: 1})
+			expect(await first).toBe(1)
+			const second = registry.call("two")
+			const rejection = expect(second).rejects.toThrow("stopped")
+			registry.reset(new Error("stopped"))
+			await rejection
+			expect(vi.getTimerCount()).toBe(0)
+		} finally { vi.useRealTimers() }
+	})
+
 	it("resolves a request from its response and clears its timer", async () => {
 		vi.useFakeTimers()
 		try {

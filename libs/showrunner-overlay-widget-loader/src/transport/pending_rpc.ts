@@ -18,13 +18,19 @@ export class PendingRPCRegistry {
 	constructor(
 		private readonly send: RPCMessageSender,
 		private readonly timeoutMs: number,
-	) {}
+		private readonly maxPendingRequests = 64,
+	) {
+		if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || !Number.isInteger(maxPendingRequests) || maxPendingRequests <= 0) {
+			throw new Error("Overlay RPC limits must be positive")
+		}
+	}
 
 	get connectionGeneration(): number {
 		return this.generation
 	}
 
 	call<T = unknown>(name: string, ...args: unknown[]): Promise<T> {
+		if (this.pending.size >= this.maxPendingRequests) return Promise.reject(new Error("Overlay request limit reached"))
 		const requestId = `overlay-${Date.now()}-${this.nextRequest++}`
 		return new Promise<T>((resolve, reject) => {
 			const generation = this.generation
