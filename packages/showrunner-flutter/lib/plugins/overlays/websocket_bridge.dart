@@ -6,7 +6,6 @@ import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/filesystem/safe_path.dart';
 import '../../schema/json.dart';
 import '../../schema/resource.dart';
-import '../../schema/viewer_data.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
 import '../http/manifest.dart';
@@ -15,6 +14,7 @@ import '../sound/output.dart';
 import 'manifest.dart';
 import 'overlay_presence.dart';
 import 'overlay_peer.dart';
+import 'overlay_rpc_dispatcher.dart';
 
 /// Bridges the Flutter runtime to the browser/WebGL overlay.
 ///
@@ -68,6 +68,13 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   final Duration requestTimeout;
   final Directory? webRoot;
   late final List<StreamSubscription<RuntimeMap>> _subscriptions;
+  late final _rpc = OverlayRpcDispatcher(
+    registry: registry,
+    viewerDataRepository: viewerDataRepository,
+    eventHub: eventHub,
+    overlayStore: overlayStore,
+    send: _send,
+  );
   final _peers = <OverlayPeer>{};
   final _audioCancellations = <String, Completer<void>>{};
   bool _disposed = false;
@@ -242,7 +249,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
         maxMessageBytes: maxMessageBytes,
         requestTimeout: requestTimeout,
       );
-      peer.onRequest = (name, args) => _handlePeerRequest(peer, name, args);
+      peer.onRequest = (name, args) => _rpc.handle(peer, name, args);
       _peers.add(peer);
       unawaited(_servePeer(peer, resource));
       return true;
@@ -510,93 +517,6 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     }
   }
 
-  Future<Object?> _handlePeerRequest(
-    OverlayPeer peer,
-    String name,
-    List<dynamic> args,
-  ) async {
-    switch (name) {
-      case 'overlays_acquireState':
-        if (args.length < 2) return null;
-        final plugin = args[0].toString();
-        final state = args[1].toString();
-        peer.acquiredStates.add('$plugin\u0000$state');
-        await _send(peer, 'overlays_stateUpdate', [
-          plugin,
-          state,
-          registry.stateValues(plugin)[state],
-        ]);
-        return null;
-      case 'overlays_freeState':
-        if (args.length >= 2) {
-          peer.acquiredStates.remove('${args[0]}\u0000${args[1]}');
-        }
-        return null;
-      case 'overlays_widgetRPC':
-        if (args.length < 2) return null;
-        eventHub.emit(OverlayEventIds.widgetRpc, {
-          'overlayId': peer.overlayId,
-          'widgetId': args[1],
-          'rpcId': args[0],
-          'args': args.skip(2).toList(),
-        });
-        return null;
-      case 'overlays_observeViewerData':
-        peer.observingViewerData = true;
-        return null;
-      case 'overlays_unobserveViewerData':
-        peer.observingViewerData = false;
-        return null;
-      case 'overlays_queryViewerData':
-        return _queryViewerData(args);
-      case 'overlays_getViewerVariables':
-        return _viewerVariableSchemas();
-      default:
-        throw StateError('Unknown overlay request.');
-    }
-  }
-
-  Future<List<JsonMap>> _queryViewerData(List<dynamic> args) async {
-    final start = _integer(args.elementAtOrNull(0), 0).clamp(0, 1 << 30);
-    final end = _integer(
-      args.elementAtOrNull(1),
-      start + 100,
-    ).clamp(start, 1 << 30);
-    final sortBy = args.elementAtOrNull(2)?.toString() ?? 'id';
-    final descending = _integer(args.elementAtOrNull(3), 1) < 0;
-    final rows = <ViewerDataRow>[
-      ...await viewerDataRepository.queryViewers('twitch'),
-      ...await viewerDataRepository.queryViewers('youtube'),
-    ];
-    rows.sort((left, right) {
-      final leftValue = _viewerSortValue(left, sortBy);
-      final rightValue = _viewerSortValue(right, sortBy);
-      final result = leftValue.compareTo(rightValue);
-      return descending ? -result : result;
-    });
-    final from = start.clamp(0, rows.length).toInt();
-    final to = end.clamp(from, rows.length).toInt();
-    return rows.sublist(from, to).map((row) => row.toJson()).toList();
-  }
-
-  Future<List<JsonMap>> _viewerVariableSchemas() async {
-    final definitions = await viewerDataRepository.loadDefinitions();
-    return [
-      for (final definition in definitions)
-        {
-          'name': definition.name,
-          'type': _ipcType(definition.normalizedType),
-          if (definition.normalizedType == 'object')
-            'properties': <String, dynamic>{},
-          if (definition.normalizedType == 'list')
-            'items': <String, dynamic>{'type': 'String'},
-          if (definition.defaultValue != null)
-            'default': definition.defaultValue,
-          'required': definition.required,
-        },
-    ];
-  }
-
   Future<void> _send(OverlayPeer peer, String name, List<dynamic> args) async {
     try {
       await peer.call(name, args);
@@ -694,26 +614,4 @@ Future<void> _respond(HttpRequest request, int statusCode) async {
     ..statusCode = statusCode
     ..headers.contentLength = 0;
   await request.response.close();
-}
-
-String _ipcType(String type) => switch (type) {
-  'number' => 'Number',
-  'boolean' => 'Boolean',
-  'object' || 'json' => 'Object',
-  'list' => 'Array',
-  'color' => 'Color',
-  'lightcolor' => 'LightColor',
-  'twitchviewer' => 'TwitchViewer',
-  _ => 'String',
-};
-
-int _integer(Object? value, int fallback) =>
-    value is num ? value.toInt() : int.tryParse('$value') ?? fallback;
-
-String _viewerSortValue(ViewerDataRow row, String sortBy) {
-  if (sortBy == 'id') return row.viewer.id;
-  if (sortBy == 'name' || sortBy == 'displayName') {
-    return row.viewer.displayName;
-  }
-  return '${row.values[sortBy] ?? ''}';
 }
