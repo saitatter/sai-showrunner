@@ -29,6 +29,7 @@ final class RemoteDashboardHost extends ChangeNotifier {
     required this.eventHub,
     required this.signaling,
     this.peerFactory = createFlutterSatellitePeerConnection,
+    this.dashboardLoader,
   });
 
   final ShowRunnerDataService dataService;
@@ -36,6 +37,7 @@ final class RemoteDashboardHost extends ChangeNotifier {
   final DartPluginEventHub eventHub;
   final SatelliteSignalingController signaling;
   final RemoteDashboardHostPeerFactory peerFactory;
+  final Future<ResourceData?> Function(String id)? dashboardLoader;
 
   final _connections = <String, _RemoteDashboardHostConnection>{};
   final _stateSubscriptions = <String, Set<String>>{};
@@ -124,6 +126,10 @@ final class RemoteDashboardHost extends ChangeNotifier {
       return;
     }
     for (final connection in matching) {
+      if (!_requestIsAllowed(connection.config, resource)) {
+        await _removeConnection(connection);
+        continue;
+      }
       connection.updateDashboardConfig(resource.config);
       await connection.sendDashboardConfig();
     }
@@ -203,6 +209,19 @@ final class RemoteDashboardHost extends ChangeNotifier {
     String name,
     List<dynamic> args,
   ) async {
+    if (_closed ||
+        !_started ||
+        !identical(_connections[connection.id], connection)) {
+      throw StateError('Dashboard session is no longer active.');
+    }
+    final resource = await _loadSharedDashboard(connection.config.dashboardId);
+    if (_closed ||
+        !_started ||
+        !identical(_connections[connection.id], connection) ||
+        resource == null ||
+        !_requestIsAllowed(connection.config, resource)) {
+      throw StateError('Dashboard access is no longer available.');
+    }
     switch (name) {
       case 'dashboard_acquireState':
         if (args.length < 2) {
@@ -234,7 +253,7 @@ final class RemoteDashboardHost extends ChangeNotifier {
         }
         return null;
       case 'dashboard_widgetRPC':
-        return _handleWidgetRpc(connection, args);
+        return _handleWidgetRpc(resource.config, args);
       case 'satellite_resourceBind':
       case 'satellite_resourceUnbind':
         // Resource slots are owned by the dashboard host. The binding itself
@@ -248,7 +267,7 @@ final class RemoteDashboardHost extends ChangeNotifier {
   }
 
   Future<Object?> _handleWidgetRpc(
-    _RemoteDashboardHostConnection connection,
+    JsonMap dashboardConfig,
     List<dynamic> args,
   ) async {
     if (args.length < 2) {
@@ -257,7 +276,7 @@ final class RemoteDashboardHost extends ChangeNotifier {
     final rpcId = args[0]?.toString() ?? '';
     final widgetId = args[1]?.toString() ?? '';
     if (rpcId != 'pressbutton' || widgetId.isEmpty) return null;
-    final widget = _findWidget(connection.dashboardConfig, widgetId);
+    final widget = _findWidget(dashboardConfig, widgetId);
     if (widget == null ||
         widget['plugin']?.toString() != 'remote' ||
         widget['widget']?.toString() != 'button') {
@@ -396,9 +415,11 @@ final class RemoteDashboardHost extends ChangeNotifier {
     if (!_safeId(id)) {
       return null;
     }
-    final resource = await dataService.storage
-        .resource(const ResourceTypeId('Dashboard'))
-        .load(id);
+    final resource =
+        await (dashboardLoader?.call(id) ??
+            dataService.storage
+                .resource(const ResourceTypeId('Dashboard'))
+                .load(id));
     if (resource == null) {
       return null;
     }
@@ -573,6 +594,9 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
       throw StateError('Remote dashboard control channel is not connected.');
     }
     final requestId = '$id-${_requestNumber++}';
+    if (_pending.length >= 64) {
+      throw StateError('Remote request limit reached.');
+    }
     final completer = Completer<dynamic>();
     _pending[requestId] = completer;
     // Attach before send: a synchronous disconnect may fail the reply early.
@@ -671,6 +695,7 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
   }
 
   Future<void> _handleControlMessage(String raw) async {
+    if (_closed) return;
     final decoded = _decodeJson(raw);
     if (decoded is! Map) return;
     final responseId = decoded['responseId']?.toString();
@@ -678,7 +703,7 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
       final completer = _pending[responseId];
       if (completer == null || completer.isCompleted) return;
       if (decoded.containsKey('failed')) {
-        completer.completeError(StateError(decoded['failed'].toString()));
+        completer.completeError(StateError('Remote RPC failed.'));
       } else {
         completer.complete(decoded['result']);
       }
@@ -692,12 +717,14 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
         : const <dynamic>[];
     try {
       final result = await onRequest(name, args);
+      if (_closed) return;
       await _control?.sendText(
         jsonEncode({'responseId': requestId, 'result': result}),
       );
-    } on Object catch (error) {
+    } on Object {
+      if (_closed) return;
       await _control?.sendText(
-        jsonEncode({'responseId': requestId, 'failed': error.toString()}),
+        jsonEncode({'responseId': requestId, 'failed': true}),
       );
     }
   }

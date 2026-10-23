@@ -113,8 +113,13 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
       throw StateError('Remote dashboard control channel is not connected.');
     }
     final requestId = '$id-${_requestNumber++}';
+    if (_pendingCalls.length >= 64) {
+      throw StateError('Remote request limit reached.');
+    }
     final completer = Completer<dynamic>();
     _pendingCalls[requestId] = completer;
+    // A channel can disconnect synchronously while sendText is still pending.
+    completer.future.ignore();
     try {
       await channel.sendText(
         jsonEncode({'requestId': requestId, 'name': name, 'args': args}),
@@ -166,6 +171,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   }
 
   void _handlePeerState(SatellitePeerState state) {
+    if (_closed) return;
     _peerConnected = state == SatellitePeerState.connected;
     if (state == SatellitePeerState.failed ||
         state == SatellitePeerState.disconnected ||
@@ -180,6 +186,10 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   }
 
   void _handleDataChannel(SatelliteDataChannel channel) {
+    if (_closed) {
+      unawaited(channel.close());
+      return;
+    }
     if (channel.label == 'controlChannel') {
       _control = channel;
       _bindControl(channel);
@@ -190,6 +200,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
 
   void _bindControl(SatelliteDataChannel channel) {
     channel.onStateChanged = (state) {
+      if (_closed || !identical(_control, channel)) return;
       if (state == SatelliteChannelState.open && _peerConnected) {
         _state = SatelliteConnectionState.connected;
       } else if (state == SatelliteChannelState.closed) {
@@ -206,6 +217,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   }
 
   Future<void> _handleControlMessage(String raw) async {
+    if (_closed) return;
     final decoded = _decodeJson(raw);
     if (decoded is! Map) return;
     if (decoded['responseId'] is String) {
@@ -263,12 +275,14 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
         default:
           return;
       }
+      if (_closed) return;
       await _control?.sendText(
         jsonEncode({'responseId': requestId, 'result': result}),
       );
-    } on Object catch (error) {
+    } on Object {
+      if (_closed) return;
       await _control?.sendText(
-        jsonEncode({'responseId': requestId, 'failed': error.toString()}),
+        jsonEncode({'responseId': requestId, 'failed': true}),
       );
     }
   }
