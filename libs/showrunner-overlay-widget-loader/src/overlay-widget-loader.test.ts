@@ -76,9 +76,10 @@ describe("ViewerDataStore", () => {
 
 describe("mediaUrl", () => {
 	it("resolves stored media paths through the bridge media endpoint", () => {
-		expect(mediaUrl("127.0.0.1:8181", "/default/alert.mp3")).toBe("http://127.0.0.1:8181/media/default/alert.mp3")
-		expect(mediaUrl("127.0.0.1:8181", "media/default/alert.mp3")).toBe("http://127.0.0.1:8181/media/default/alert.mp3")
-		expect(mediaUrl("127.0.0.1:8181", "https://cdn.example.test/alert.mp3")).toBe("https://cdn.example.test/alert.mp3")
+		expect(mediaUrl("127.0.0.1:8181", "/default/alert.mp3", "fixture")).toBe("http://127.0.0.1:8181/overlays/fixture/media/default/alert.mp3")
+		expect(mediaUrl("127.0.0.1:8181", "media/default/alert.mp3", "fixture")).toBe("http://127.0.0.1:8181/overlays/fixture/media/default/alert.mp3")
+		expect(mediaUrl("127.0.0.1:8181", "https://cdn.example.test/alert.mp3", "fixture")).toBe("https://cdn.example.test/alert.mp3")
+		expect(mediaUrl("127.0.0.1:8181", "/overlays/other/media/default/alert.mp3", "fixture")).toBe("")
 	})
 })
 

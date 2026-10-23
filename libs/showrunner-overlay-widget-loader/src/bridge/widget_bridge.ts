@@ -69,7 +69,7 @@ export function createWidgetBridge(
 			host.viewerData.query(start, end, sortBy, sortOrder),
 		getViewerVariables: () => host.viewerData.getVariables(),
 		playSound: (file) => {
-			const audio = playMedia(host.host ?? window.location.host, file)
+			const audio = playMedia(host.host ?? window.location.host, file, {}, host.overlayId)
 			if (audio) scope.add(() => audio.pause())
 		},
 	}

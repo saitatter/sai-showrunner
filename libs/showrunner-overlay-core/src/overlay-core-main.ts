@@ -291,13 +291,15 @@ export function toRgba(hex: string, opacity: number, fallback: [number, number, 
 	return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${Math.max(0, Math.min(1, Number(opacity) || 0))})`
 }
 
-export function mediaUrl(host: string, mediaFile: string): string {
+export function mediaUrl(host: string, mediaFile: string, overlayId: string): string {
 	const value = String(mediaFile || "").trim()
 	if (!value) return ""
 	if (/^https?:\/\//i.test(value)) return value
 	const normalized = value.replaceAll("\\", "/").replace(/^\/+/, "")
-	if (normalized.startsWith("media/")) return `http://${host}/${normalized}`
-	return `http://${host}/media/${normalized}`
+	const prefix = `overlays/${encodeURIComponent(overlayId)}/media/`
+	if (normalized.startsWith(prefix)) return `http://${host}/${normalized}`
+	if (normalized.startsWith("overlays/")) return ""
+	return `http://${host}/${prefix}${normalized.replace(/^media\//, "")}`
 }
 
 export interface MediaPlaybackOptions {
@@ -307,9 +309,9 @@ export interface MediaPlaybackOptions {
 	volume?: number
 }
 
-export function playMedia(host: string, mediaFile: string, options: MediaPlaybackOptions = {}): HTMLAudioElement | undefined {
+export function playMedia(host: string, mediaFile: string, options: MediaPlaybackOptions, overlayId: string): HTMLAudioElement | undefined {
 	if (!mediaFile) return undefined
-	const audio = new Audio(mediaUrl(host, mediaFile))
+	const audio = new Audio(mediaUrl(host, mediaFile, overlayId))
 	if (options.volume !== undefined) audio.volume = Math.max(0, Math.min(1, Number(options.volume) / 100))
 	if (options.startSec !== undefined && Number.isFinite(options.startSec)) audio.currentTime = Math.max(0, options.startSec)
 	if (options.endSec !== undefined && Number.isFinite(options.endSec)) {

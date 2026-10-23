@@ -17,6 +17,15 @@ binary/malformed/oversized frames, send-buffer saturation and timer cleanup.
 These fixtures prove transport behavior, not LAN authentication, private-field
 projection, live OBS rendering or GPU compatibility.
 
+`node tools/overlay_registry/transport-browser-smoke.mjs` (after `overlay:build`)
+launches an isolated Dart bridge and real Chromium. It proves fragment-to-session
+bootstrap, an HttpOnly cookie, same-overlay config, foreign-overlay denial,
+versioned WebSocket config/RPC delivery and shutdown. The host uses synthetic data
+and an ephemeral secret; raw manifests and reports stay under `.tmp/protocols`.
+The token persistence fixture verifies concurrent owners retain one encrypted-store
+secret, public settings exclude it, and malformed stored secrets are preserved.
+This is loopback evidence, not live OBS or untrusted-network/cloud identity proof.
+
 The reference for the baseline/security work is commit `872f3b2f1` (the integrated
 chat branch). It was captured with a clean working tree on Windows 11 Pro x64,
 build 26200, Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0. Both

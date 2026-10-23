@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Require overlay-scoped browser capabilities for config, media and WebSocket access, store the installation secret encrypted and bootstrap HttpOnly path-scoped cookies from URL fragments; existing OBS sources need the current Browser Source URL copied or fixed from the editor.
 - Recheck shared-dashboard permissions and current button definitions before remote commands, close revoked sessions on refresh, bound pending remote RPCs and keep provider error text and stale callbacks out of disconnected sessions.
 - Prevent stopped, timed-out or unregistered HTTP handlers and endpoint routes from continuing dispatch; serialize listener startup/shutdown so concurrent starts cannot leak a server.
 - Ignore obsolete remote discovery failures and connection/RPC continuations after workspace replacement; keep provider, startup, registry and queue errors out of public diagnostic payloads.

@@ -188,7 +188,7 @@ export class OverlayRuntime {
 						startSec: Number(args[2]),
 						endSec: args[3] == null ? undefined : Number(args[3]),
 						volume: args[4] == null ? undefined : Number(args[4]),
-					})
+					}, this.options.overlayId)
 					if (audio && playId) {
 						this.playingAudio.get(playId)?.pause()
 						this.playingAudio.set(playId, audio)
@@ -285,7 +285,7 @@ export class OverlayRuntime {
 			state,
 			viewerData,
 			isEditor: this.options.isEditor ?? false,
-			mediaUrl: (file) => mediaUrl(this.options.host ?? window.location.host, file),
+			mediaUrl: (file) => mediaUrl(this.options.host ?? window.location.host, file, this.options.overlayId),
 		}
 		const widget = info.definition.create(context, config.config)
 		this.instances.set(config.id, { config, container, widget, scope })

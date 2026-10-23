@@ -169,8 +169,10 @@ final class DartHttpEndpointService {
     bool Function() isActive,
   ) async {
     if (WebSocketTransformer.isUpgradeRequest(request)) {
-      if (request.uri.path != '/' ||
-          request.uri.queryParameters['overlay']?.isNotEmpty != true ||
+      final segments = request.uri.pathSegments;
+      if (segments.length != 3 ||
+          segments.first != 'overlays' ||
+          segments.last != 'socket' ||
           _webSocketHandlers.isEmpty) {
         await _respond(request, HttpStatus.notFound);
         return;
