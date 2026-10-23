@@ -1,0 +1,23 @@
+{
+  "resourceId": "fixture",
+  "valid": [
+    {"wire":{"protocolVersion":1,"type":"request","resourceId":"fixture","requestId":"one","payload":{"name":"overlays_acquireState","args":["twitch","viewerCount"]}},"logical":{"requestId":"one","name":"overlays_acquireState","args":["twitch","viewerCount"]}},
+    {"wire":{"protocolVersion":1,"type":"response","resourceId":"fixture","requestId":"one","payload":{"result":{"nested":[1,null,true]}}},"logical":{"responseId":"one","result":{"nested":[1,null,true]}}},
+    {"wire":{"protocolVersion":1,"type":"response","resourceId":"fixture","requestId":"one","payload":{"result":null}},"logical":{"responseId":"one","result":null}},
+    {"wire":{"protocolVersion":1,"type":"error","resourceId":"fixture","requestId":"one","payload":{"code":"rpc_failed"}},"logical":{"responseId":"one","failed":true}}
+  ],
+  "invalid": [
+    null, [], 42,
+    {"requestId":"one","name":"legacy","args":[]},
+    {"protocolVersion":2,"type":"request","resourceId":"fixture","requestId":"one","payload":{"name":"read","args":[]}},
+    {"protocolVersion":1,"type":"unknown","resourceId":"fixture","requestId":"one","payload":{}},
+    {"protocolVersion":1,"type":"request","resourceId":"other","requestId":"one","payload":{"name":"read","args":[]}},
+    {"protocolVersion":1,"type":"request","resourceId":"fixture","requestId":"","payload":{"name":"read","args":[]}},
+    {"protocolVersion":1,"type":"request","resourceId":"fixture","requestId":"one","payload":{"name":"read","args":{}}},
+    {"protocolVersion":1,"type":"request","resourceId":"fixture","requestId":"one","payload":{"name":"read","args":[],"toString":"extra"}},
+    {"protocolVersion":1,"type":"request","resourceId":"fixture","requestId":"one","payload":{"name":"read","args":[]},"toString":"extra"},
+    {"protocolVersion":1,"type":"response","resourceId":"fixture","requestId":"one","payload":{}},
+    {"protocolVersion":1,"type":"error","resourceId":"fixture","requestId":"one","payload":{"code":"private-provider-error"}},
+    {"protocolVersion":1,"type":"error","resourceId":"fixture","requestId":"one","payload":{"code":"rpc_failed","detail":"private"}}
+  ]
+}

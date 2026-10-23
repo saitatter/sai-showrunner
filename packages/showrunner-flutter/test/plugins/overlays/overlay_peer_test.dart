@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/overlays/overlay_peer.dart';
+import 'package:showrunner_flutter/plugins/overlays/overlay_protocol.generated.dart';
 
 final class _Pair {
   _Pair(this.server, this.client, this.peer)
@@ -35,14 +36,20 @@ final class _Pair {
   }
 
   void request(String id) => client.add(
-    jsonEncode({'requestId': id, 'name': 'fixture_read', 'args': []}),
+    jsonEncode(
+      encodeOverlayWire({
+        'requestId': id,
+        'name': 'fixture_read',
+        'args': [],
+      }, 'fixture'),
+    ),
   );
   Future<Map<String, dynamic>> next() async {
     expect(
       await messages.moveNext().timeout(const Duration(seconds: 2)),
       isTrue,
     );
-    return jsonDecode(messages.current as String) as Map<String, dynamic>;
+    return decodeOverlayWire(jsonDecode(messages.current as String), 'fixture');
   }
 
   Future<void> closed() async {
@@ -92,7 +99,12 @@ void main() {
       await checked;
       expect(pair.peer.pendingRequests, 0);
       pair.client.add(
-        jsonEncode({'responseId': request['requestId'], 'result': 'late'}),
+        jsonEncode(
+          encodeOverlayWire({
+            'responseId': request['requestId'],
+            'result': 'late',
+          }, 'fixture'),
+        ),
       );
       await Future<void>.delayed(const Duration(milliseconds: 10));
       expect(pair.peer.isClosed, isFalse);
@@ -105,7 +117,12 @@ void main() {
     await expectLater(pair.peer.call('overflow', []), throwsStateError);
     final request = await pair.next();
     pair.client.add(
-      jsonEncode({'responseId': request['requestId'], 'result': 42}),
+      jsonEncode(
+        encodeOverlayWire({
+          'responseId': request['requestId'],
+          'result': 42,
+        }, 'fixture'),
+      ),
     );
     expect(await call, 42);
     expect(pair.peer.pendingRequests, 0);
@@ -190,7 +207,18 @@ void main() {
           calls++;
           return null;
         };
-        pair.client.add(jsonEncode(value));
+        pair.client.add(
+          jsonEncode({
+            'protocolVersion': 1,
+            'type': 'request',
+            'resourceId': 'fixture',
+            'requestId': value['requestId'],
+            'payload': {
+              for (final entry in value.entries)
+                if (entry.key != 'requestId') entry.key: entry.value,
+            },
+          }),
+        );
         await pair.closed();
         expect(pair.client.closeCode, WebSocketStatus.invalidFramePayloadData);
         expect(calls, 0);

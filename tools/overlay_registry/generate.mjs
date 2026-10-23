@@ -2,9 +2,12 @@ import { spawnSync } from "node:child_process"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { generateRegistry } from "../../libs/showrunner-overlay-build/src/index.mjs"
+import { generateProtocol } from "./protocol-generator.mjs"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const flutterCatalogLibraryOutput = path.join(root, "packages/showrunner-flutter/lib/plugins/overlays/overlay_widget_catalog.generated.dart")
+const flutterProtocolOutput = path.join(root, "packages/showrunner-flutter/lib/plugins/overlays/overlay_protocol.generated.dart")
+generateProtocol(root)
 generateRegistry({
 	pluginsRoot: path.join(root, "plugins"),
 	outputDirectory: path.join(root, "packages/showrunner-obs-overlay/src/generated"),
@@ -18,7 +21,7 @@ generateRegistry({
 // available so `overlay:generate` is clean in the environments that compile
 // the desktop application.
 const dartCommand = process.platform === "win32" ? "dart.bat" : "dart"
-const result = spawnSync(dartCommand, ["format", flutterCatalogLibraryOutput], {
+const result = spawnSync(dartCommand, ["format", flutterCatalogLibraryOutput, flutterProtocolOutput], {
 	stdio: "inherit",
 	shell: process.platform === "win32",
 })

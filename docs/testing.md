@@ -6,6 +6,17 @@ OBS profiles and credentials are never disposable fixtures.
 
 ## Baseline and behavior contracts
 
+Overlay protocol fixtures are shared verbatim by Dart
+`test/plugins/overlays/overlay_protocol_test.dart` and TypeScript
+`tools/overlay_registry/protocol.test.mjs`. Loopback peer/bridge tests cover
+pending-call limits and expiry, duplicate IDs, late responses/results, join limits
+and disposal during resource lookup. HTTP fixtures cover concurrent starts,
+stop during startup and continuation after handler removal, shutdown or timeout.
+Browser transport fixtures cover handshake deadlines, secure WebSocket selection,
+binary/malformed/oversized frames, send-buffer saturation and timer cleanup.
+These fixtures prove transport behavior, not LAN authentication, private-field
+projection, live OBS rendering or GPU compatibility.
+
 The reference for the baseline/security work is commit `872f3b2f1` (the integrated
 chat branch). It was captured with a clean working tree on Windows 11 Pro x64,
 build 26200, Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0. Both
