@@ -10,6 +10,8 @@ import '../../services/http_provider_transports.dart';
 import '../../services/showrunner_data_service.dart';
 import '../twitch/account_runtime.dart';
 import '../spellcast/cloud_pubsub.dart';
+import 'remote_protocol.generated.dart';
+import 'remote_request_window.dart';
 
 part 'satellite/protocol.dart';
 part 'satellite/signaling.dart';
@@ -41,9 +43,12 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   final _slots = <String, RemoteResourceSlot>{};
   final _broadcasts = StreamController<RuntimeMap>.broadcast();
   final _pendingCalls = <String, Completer<dynamic>>{};
+  final _inbound = RemoteRequestWindow();
   int _requestNumber = 0;
   bool _started = false;
   bool _closed = false;
+  bool _disposed = false;
+  Future<void>? _disconnecting;
   bool _peerConnected = false;
 
   SatelliteConnectionState get state => _state;
@@ -122,7 +127,13 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     completer.future.ignore();
     try {
       await channel.sendText(
-        jsonEncode({'requestId': requestId, 'name': name, 'args': args}),
+        jsonEncode(
+          encodeRemoteWire({
+            'requestId': requestId,
+            'name': name,
+            'args': args,
+          }, config.dashboardId),
+        ),
       );
       return await completer.future.timeout(const Duration(seconds: 20));
     } finally {
@@ -153,18 +164,27 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
           : 'satellite_resourceBind',
       [slotId],
     );
+    if (_closed) throw StateError('Remote dashboard disconnected.');
     _slots[slotId] = slot.copyWith(resourceId: resourceId);
     notifyListeners();
   }
 
-  Future<void> disconnect() async {
+  Future<void> disconnect() => _disconnecting ??= _disconnect();
+
+  Future<void> _disconnect() async {
     if (_closed) return;
     _closed = true;
     _state = SatelliteConnectionState.disconnected;
     _rejectPendingCalls('Remote dashboard disconnected.');
-    await _control?.close();
-    await _peer?.close();
-    await _peer?.dispose();
+    try {
+      await _control?.close();
+    } finally {
+      try {
+        await _peer?.close();
+      } finally {
+        await _peer?.dispose();
+      }
+    }
     _control = null;
     _peer = null;
     notifyListeners();
@@ -186,7 +206,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   }
 
   void _handleDataChannel(SatelliteDataChannel channel) {
-    if (_closed) {
+    if (_closed || _control != null) {
       unawaited(channel.close());
       return;
     }
@@ -209,7 +229,11 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
       }
       notifyListeners();
     };
-    channel.onMessage = (message) => unawaited(_handleControlMessage(message));
+    channel.onMessage = (message) => unawaited(
+      _handleControlMessage(message).catchError((Object _) {
+        unawaited(disconnect().catchError((Object _) {}));
+      }),
+    );
     if (channel.state == SatelliteChannelState.open && _peerConnected) {
       _state = SatelliteConnectionState.connected;
       notifyListeners();
@@ -218,8 +242,16 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
 
   Future<void> _handleControlMessage(String raw) async {
     if (_closed) return;
-    final decoded = _decodeJson(raw);
-    if (decoded is! Map) return;
+    Map<String, dynamic> decoded;
+    try {
+      if (raw.length > 1024 * 1024 || utf8.encode(raw).length > 1024 * 1024) {
+        throw const FormatException();
+      }
+      decoded = decodeRemoteWire(jsonDecode(raw), config.dashboardId);
+    } on Object {
+      await disconnect();
+      return;
+    }
     if (decoded['responseId'] is String) {
       final completer = _pendingCalls[decoded['responseId']];
       if (completer == null || completer.isCompleted) return;
@@ -233,6 +265,12 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     final requestId = decoded['requestId']?.toString();
     final name = decoded['name']?.toString();
     if (requestId == null || name == null) return;
+    try {
+      _inbound.enter(requestId);
+    } on Object {
+      await disconnect();
+      return;
+    }
     try {
       dynamic result;
       switch (name) {
@@ -277,13 +315,25 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
       }
       if (_closed) return;
       await _control?.sendText(
-        jsonEncode({'responseId': requestId, 'result': result}),
+        jsonEncode(
+          encodeRemoteWire({
+            'responseId': requestId,
+            'result': result,
+          }, config.dashboardId),
+        ),
       );
     } on Object {
       if (_closed) return;
       await _control?.sendText(
-        jsonEncode({'responseId': requestId, 'failed': true}),
+        jsonEncode(
+          encodeRemoteWire({
+            'responseId': requestId,
+            'failed': true,
+          }, config.dashboardId),
+        ),
       );
+    } finally {
+      _inbound.leave();
     }
   }
 
@@ -321,15 +371,15 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
 
   @override
   void dispose() {
-    if (!_closed) {
-      _closed = true;
-      _rejectPendingCalls('Remote dashboard disposed.');
-      unawaited(_control?.close());
-      unawaited(_peer?.close());
-      unawaited(_peer?.dispose());
-    }
+    _disposed = true;
+    unawaited(disconnect().catchError((Object _) {}));
     unawaited(_broadcasts.close());
     super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
   }
 
   void _rejectPendingCalls(String message) {

@@ -7,6 +7,7 @@ import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/remote/dashboard_host.dart';
 import 'package:showrunner_flutter/plugins/remote/manifest.dart';
 import 'package:showrunner_flutter/plugins/remote/satellite.dart';
+import 'package:showrunner_flutter/plugins/remote/remote_protocol.generated.dart';
 import 'package:showrunner_flutter/plugins/spellcast/cloud_pubsub.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
@@ -419,8 +420,8 @@ class _FakeDataChannel implements SatelliteDataChannel {
 
   @override
   Future<void> sendText(String message) async {
-    sent.add(message);
-    final decoded = jsonDecode(message) as Map;
+    final decoded = decodeRemoteWire(jsonDecode(message), 'dash-1');
+    sent.add(jsonEncode(decoded));
     if (autoAcknowledge && decoded['requestId'] != null) {
       scheduleMicrotask(
         () => emitMessage(
@@ -438,7 +439,11 @@ class _FakeDataChannel implements SatelliteDataChannel {
     _onStateChanged?.call(state);
   }
 
-  void emitMessage(String message) => _onMessage?.call(message);
+  void emitMessage(String message) => _onMessage?.call(
+    jsonEncode(
+      encodeRemoteWire(jsonDecode(message) as Map<String, dynamic>, 'dash-1'),
+    ),
+  );
 }
 
 class _FakePeerConnection implements SatellitePeerConnection {

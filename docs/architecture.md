@@ -434,7 +434,8 @@ Confirmed isolated reproducers and fixes:
 
 ### Overlay wire contract
 
-`tools/overlay_registry/overlay-protocol.schema.json` owns the WebSocket envelope.
+`tools/overlay_registry/overlay-protocol.schema.json` owns the shared resource RPC
+envelope used by overlay WebSockets and Remote/Satellite control data channels.
 `overlay:generate` emits the Dart and TypeScript codecs from that schema and the
 adjacent runtime templates. Both runtimes consume the same accepted/rejected
 fixtures in `test/fixtures/overlay-protocol.json`. This is an atomic desktop/browser
@@ -456,8 +457,19 @@ Browser-to-desktop methods are `overlays_acquireState`, `overlays_freeState`,
 methods are `overlays_setConfig`, `overlays_stateUpdate`, `overlays_widget`,
 `overlays_widgetRPC`, `overlays_broadcast`, `overlays_playAudio`,
 `overlays_cancelAudio` and viewer data/variable notifications handled by the
-browser runtime. HTTP config/media, Satellite data channels and chat dock HTTP
-remain distinct boundaries; this envelope does not authenticate them.
+browser runtime. HTTP config/media, Satellite signaling and chat dock HTTP remain
+distinct boundaries; this envelope does not authenticate them.
+
+Remote control uses the same generated envelope with the dashboard resource ID.
+The host and satellite reject wrong IDs, unknown versions, oversized frames and
+recent replay before dispatch. A 256-ID replay window and 16 active operations
+bound one channel; each side permits at most 64 pending outbound requests.
+The host reloads the shared dashboard and rechecks the connection/ACL before
+commands, resolves buttons from that current document and closes revoked sessions
+on refresh. Satellite disconnect has one awaited channel/peer cleanup sequence;
+disposed or superseded channels cannot publish late messages or state changes.
+These are data-channel checks, not evidence of cloud identity attestation or live
+network pairing. SDP/ICE signaling retains its separate contract.
 
 The service admits at most 32 connected or joining peers. Each peer owns up to
 64 outbound RPC deadlines and 16 actual inbound operations. Expired work retains

@@ -6,8 +6,12 @@ export function generateProtocol(root) {
   for (const [template, destination] of [
     ["protocol.ts.template", "libs/showrunner-overlay-core/src/generated/overlay-protocol.generated.ts"],
     ["protocol.dart.template", "packages/showrunner-flutter/lib/plugins/overlays/overlay_protocol.generated.dart"],
+    ["protocol.dart.template", "packages/showrunner-flutter/lib/plugins/remote/remote_protocol.generated.dart"],
   ]) {
     const source = readFileSync(path.join(root, "tools/overlay_registry", template), "utf8")
-    writeFileSync(path.join(root, destination), source.replace("__SCHEMA__", JSON.stringify(schema)))
+    const generated = source.replace("__SCHEMA__", JSON.stringify(schema))
+    writeFileSync(path.join(root, destination), destination.includes("/remote/")
+      ? generated.replaceAll("decodeOverlayWire", "decodeRemoteWire").replaceAll("encodeOverlayWire", "encodeRemoteWire")
+      : generated)
   }
 }

@@ -7,6 +7,7 @@ import { generateProtocol } from "./protocol-generator.mjs"
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const flutterCatalogLibraryOutput = path.join(root, "packages/showrunner-flutter/lib/plugins/overlays/overlay_widget_catalog.generated.dart")
 const flutterProtocolOutput = path.join(root, "packages/showrunner-flutter/lib/plugins/overlays/overlay_protocol.generated.dart")
+const flutterRemoteProtocolOutput = path.join(root, "packages/showrunner-flutter/lib/plugins/remote/remote_protocol.generated.dart")
 generateProtocol(root)
 generateRegistry({
 	pluginsRoot: path.join(root, "plugins"),
@@ -21,7 +22,7 @@ generateRegistry({
 // available so `overlay:generate` is clean in the environments that compile
 // the desktop application.
 const dartCommand = process.platform === "win32" ? "dart.bat" : "dart"
-const result = spawnSync(dartCommand, ["format", flutterCatalogLibraryOutput, flutterProtocolOutput], {
+const result = spawnSync(dartCommand, ["format", flutterCatalogLibraryOutput, flutterProtocolOutput, flutterRemoteProtocolOutput], {
 	stdio: "inherit",
 	shell: process.platform === "win32",
 })

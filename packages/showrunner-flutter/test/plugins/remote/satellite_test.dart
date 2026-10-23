@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/remote/satellite.dart';
+import 'package:showrunner_flutter/plugins/remote/remote_protocol.generated.dart';
 import 'package:showrunner_flutter/plugins/spellcast/cloud_pubsub.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
@@ -197,6 +198,18 @@ void main() {
 
       await connection.disconnect();
       connection.dispose();
+      final sentBeforeLate = peer.channel.sent.length;
+      peer.channel.emitMessage(
+        jsonEncode({
+          'requestId': 'late-after-dispose',
+          'name': 'dashboard_stateUpdate',
+          'args': ['probe', 'late', 1],
+        }),
+      );
+      peer.channel.emitState(SatelliteChannelState.open);
+      peer.emitPeerState(SatellitePeerState.connected);
+      await Future<void>.delayed(Duration.zero);
+      expect(peer.channel.sent, hasLength(sentBeforeLate));
       signaling.dispose();
     },
   );
@@ -307,6 +320,33 @@ void main() {
       );
       expect(await rpc, cycle);
 
+      if (cycle == 0) {
+        final state = jsonEncode({
+          'requestId': 'replay-probe',
+          'name': 'dashboard_stateUpdate',
+          'args': ['probe', 'value', 1],
+        });
+        peer.channel.emitMessage(state);
+        await Future<void>.delayed(Duration.zero);
+        expect(connection.states['probe']?['value'], 1);
+        peer.channel.emitMessage(state);
+        await Future<void>.delayed(Duration.zero);
+        expect(connection.state, SatelliteConnectionState.disconnected);
+      } else if (cycle == 1 || cycle == 2) {
+        final wire = encodeRemoteWire({
+          'requestId': 'invalid-probe',
+          'name': 'dashboard_stateUpdate',
+          'args': ['probe', 'value', 1],
+        }, 'dash-1');
+        wire[cycle == 1 ? 'resourceId' : 'protocolVersion'] = cycle == 1
+            ? 'another-dashboard'
+            : 99;
+        peer.channel.emitWire(jsonEncode(wire));
+        await Future<void>.delayed(Duration.zero);
+        expect(connection.state, SatelliteConnectionState.disconnected);
+        expect(connection.states['probe'], isNull);
+      }
+
       await connection.disconnect();
       connection.dispose();
       expect(connection.state, SatelliteConnectionState.disconnected);
@@ -340,6 +380,7 @@ class _FakeCloudPubSubSocket implements CloudPubSubSocket {
 class _FakeDataChannel implements SatelliteDataChannel {
   SatelliteChannelState _state = SatelliteChannelState.connecting;
   final sent = <String>[];
+  void emitWire(String message) => _onMessage?.call(message);
   void Function(SatelliteChannelState state)? _onStateChanged;
   void Function(String message)? _onMessage;
 
@@ -360,7 +401,8 @@ class _FakeDataChannel implements SatelliteDataChannel {
   }
 
   @override
-  Future<void> sendText(String message) async => sent.add(message);
+  Future<void> sendText(String message) async =>
+      sent.add(jsonEncode(decodeRemoteWire(jsonDecode(message), 'dash-1')));
 
   @override
   Future<void> close() async => emitState(SatelliteChannelState.closed);
@@ -370,7 +412,11 @@ class _FakeDataChannel implements SatelliteDataChannel {
     _onStateChanged?.call(state);
   }
 
-  void emitMessage(String message) => _onMessage?.call(message);
+  void emitMessage(String message) => _onMessage?.call(
+    jsonEncode(
+      encodeRemoteWire(jsonDecode(message) as Map<String, dynamic>, 'dash-1'),
+    ),
+  );
 }
 
 class _FakePeerConnection implements SatellitePeerConnection {

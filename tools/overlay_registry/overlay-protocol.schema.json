@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Showrunner overlay WebSocket envelope",
+  "title": "Showrunner resource RPC envelope",
   "type": "object",
   "additionalProperties": false,
   "required": ["protocolVersion", "type", "resourceId", "requestId", "payload"],
