@@ -38,6 +38,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Use generated, versioned resource-scoped envelopes for Remote/Satellite control channels, reject recent request replay and bound active operations; serialize satellite disconnect cleanup and ignore messages after disposal.
 - Separate overlay browser RPC dispatch, validate method arguments before repository/event access, cap viewer pages and state subscriptions, and reject widget calls targeting another overlay or a deleted widget.
 - Generate one strict, versioned overlay WebSocket envelope for Dart and TypeScript, bind messages to their overlay resource and return payload-free RPC errors; reject unsupported wire formats and bound browser connection/send lifetimes.
 - Give overlay WebSocket peers owned request timers, bounded pending/in-flight calls and replay protection; drain pending joins on shutdown, cap connections before loading resources and bound browser-side pending RPCs before allocating timers.
