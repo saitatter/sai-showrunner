@@ -49,6 +49,9 @@ try {
     Invoke-Check node @($yarnScript, 'parity:check')
     Invoke-Check node @($yarnScript, 'parity:product')
   }
+  if ($Stage -eq 'All') {
+    Invoke-Check node @('tools/overlay_registry/transport-browser-smoke.mjs')
+  }
   if ($Integration) {
     $integrationArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', './scripts/test-flutter-integration.ps1')
     if ($Visual) { $integrationArgs += @('-CaptureDirectory', '.tmp/visual/flutter') }

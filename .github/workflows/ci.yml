@@ -139,6 +139,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Overlay build failed.' }
           corepack yarn overlay:browser-smoke
           if ($LASTEXITCODE -ne 0) { throw 'Browser DOM/WebGL smoke failed.' }
+          node tools/overlay_registry/transport-browser-smoke.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Authenticated Dart/browser transport smoke failed.' }
   test-windows:
     name: test-windows
     runs-on: ubuntu-latest
