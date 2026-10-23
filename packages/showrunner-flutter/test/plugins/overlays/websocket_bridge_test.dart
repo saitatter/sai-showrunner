@@ -44,7 +44,8 @@ void main() {
           ),
         );
         final socket = await WebSocket.connect(
-          'ws://127.0.0.1:${server.boundPort}/?overlay=probe',
+          'ws://127.0.0.1:${server.boundPort}/overlays/probe/socket',
+          headers: {'x-showrunner-overlay': bridge.access.forOverlay('probe')},
         );
         final messages = StreamIterator<dynamic>(socket);
         try {
@@ -63,7 +64,10 @@ void main() {
             expect((await bridge.getPresence('probe')).subscribers, 0);
           } else {
             final rejected = await WebSocket.connect(
-              'ws://127.0.0.1:${server.boundPort}/?overlay=probe',
+              'ws://127.0.0.1:${server.boundPort}/overlays/probe/socket',
+              headers: {
+                'x-showrunner-overlay': bridge.access.forOverlay('probe'),
+              },
             );
             await rejected.drain<void>().timeout(const Duration(seconds: 2));
             expect(rejected.closeCode, WebSocketStatus.policyViolation);
@@ -142,7 +146,8 @@ void main() {
             : const Duration(seconds: 5),
       );
       final socket = await WebSocket.connect(
-        'ws://127.0.0.1:${server.boundPort}/?overlay=probe',
+        'ws://127.0.0.1:${server.boundPort}/overlays/probe/socket',
+        headers: {'x-showrunner-overlay': bridge.access.forOverlay('probe')},
       );
       final closed = Completer<void>();
       final subscription = socket.listen((raw) {
@@ -236,23 +241,86 @@ void main() {
     );
     expect(
       bridge.browserSourceUrl('overlay-1'),
-      'http://localhost:${server.boundPort}/overlays/overlay-1',
+      'http://localhost:${server.boundPort}/overlays/overlay-1#${bridge.access.forOverlay('overlay-1')}',
     );
     final client = HttpClient();
     WebSocket? socket;
     StreamSubscription<dynamic>? socketSubscription;
 
     try {
+      final unauthorizedRequest = await client.getUrl(
+        Uri.parse(
+          'http://127.0.0.1:${server.boundPort}/overlays/overlay-1/config',
+        ),
+      );
+      final unauthorizedResponse = await unauthorizedRequest.close();
+      await unauthorizedResponse.drain<void>();
+      expect(unauthorizedResponse.statusCode, HttpStatus.unauthorized);
+      final deniedSocket = await WebSocket.connect(
+        'ws://127.0.0.1:${server.boundPort}/overlays/overlay-1/socket',
+      );
+      await deniedSocket.drain<void>();
+      expect(deniedSocket.closeCode, WebSocketStatus.policyViolation);
+      expect((await bridge.getPresence('overlay-1')).subscribers, 0);
+
+      final session = await client.postUrl(
+        Uri.parse(
+          'http://127.0.0.1:${server.boundPort}/overlays/overlay-1/session',
+        ),
+      );
+      session.headers.set(
+        'x-showrunner-overlay',
+        bridge.access.forOverlay('overlay-1'),
+      );
+      final sessionResponse = await session.close();
+      await sessionResponse.drain<void>();
+      expect(sessionResponse.statusCode, HttpStatus.noContent);
+      final cookie = sessionResponse.cookies.single;
+      expect(cookie.path, '/overlays/overlay-1');
+      expect(cookie.httpOnly, isTrue);
+      expect(cookie.sameSite, SameSite.strict);
+      final browserCookie = '${cookie.name}=${cookie.value}';
+      for (final (path, credential, status) in [
+        (
+          '/overlays/overlay-1/media/default/beep.wav',
+          browserCookie,
+          HttpStatus.ok,
+        ),
+        (
+          '/overlays/overlay-1/media/default/beep.wav',
+          '',
+          HttpStatus.unauthorized,
+        ),
+        ('/overlays/another/config', browserCookie, HttpStatus.unauthorized),
+        ('/media/default/beep.wav', browserCookie, HttpStatus.notFound),
+      ]) {
+        final request = await client.getUrl(
+          Uri.parse('http://127.0.0.1:${server.boundPort}$path'),
+        );
+        if (credential.isNotEmpty) request.headers.set('Cookie', credential);
+        final response = await request.close();
+        final body = await response.fold<List<int>>(
+          [],
+          (bytes, chunk) => bytes..addAll(chunk),
+        );
+        expect(response.statusCode, status, reason: path);
+        if (status == HttpStatus.ok) expect(body, [1, 2, 3]);
+      }
       final missingRequest = await client.getUrl(
         Uri.parse(
           'http://127.0.0.1:${server.boundPort}/overlays/missing/config',
         ),
       );
+      missingRequest.headers.set(
+        'x-showrunner-overlay',
+        bridge.access.forOverlay('missing'),
+      );
       final missingResponse = await missingRequest.close();
       await missingResponse.drain<void>();
       expect(missingResponse.statusCode, HttpStatus.notFound);
       final missingSocket = await WebSocket.connect(
-        'ws://127.0.0.1:${server.boundPort}/?overlay=missing',
+        'ws://127.0.0.1:${server.boundPort}/overlays/missing/socket',
+        headers: {'x-showrunner-overlay': bridge.access.forOverlay('missing')},
       );
       expect(
         await missingSocket.toList().timeout(const Duration(seconds: 2)),
@@ -260,8 +328,11 @@ void main() {
       );
       await expectLater(
         WebSocket.connect(
-          'ws://127.0.0.1:${server.boundPort}/?overlay=overlay-1',
-          headers: {'Origin': 'https://untrusted.invalid'},
+          'ws://127.0.0.1:${server.boundPort}/overlays/overlay-1/socket',
+          headers: {
+            'Origin': 'https://untrusted.invalid',
+            'x-showrunner-overlay': bridge.access.forOverlay('overlay-1'),
+          },
         ),
         throwsA(isA<WebSocketException>()),
       );
@@ -269,6 +340,10 @@ void main() {
         Uri.parse(
           'http://127.0.0.1:${server.boundPort}/overlays/overlay-1/config',
         ),
+      );
+      configRequest.headers.set(
+        'x-showrunner-overlay',
+        bridge.access.forOverlay('overlay-1'),
       );
       final configResponse = await configRequest.close();
       final config = jsonDecode(await utf8.decoder.bind(configResponse).join());
@@ -280,7 +355,8 @@ void main() {
       });
 
       socket = await WebSocket.connect(
-        'ws://127.0.0.1:${server.boundPort}/?overlay=overlay-1',
+        'ws://127.0.0.1:${server.boundPort}/overlays/overlay-1/socket',
+        headers: {'Cookie': browserCookie},
       );
       final configReceived = Completer<JsonMap>();
       final broadcastReceived = Completer<List<dynamic>>();
@@ -348,7 +424,10 @@ void main() {
             .timeout(const Duration(seconds: 2)),
         isTrue,
       );
-      expect((await audioReceived.future).first, '/media/default/beep.wav');
+      expect(
+        (await audioReceived.future).first,
+        '/overlays/overlay-1/media/default/beep.wav',
+      );
 
       await socket.close();
       await Future<void>.delayed(const Duration(milliseconds: 10));

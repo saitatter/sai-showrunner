@@ -24,6 +24,7 @@ const Map<String, Set<String>> secretSettingIdsByPlugin = {
   'twitch': {'clientSecret', 'accessToken', 'refreshToken'},
   'youtube': {'clientSecret', 'accessToken', 'refreshToken'},
   'chat-dock': {'token'},
+  'overlays': {'browserSecret'},
   'bluesky': {'appPassword'},
   'govee': {'apiKey'},
   'philips-hue': {'hubKey'},

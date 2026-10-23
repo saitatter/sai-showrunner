@@ -15,6 +15,7 @@ import 'manifest.dart';
 import 'overlay_presence.dart';
 import 'overlay_peer.dart';
 import 'overlay_rpc_dispatcher.dart';
+import 'overlay_access.dart';
 
 /// Bridges the Flutter runtime to the browser/WebGL overlay.
 ///
@@ -33,8 +34,10 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     this.maxMessageBytes = 1024 * 1024,
     this.maxPeers = 32,
     this.requestTimeout = const Duration(seconds: 20),
+    OverlayAccessTokens? access,
     Directory? webRoot,
-  }) : webRoot = webRoot ?? _discoverWebRoot() {
+  }) : access = access ?? OverlayAccessTokens.random(),
+       webRoot = webRoot ?? _discoverWebRoot() {
     if (maxPeers <= 0) {
       throw ArgumentError('Overlay peer limit must be positive.');
     }
@@ -67,6 +70,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   final int maxPeers;
   final Duration requestTimeout;
   final Directory? webRoot;
+  final OverlayAccessTokens access;
   late final List<StreamSubscription<RuntimeMap>> _subscriptions;
   late final _rpc = OverlayRpcDispatcher(
     registry: registry,
@@ -102,6 +106,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
       host: 'localhost',
       port: port,
       pathSegments: ['overlays', overlayId],
+      fragment: access.forOverlay(overlayId),
     ).toString();
   }
 
@@ -131,14 +136,52 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
       await _respond(request, HttpStatus.serviceUnavailable);
       return true;
     }
-    if (request.method.toUpperCase() != 'GET') return false;
     final segments = request.uri.pathSegments;
     if (segments.isEmpty) return false;
-
-    if (segments.first == 'media') {
-      return _serveMedia(request, segments);
-    }
     if (segments.first != 'overlays') return false;
+    request.response.headers.set('Cache-Control', 'no-store');
+    request.response.headers.set('Referrer-Policy', 'no-referrer');
+
+    if (segments.length >= 3 && segments[1] != 'assets') {
+      final id = segments[1];
+      if (segments[2] == 'session' &&
+          segments.length == 3 &&
+          request.method == 'POST') {
+        if (!access.accepts(
+          id,
+          request.headers.value('x-showrunner-overlay'),
+        )) {
+          await _respond(request, HttpStatus.unauthorized);
+          return true;
+        }
+        request.response.cookies.add(
+          Cookie(OverlayAccessTokens.cookieName, access.forOverlay(id))
+            ..path = '/overlays/${Uri.encodeComponent(id)}'
+            ..httpOnly = true
+            ..sameSite = SameSite.strict
+            ..maxAge = 86400,
+        );
+        await _respond(request, HttpStatus.noContent);
+        return true;
+      }
+      if ((segments[2] == 'config' || segments[2] == 'media') &&
+          !_authorized(request, id)) {
+        await _respond(request, HttpStatus.unauthorized);
+        return true;
+      }
+      if (segments[2] == 'media' && request.method == 'GET') {
+        final resource = await overlayStore.load(id);
+        if (_disposed || resource == null) {
+          await _respond(
+            request,
+            _disposed ? HttpStatus.serviceUnavailable : HttpStatus.notFound,
+          );
+          return true;
+        }
+        return _serveMedia(request, segments.skip(2).toList());
+      }
+    }
+    if (request.method != 'GET') return false;
 
     if (segments.length == 3 && segments[2] == 'config') {
       final resource = await overlayStore.load(segments[1]);
@@ -221,15 +264,34 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     }
   }
 
+  bool _authorized(HttpRequest request, String overlayId) =>
+      access.accepts(
+        overlayId,
+        request.headers.value('x-showrunner-overlay'),
+      ) ||
+      request.cookies.any(
+        (cookie) =>
+            cookie.name == OverlayAccessTokens.cookieName &&
+            access.accepts(overlayId, cookie.value),
+      );
+
   Future<bool> _joinSocket(HttpRequest request, WebSocket socket) async {
-    final overlayId = request.uri.queryParameters['overlay']?.trim() ?? '';
+    final segments = request.uri.pathSegments;
+    if (segments.length != 3 ||
+        segments.first != 'overlays' ||
+        segments.last != 'socket') {
+      return false;
+    }
+    final overlayId = segments[1];
     if (overlayId.isEmpty) return false;
     try {
       validateFileIdentifier(overlayId);
     } on ArgumentError {
       return false;
     }
-    if (_disposed || _peers.length + _joining >= maxPeers) {
+    if (_disposed ||
+        !_authorized(request, overlayId) ||
+        _peers.length + _joining >= maxPeers) {
       await _rejectSocket(socket, WebSocketStatus.policyViolation);
       return true;
     }
@@ -360,7 +422,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   }
 
   Future<bool> playAudio(String overlayId, SoundPlayRequest request) async {
-    final mediaFile = await _remoteMediaPath(request.file);
+    final mediaFile = await _remoteMediaPath(request.file, overlayId);
     if (mediaFile == null) return false;
     final peers = _targetPeers(overlayId).toList();
     if (peers.isEmpty) return false;
@@ -412,14 +474,18 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     );
   }
 
-  Future<String?> _remoteMediaPath(String source) async {
+  Future<String?> _remoteMediaPath(String source, String overlayId) async {
     final file = File(source);
     if (!await file.exists()) return null;
     final absolutePath = file.absolute.path;
     final mediaRelative = _relativeTo(mediaRoot, absolutePath);
-    if (mediaRelative != null) return '/media/default/$mediaRelative';
+    if (mediaRelative != null) {
+      return '/overlays/${Uri.encodeComponent(overlayId)}/media/default/$mediaRelative';
+    }
     final ttsRelative = _relativeTo(ttsRoot, absolutePath);
-    if (ttsRelative != null) return '/media/tts-cache/$ttsRelative';
+    if (ttsRelative != null) {
+      return '/overlays/${Uri.encodeComponent(overlayId)}/media/tts-cache/$ttsRelative';
+    }
     return null;
   }
 

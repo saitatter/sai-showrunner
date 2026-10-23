@@ -9,6 +9,7 @@ import '../sound/output.dart';
 import 'manifest.dart';
 import 'overlay_presence.dart';
 import 'websocket_bridge.dart';
+import 'overlay_access.dart';
 
 Future<void> registerConfiguredOverlays(
   DartPluginRegistry registry, {
@@ -30,6 +31,7 @@ Future<void> registerConfiguredOverlays(
   final overlayBridge = eventHub == null
       ? null
       : DartOverlayWebSocketService(
+          access: await OverlayAccessTokens.load(dataService),
           server: httpEndpointService,
           eventHub: eventHub,
           overlayStore: overlayStore,

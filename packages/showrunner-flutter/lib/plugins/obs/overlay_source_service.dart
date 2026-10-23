@@ -3,6 +3,7 @@ import 'dart:io';
 import '../../schema/resource.dart';
 import '../../services/showrunner_data_service.dart';
 import 'connection_router.dart';
+import '../overlays/overlay_access.dart';
 
 final class ObsConnectionChoice {
   const ObsConnectionChoice({
@@ -122,11 +123,13 @@ final class OverlayObsSourceService implements OverlayObsSourceActions {
     final host = connection.isLocal
         ? 'localhost'
         : await (localAddressLoader?.call() ?? _localNetworkAddress());
+    final access = await OverlayAccessTokens.load(dataService);
     return Uri(
       scheme: 'http',
       host: host,
       port: port,
       pathSegments: ['overlays', overlayId],
+      fragment: access.forOverlay(overlayId),
     ).toString();
   }
 

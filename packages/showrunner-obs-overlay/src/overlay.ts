@@ -27,6 +27,17 @@ const runtime = new OverlayRuntime({
 	transport: new BrowserOverlaySocket(overlayId),
 })
 
-if (!readFlag(params, "demo")) void runtime.start().catch((error) => console.error("Overlay runtime failed to start", error))
+if (!readFlag(params, "demo")) void (async () => {
+  const token = window.location.hash.slice(1)
+  const response = await fetch(`/overlays/${encodeURIComponent(overlayId)}/session`, {
+    method:"POST", headers:{"x-showrunner-overlay":token}, credentials:"same-origin",
+  })
+  if (!response.ok) throw new Error("Copy the current Browser Source URL from ShowRunner")
+  await runtime.start()
+})().catch(() => {
+  root.setAttribute("role", "alert")
+  root.textContent = "Overlay connection unavailable. Copy the current Browser Source URL from ShowRunner."
+  console.error("Overlay connection unavailable. Copy the current Browser Source URL from ShowRunner.")
+})
 
 Object.assign(window, { showRunnerOverlayRuntime: runtime, showRunnerOverlayRegistry: registry })

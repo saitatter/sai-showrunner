@@ -26,6 +26,9 @@ A production workspace for streamers and live creators, built with Flutter for W
 ShowRunner is based on [CastMate](https://github.com/LordTocs/CastMate), with its own
 Flutter desktop runtime and release process. Attribution and license notices remain.
 OBS overlays use a separate browser renderer because OBS consumes Browser Sources.
+Copy the Browser Source URL from the overlay editor, including its fragment.
+Existing OBS sources using an older URL need that URL refreshed with the editor's
+source helper. Overlay capabilities are independent of the chat dock token.
 The automation and shader editors use [sai_nodes](https://github.com/saitatter/sai_nodes).
 
 The Flutter desktop shipped in **v2.0.0**. New development features remain under

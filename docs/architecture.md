@@ -411,8 +411,8 @@ authentication and does not establish an end-to-end DNS-rebinding exploit.
 
 | Surface and audience | Inputs, outputs and authorization | Limits and evidence |
 | --- | --- | --- |
-| Overlay HTTP, OBS same host or opted-in trusted LAN | Default `127.0.0.1:8181`; `allowRemoteAccess` binds anyIPv4. GET `/overlays/<id>`, `/config`, `/overlays/assets/*`, `/media/default/*`, `/media/tts-cache/*`. Known resource ID, public config projection and contained asset/media paths; no bearer capability today | Shared Host/Origin guard before handlers; local IPs, localhost and the machine hostname remain supported. Existing isolated fixture verifies config projection, unknown IDs and foreign-origin rejection. Junction escape protection has a Windows persistence fixture |
-| Overlay WebSocket, same listener | Upgrade `/?overlay=<id>`, request/response IDs; config/widget/broadcast/audio notifications; plugin state acquisition and viewer schemas/query/events. Known overlay ID, same-origin guard; no per-overlay field/capability ACL yet | 1 MiB inbound messages, 64 pending outbound RPCs, 20-second default RPC deadline. Malformed JSON/binary/oversized frames close only their peer. Silent initial config ACK expires. Aggregate request rate, inbound concurrency, replay and viewer query/response quotas remain open |
+| Overlay HTTP, OBS same host or opted-in trusted LAN | Default `127.0.0.1:8181`; `allowRemoteAccess` binds anyIPv4. Public GET `/overlays/<id>` and `/overlays/assets/*`; authenticated `/overlays/<id>/config` and `/overlays/<id>/media/*`. Fragment capability bootstraps an HttpOnly, SameSite=Strict cookie scoped to that overlay path; contained asset/media paths remain enforced | Shared Host/Origin guard before handlers; local IPs, localhost and the machine hostname remain supported. Existing isolated fixture verifies config projection, unknown IDs and foreign-origin rejection. Junction escape protection has a Windows persistence fixture |
+| Overlay WebSocket, same listener | Upgrade `/overlays/<id>/socket`, versioned resource-bound request/response IDs; config/widget/broadcast/audio notifications; plugin state acquisition and viewer schemas/query/events. Overlay-scoped capability plus same-origin guard; per-field projection remains under review | 1 MiB inbound messages, 64 pending outbound RPCs, 20-second default RPC deadline. Malformed JSON/binary/oversized frames close only their peer. Silent initial config ACK expires. 32 joining/connected peers, 16 actual inbound operations, 256 recent replay IDs, 64 state subscriptions and 100-row viewer pages. Aggregate rate and full repository scan cost remain open |
 | Dynamic profile HTTP triggers | `/plugins/endpoints/<route>` with GET/POST/PUT/PATCH/DELETE, route/query/body to active profile subscriptions. Same bind as overlay; no token. Cancellation unregisters the route | 1 MiB body, 20-second dispatch/body timeout, Host/Origin validation. Timeout is not proof of cancellation of a handler already executing |
 | Remote button HTTP, explicitly enabled local integration | Disabled by default; `127.0.0.1:8390`, configurable host. GET `/buttons`; POST `/buttons/press?button=...` emits a named trigger. No bearer credential | Host/Origin guard before enumeration or action. Local native callers without Origin remain supported. Opted-in LAN access still trusts network peers; authentication, replay and rate quotas remain open |
 | Chat OBS dock | Separate loopback-only port; `/api/*` requires `x-showrunner-chat`, 32 random bytes stored in secret settings. HTML URL fragment carries bootstrap capability; no query token, browser storage or shared overlay token | Exact Host/Origin, no-store/no-referrer/CSP. POST bodies limited to 8 KiB, preferences 256 KiB, stream idle deadline 10 seconds. Private messages excluded. Existing dock tests probe forged Host/Origin even with valid credential |
@@ -494,13 +494,17 @@ limit remain independent of this schema. Shutdown invalidates HTTP dispatch
 generations and skips handlers/routes withdrawn while awaiting earlier work;
 already executing domain operations are not forcibly cancelled.
 
-Open access-path observation: any peer that knows an overlay ID can request plugin
-states and viewer data when it can reach the opted-in LAN listener. This follows
-from `_handlePeerRequest` and `_queryViewerData`; no live user data was queried.
-Do not classify it as a default internet exposure or as resolved by Origin checks.
-The remaining baseline work needs an isolated unauthorized-data reproducer and a
-decision on independent overlay-scoped capabilities and field projection, preserving
-OBS Browser Sources and media loading. Do not reuse the chat dock token.
+The original known-ID access path is now closed: config, media and WebSocket
+operations require an overlay-scoped capability, independent of the dock token.
+A random 32-byte installation secret lives in encrypted overlay settings; HMAC
+capabilities are bound to overlay IDs and remain stable across restarts. The
+fragment is exchanged by same-origin POST for an HttpOnly, SameSite=Strict cookie
+with an overlay-specific path. Neither public settings nor config projections
+contain that secret. Legacy root media/socket routes are removed. Existing OBS
+Browser Sources require the current editor-generated URL; tests do not rewrite
+user profiles. Loopback and opted-in trusted LAN remain supported; plain HTTP on
+that opted-in LAN is not a claim of confidentiality on hostile networks. Field
+projection and authorized-client data minimization remain separate review work.
 
 Secret storage tests verify real Windows DPAPI encrypt/decrypt on isolated bytes,
 declared public/secret separation, opaque unknown encrypted fields and unavailable

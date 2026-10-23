@@ -4,16 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/obs/actions.dart';
 import 'package:showrunner_flutter/plugins/obs/connection_router.dart';
 import 'package:showrunner_flutter/plugins/obs/overlay_source_service.dart';
+import 'package:showrunner_flutter/plugins/overlays/overlay_access.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 
 void main() {
   late Directory userDirectory;
+  late String capability;
 
   setUp(() async {
     userDirectory = await Directory.systemTemp.createTemp(
       'showrunner-overlay-obs-',
     );
+    capability = (await OverlayAccessTokens.load(
+      ShowRunnerDataService(userDirectory),
+    )).forOverlay('overlay-1');
   });
 
   tearDown(() async {
@@ -40,7 +45,7 @@ void main() {
             },
             'GetInputSettings' => {
               'inputSettings': {
-                'url': 'http://localhost:8181/overlays/overlay-1',
+                'url': 'http://localhost:8181/overlays/overlay-1#$capability',
                 'width': 1920,
                 'height': 1080,
               },
@@ -103,7 +108,7 @@ void main() {
       'inputName': 'Overlay Browser',
       'inputKind': 'browser_source',
       'inputSettings': {
-        'url': 'http://localhost:8181/overlays/overlay-1',
+        'url': 'http://localhost:8181/overlays/overlay-1#$capability',
         'width': 1280,
         'height': 720,
       },
@@ -134,7 +139,7 @@ void main() {
     expect(request?.$2, {
       'inputName': 'Overlay Browser',
       'inputSettings': {
-        'url': 'http://localhost:8181/overlays/overlay-1',
+        'url': 'http://localhost:8181/overlays/overlay-1#$capability',
         'width': 1280,
         'height': 720,
       },
@@ -168,7 +173,7 @@ void main() {
           overlayId: 'overlay-1',
           port: 8181,
         ),
-        'http://192.168.1.25:8181/overlays/overlay-1',
+        'http://192.168.1.25:8181/overlays/overlay-1#$capability',
       );
       await service.close();
     },

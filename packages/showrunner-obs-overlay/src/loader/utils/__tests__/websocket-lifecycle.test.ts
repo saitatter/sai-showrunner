@@ -40,7 +40,7 @@ describe("production browser overlay connection", () => {
     expect(() => transport.send({requestId:"one",name:"read",args:[]})).toThrow("closed")
     const connection = transport.connect()
     const socket = FakeSocket.instances[0]
-    expect(socket.url).toBe("wss://localhost?overlay=test")
+    expect(socket.url).toBe("wss://localhost/overlays/test/socket")
     socket.open()
     await connection
     expect(vi.getTimerCount()).toBe(0)

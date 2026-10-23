@@ -24,7 +24,7 @@ export class BrowserOverlaySocket implements OverlayTransport {
 		this.connecting = true
 		this.pending = new Promise<void>((resolve, reject) => {
 			const scheme = window.location.protocol === "https:" ? "wss" : "ws"
-			const socket = new WebSocket(`${scheme}://${this.host}?overlay=${encodeURIComponent(this.overlayId)}`)
+			const socket = new WebSocket(`${scheme}://${this.host}/overlays/${encodeURIComponent(this.overlayId)}/socket`)
 			this.socket = socket
 			this.cancelPending = () => reject(new Error("Overlay connection closed before opening"))
 			this.connectionTimer = window.setTimeout(() => {
