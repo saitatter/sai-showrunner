@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'overlay_protocol.generated.dart';
 
 /// Owns a browser connection and its bounded request lifetime. The service owns
 /// domain operations; a disconnected peer never publishes their late results.
@@ -91,7 +92,7 @@ final class OverlayPeer {
 
   void _write(Map<String, dynamic> message) {
     if (_closed || socket.readyState != WebSocket.open) return;
-    final encoded = jsonEncode(message);
+    final encoded = jsonEncode(encodeOverlayWire(message, overlayId));
     if (encoded.length > maxMessageBytes ||
         utf8.encode(encoded).length > maxMessageBytes) {
       throw StateError('Overlay message limit reached.');
@@ -111,8 +112,7 @@ final class OverlayPeer {
         await close(WebSocketStatus.messageTooBig);
         return;
       }
-      final value = jsonDecode(data);
-      if (value is! Map<String, dynamic>) throw const FormatException();
+      final value = decodeOverlayWire(jsonDecode(data), overlayId);
       final response = value['responseId'];
       if (response != null) {
         if (!_validId(response) || value.containsKey('requestId')) {

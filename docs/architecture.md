@@ -429,7 +429,46 @@ Confirmed isolated reproducers and fixes:
 - Overlay JSON parsing raised an unhandled asynchronous exception and left the
   peer connected. The malformed-frame fixture failed before the patch; the peer
   now closes with an invalid-payload status. Additional bounds cover oversized,
-  binary and unresponsive peers without changing supported RPC names or envelopes.
+  binary and unresponsive peers. The current wire envelope is described below;
+  logical RPC names remain unchanged.
+
+### Overlay wire contract
+
+`tools/overlay_registry/overlay-protocol.schema.json` owns the WebSocket envelope.
+`overlay:generate` emits the Dart and TypeScript codecs from that schema and the
+adjacent runtime templates. Both runtimes consume the same accepted/rejected
+fixtures in `test/fixtures/overlay-protocol.json`. This is an atomic desktop/browser
+rollout: unsupported versions and old unversioned wire frames are rejected rather
+than decoded by a compatibility path. The browser bundle and desktop must ship
+together. Widget metadata retains its existing generated registry source.
+
+Every envelope carries `protocolVersion: 1`, `resourceId`, `requestId`, `type` and
+`payload`. Requests contain `{name, args}`, responses `{result}` and errors
+`{code: "rpc_failed"}`. IDs/method names are nonempty strings of at most 128 UTF-16
+code units; argument lists have at most 32 elements. Unknown envelope/payload
+fields, types, versions, error codes and mismatched resource IDs fail validation
+before dispatch. Domain exceptions never become wire error text. Method-specific
+argument validation and capability checks remain dispatcher responsibilities.
+
+Browser-to-desktop methods are `overlays_acquireState`, `overlays_freeState`,
+`overlays_widgetRPC`, `overlays_observeViewerData`, `overlays_unobserveViewerData`,
+`overlays_queryViewerData` and `overlays_getViewerVariables`. Desktop-to-browser
+methods are `overlays_setConfig`, `overlays_stateUpdate`, `overlays_widget`,
+`overlays_widgetRPC`, `overlays_broadcast`, `overlays_playAudio`,
+`overlays_cancelAudio` and viewer data/variable notifications handled by the
+browser runtime. HTTP config/media, Satellite data channels and chat dock HTTP
+remain distinct boundaries; this envelope does not authenticate them.
+
+The service admits at most 32 connected or joining peers. Each peer owns up to
+64 outbound RPC deadlines and 16 actual inbound operations. Expired work retains
+its admission slot until it really finishes. A bounded window of 256 recent IDs
+rejects immediate request replay; it is not durable replay protection. Close
+settles pending calls, cancels timers and prevents late socket writes. Browser
+pending calls are capped at 64, a stalled handshake expires after 20 seconds and
+buffer saturation closes the transport. Host/Origin checks and the 1 MiB frame
+limit remain independent of this schema. Shutdown invalidates HTTP dispatch
+generations and skips handlers/routes withdrawn while awaiting earlier work;
+already executing domain operations are not forcibly cancelled.
 
 Open access-path observation: any peer that knows an overlay ID can request plugin
 states and viewer data when it can reach the opted-in LAN listener. This follows

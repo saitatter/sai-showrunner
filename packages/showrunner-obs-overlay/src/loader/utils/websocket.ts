@@ -1,4 +1,4 @@
-import { OverlayTransport, OverlayTransportMessage, OverlayTransportStatus, Unsubscribe } from "showrunner-overlay-core"
+import { OverlayTransport, OverlayTransportMessage, OverlayTransportStatus, Unsubscribe, decodeOverlayWire, encodeOverlayWire } from "showrunner-overlay-core"
 
 export class BrowserOverlaySocket implements OverlayTransport {
 	private socket?: WebSocket
@@ -6,6 +6,7 @@ export class BrowserOverlaySocket implements OverlayTransport {
 	private connecting = false
 	private pending?: Promise<void>
 	private cancelPending?: () => void
+	private connectionTimer?: number
 	private closed = false
 	private readonly listeners = new Set<(message: OverlayTransportMessage) => void>()
 	private readonly statusListeners = new Set<(status: OverlayTransportStatus) => void>()
@@ -22,27 +23,40 @@ export class BrowserOverlaySocket implements OverlayTransport {
 		this.setStatus("connecting")
 		this.connecting = true
 		this.pending = new Promise<void>((resolve, reject) => {
-			const socket = new WebSocket(`ws://${this.host}?overlay=${encodeURIComponent(this.overlayId)}`)
+			const scheme = window.location.protocol === "https:" ? "wss" : "ws"
+			const socket = new WebSocket(`${scheme}://${this.host}?overlay=${encodeURIComponent(this.overlayId)}`)
 			this.socket = socket
 			this.cancelPending = () => reject(new Error("Overlay connection closed before opening"))
+			this.connectionTimer = window.setTimeout(() => {
+				if (this.socket !== socket) return
+				reject(new Error("Overlay connection timed out"))
+				socket.close()
+			}, 20000)
 			socket.addEventListener("open", () => {
 				if (this.socket !== socket || this.closed) return
+				this.clearConnectionTimer()
 				this.connecting = false; this.cancelPending = undefined; this.setStatus("connected"); resolve()
 			}, { once: true })
-			socket.addEventListener("error", (event) => {
+			socket.addEventListener("error", () => {
 				if (this.socket !== socket) return
-				reject(event)
+				this.clearConnectionTimer()
+				reject(new Error("Overlay connection failed"))
 				socket.close()
 			}, { once: true })
 			socket.addEventListener("message", (event) => {
-				if (this.socket !== socket || this.closed || typeof event.data !== "string") return
+				if (this.socket !== socket || this.closed) return
+				if (typeof event.data !== "string") { socket.close(1003); return }
+				if (event.data.length > 1024 * 1024 || new TextEncoder().encode(event.data).length > 1024 * 1024) {
+					socket.close(1009); return
+				}
 				try {
-					const message = JSON.parse(event.data) as OverlayTransportMessage
+                    const message = decodeOverlayWire(JSON.parse(event.data), this.overlayId)
 					for (const listener of this.listeners) listener(message)
-				} catch { /* Ignore malformed transport messages. */ }
+				} catch { socket.close(1007) }
 			})
 				socket.addEventListener("close", () => {
 				if (this.socket !== socket) return
+				this.clearConnectionTimer()
 				this.cancelPending?.()
 				this.cancelPending = undefined
 					this.socket = undefined
@@ -58,6 +72,7 @@ export class BrowserOverlaySocket implements OverlayTransport {
 
 	async close(): Promise<void> {
 		this.closed = true
+		this.clearConnectionTimer()
 		this.setStatus("idle")
 		if (this.reconnectTimer !== undefined) window.clearTimeout(this.reconnectTimer)
 		this.reconnectTimer = undefined
@@ -71,8 +86,16 @@ export class BrowserOverlaySocket implements OverlayTransport {
 	}
 
 	send(message: OverlayTransportMessage): void {
-		if (this.socket?.readyState !== WebSocket.OPEN) return
-		this.socket.send(JSON.stringify(message))
+		if (this.socket?.readyState !== WebSocket.OPEN) throw new Error("Overlay connection is closed")
+		const encoded = JSON.stringify(encodeOverlayWire(message, this.overlayId))
+		if (encoded.length > 1024 * 1024 || new TextEncoder().encode(encoded).length > 1024 * 1024) throw new Error("Overlay message limit reached")
+		if (this.socket.bufferedAmount > 1024 * 1024) { this.socket.close(1008); throw new Error("Overlay send buffer limit reached") }
+		this.socket.send(encoded)
+	}
+
+	private clearConnectionTimer(): void {
+		if (this.connectionTimer !== undefined) window.clearTimeout(this.connectionTimer)
+		this.connectionTimer = undefined
 	}
 
 	onMessage(listener: (message: OverlayTransportMessage) => void): Unsubscribe {

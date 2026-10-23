@@ -8,6 +8,7 @@ import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
 import 'package:showrunner_flutter/schema/json.dart';
 import 'package:showrunner_flutter/plugins/http/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
+import 'package:showrunner_flutter/plugins/overlays/overlay_protocol.generated.dart';
 import 'package:showrunner_flutter/plugins/overlays/overlay_presence.dart';
 import 'package:showrunner_flutter/plugins/overlays/websocket_bridge.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_bootstrap.dart';
@@ -78,9 +79,17 @@ void main() {
               ),
             );
             expect(await messages.moveNext(), isTrue);
-            final config = jsonDecode(messages.current as String) as Map;
+            final config = decodeOverlayWire(
+              jsonDecode(messages.current as String),
+              'probe',
+            );
             socket.add(
-              jsonEncode({'responseId': config['requestId'], 'result': null}),
+              jsonEncode(
+                encodeOverlayWire({
+                  'responseId': config['requestId'],
+                  'result': null,
+                }, 'probe'),
+              ),
             );
             expect((await bridge.getPresence('probe')).subscribers, 1);
           }
@@ -137,10 +146,15 @@ void main() {
       );
       final closed = Completer<void>();
       final subscription = socket.listen((raw) {
-        final message = jsonDecode(raw as String) as Map;
+        final message = decodeOverlayWire(jsonDecode(raw as String), 'probe');
         if (traffic == 'silent') return;
         socket.add(
-          jsonEncode({'responseId': message['requestId'], 'result': null}),
+          jsonEncode(
+            encodeOverlayWire({
+              'responseId': message['requestId'],
+              'result': null,
+            }, 'probe'),
+          ),
         );
         switch (traffic) {
           case 'malformed':
@@ -272,7 +286,10 @@ void main() {
       final broadcastReceived = Completer<List<dynamic>>();
       final audioReceived = Completer<List<dynamic>>();
       socketSubscription = socket.listen((raw) {
-        final message = jsonDecode(raw as String) as Map<String, dynamic>;
+        final message = decodeOverlayWire(
+          jsonDecode(raw as String),
+          'overlay-1',
+        );
         if (message['requestId'] != null) {
           final name = message['name']?.toString();
           final args = message['args'] is List
@@ -290,7 +307,12 @@ void main() {
             audioReceived.complete(args);
           }
           socket!.add(
-            jsonEncode({'responseId': message['requestId'], 'result': null}),
+            jsonEncode(
+              encodeOverlayWire({
+                'responseId': message['requestId'],
+                'result': null,
+              }, 'overlay-1'),
+            ),
           );
         }
       });

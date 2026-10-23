@@ -4,6 +4,9 @@ import type {
 	GeneratedOverlayWidgetConfig,
 	GeneratedOverlayWidgetKey,
 } from "./generated/overlay-contracts.generated"
+export { decodeOverlayWire, encodeOverlayWire } from "./generated/overlay-protocol.generated"
+import type { OverlayTransportMessage } from "./generated/overlay-protocol.generated"
+export type { OverlayTransportMessage } from "./generated/overlay-protocol.generated"
 
 export type OverlayWidgetKey = GeneratedOverlayWidgetKey
 export type OverlayWidgetConfigFor<K extends OverlayWidgetKey> = GeneratedOverlayWidgetConfig<K>
@@ -84,15 +87,6 @@ export interface OverlayCommandMap extends GeneratedOverlayCommandMap {}
 
 export type OverlayEventName = keyof OverlayEventMap
 export type OverlayCommandName = keyof OverlayCommandMap
-
-export interface OverlayTransportMessage {
-	requestId?: string
-	responseId?: string
-	name?: string
-	args?: unknown[]
-	result?: unknown
-	failed?: unknown
-}
 
 export type OverlayTransportStatus = "idle" | "connecting" | "connected" | "reconnecting"
 
