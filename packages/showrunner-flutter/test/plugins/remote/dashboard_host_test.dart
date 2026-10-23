@@ -107,12 +107,16 @@ void main() {
         );
       });
       final peer = _FakePeerConnection();
+      var sharedDashboard = await ResourceRepository(
+        Directory('${directory.path}/dashboards'),
+      ).load('dash-1');
       final host = RemoteDashboardHost(
         dataService: dataService,
         registry: registry,
         eventHub: eventHub,
         signaling: signaling,
         peerFactory: (_) async => peer,
+        dashboardLoader: (_) async => sharedDashboard,
       );
 
       await host.start();
@@ -298,6 +302,55 @@ void main() {
       await Future.wait(graphResults);
       expect(graphResults, hasLength(2));
 
+      final original = sharedDashboard!;
+      sharedDashboard = ResourceData(
+        id: original.id,
+        config: {...original.config, 'pages': []},
+      );
+      reconnected.emitMessage(
+        jsonEncode({
+          'requestId': 'deleted-button',
+          'name': 'dashboard_widgetRPC',
+          'args': ['pressbutton', 'button-1', 'Start'],
+        }),
+      );
+      expect(
+        (await _response(reconnected, 'deleted-button'))['result'],
+        isNull,
+      );
+      expect(events, hasLength(2));
+
+      sharedDashboard = ResourceData(
+        id: original.id,
+        config: {
+          ...original.config,
+          'remoteTwitchIds': ['another-user'],
+        },
+      );
+      reconnected.emitMessage(
+        jsonEncode({
+          'requestId': 'revoked-access',
+          'name': 'dashboard_widgetRPC',
+          'args': ['pressbutton', 'button-1', 'Start'],
+        }),
+      );
+      expect(
+        (await _response(reconnected, 'revoked-access')).containsKey('failed'),
+        isTrue,
+      );
+      expect(events, hasLength(2));
+      await host.refreshDashboard('dash-1');
+      expect(host.connectionIds, isEmpty);
+      reconnected.emitMessage(
+        jsonEncode({
+          'requestId': 'stale-session',
+          'name': 'dashboard_widgetRPC',
+          'args': ['pressbutton', 'button-1', 'Start'],
+        }),
+      );
+      await _settle();
+      expect(events, hasLength(2));
+
       await graphListener.cancel();
       await eventSubscription.cancel();
       await host.stop();
@@ -312,6 +365,19 @@ void main() {
 
 Future<void> _settle() async {
   await Future<void>.delayed(const Duration(milliseconds: 20));
+}
+
+Future<Map> _response(_FakeDataChannel channel, String requestId) async {
+  final deadline = Stopwatch()..start();
+  while (deadline.elapsed < const Duration(seconds: 3)) {
+    final response = channel.sent
+        .map((raw) => jsonDecode(raw) as Map)
+        .where((value) => value['responseId'] == requestId)
+        .firstOrNull;
+    if (response != null) return response;
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+  throw StateError('Missing synthetic dashboard response.');
 }
 
 class _FakeCloudPubSubSocket implements CloudPubSubSocket {

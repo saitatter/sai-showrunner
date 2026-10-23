@@ -231,6 +231,14 @@ void main() {
     peer.emitPeerState(SatellitePeerState.connected);
     peer.channel.emitState(SatelliteChannelState.open);
     final pending = connection.callRpc('dashboard_widgetRPC');
+    final additional = List.generate(
+      63,
+      (_) => connection.callRpc('dashboard_widgetRPC'),
+    );
+    await expectLater(connection.callRpc('overflow'), throwsStateError);
+    final settled = [
+      for (final call in additional) expectLater(call, throwsStateError),
+    ];
     await Future<void>.delayed(Duration.zero);
 
     peer.channel.emitState(SatelliteChannelState.closed);
@@ -246,6 +254,10 @@ void main() {
       ),
     );
     await connection.disconnect();
+    await Future.wait(settled);
+    peer.emitPeerState(SatellitePeerState.connected);
+    peer.channel.emitState(SatelliteChannelState.open);
+    expect(connection.state, SatelliteConnectionState.disconnected);
     connection.dispose();
     signaling.dispose();
   });
