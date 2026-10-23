@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import '../../persistence/filesystem/safe_path.dart';
-import 'chat_message.dart';
-import 'chat_preferences.dart';
+import 'chat_dock_http_handler.dart';
 import 'unified_chat_runtime.dart';
 
 /// A local, authenticated OBS dock. Browser rendering stays in the overlay
@@ -14,6 +12,7 @@ final class ChatDockService {
   final UnifiedChatRuntime runtime;
   final Directory? webRoot;
   HttpServer? _server;
+  ChatDockHttpHandler? _handler;
   String? _token;
   Uri? get url => _server == null
       ? null
@@ -24,12 +23,18 @@ final class ChatDockService {
           path: '/chat-dock',
           fragment: _token,
         );
-  Future<Uri>? _starting;
-  Future<Uri> start() =>
-      _starting ??= _start().onError((Object error, StackTrace stack) {
-        _starting = null;
-        Error.throwWithStackTrace(error, stack);
-      });
+  Future<void> _lifecycle = Future<void>.value();
+  int _generation = 0;
+  Future<T> _serialize<T>(Future<T> Function() operation) {
+    final result = _lifecycle.then((_) => operation());
+    _lifecycle = result.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return result;
+  }
+
+  Future<Uri> start() => _serialize(() async => url ?? await _start());
   Future<Uri> _start() async {
     final root = webRoot ?? _findWebRoot();
     if (root == null || !await File('${root.path}/chat-dock.html').exists()) {
@@ -58,203 +63,42 @@ final class ChatDockService {
     }
     _token = token;
     _server = server;
-    server.listen((request) {
-      _handle(request, root);
-    });
+    final handler = ChatDockHttpHandler(
+      runtime: runtime,
+      root: root,
+      port: server.port,
+      token: token,
+    );
+    _handler = handler;
+    server.listen(handler.handle);
     return url!;
   }
 
   Future<void> restore() async {
+    final generation = _generation;
     final settings = await runtime.dataService.loadPluginSettings('chat-dock');
-    if (settings['enabled'] == true) await start();
+    if (generation == _generation && settings['enabled'] == true) await start();
   }
 
-  Future<void> stop({bool disable = false}) async {
-    try {
-      await _starting;
-    } catch (_) {
-      /* The start caller receives the failure. */
-    }
-    if (disable) {
-      await runtime.dataService.updatePluginSetting(
-        'chat-dock',
-        'enabled',
-        false,
-      );
-    }
-    final server = _server;
-    _server = null;
-    _starting = null;
-    await server?.close(force: true);
-  }
-
-  Future<void> _handle(HttpRequest request, Directory root) async {
-    try {
-      request.response.headers.set('Cache-Control', 'no-store');
-      request.response.headers.set('Referrer-Policy', 'no-referrer');
-      request.response.headers.set('X-Content-Type-Options', 'nosniff');
-      request.response.headers.set(
-        'Content-Security-Policy',
-        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://static-cdn.jtvnw.net https://cdn.betterttv.net https://cdn.frankerfacez.com https://cdn.7tv.app https://cdn.7tv.io; object-src 'none'; base-uri 'none'",
-      );
-      final origin = 'http://127.0.0.1:${_server?.port}';
-      if (request.headers.value('host') != '127.0.0.1:${_server?.port}' ||
-          (request.headers.value('origin') != null &&
-              request.headers.value('origin') != origin)) {
-        return await _respond(request, HttpStatus.forbidden);
-      }
-      final path = request.uri.path;
-      if (path.startsWith('/api/')) {
-        if (request.headers.value('x-showrunner-chat') != _token) {
-          return await _respond(request, HttpStatus.unauthorized);
-        }
-        if (path == '/api/chat' && request.method == 'GET') {
-          return await _respond(request, HttpStatus.ok, {
-            'preferences': runtime.preferences.toJson(),
-            'events': runtime.events.map((e) => e.context).toList(),
-            'actions': [
-              for (final action in runtime.configuredActions)
-                if (action.enabled)
-                  {
-                    'id': action.id,
-                    'label': action.label,
-                    'scope': action.scope.name,
-                    'platforms': action.platforms.map((p) => p.name).toList(),
-                    'icon': action.icon,
-                    'color': action.color,
-                  },
-            ],
-            'messages': runtime.messages
-                .map(
-                  (m) => {
-                    'identity': m.identity,
-                    ...m.context,
-                    'deleted': m.deleted,
-                    'parts': runtime
-                        .messageParts(m)
-                        .map(
-                          (part) => part.toJson(
-                            animate: runtime.preferences.animatedEmotes,
-                          ),
-                        )
-                        .toList(),
-                    'highlighted': runtime.preferences.highlights(m),
-                    'time': m.receivedAt.toUtc().toIso8601String(),
-                  },
-                )
-                .toList(),
-            'completions': {
-              for (final platform in ChatPlatform.values)
-                platform.name: runtime
-                    .composerCompletions(platform)
-                    .map((s) => s.toJson())
-                    .toList(),
-            },
-            'emotes': runtime.emotes
-                .map(
-                  (e) => e.toJson(animate: runtime.preferences.animatedEmotes),
-                )
-                .toList(),
-          });
-        }
-        if (request.method != 'POST') {
-          return await _respond(request, HttpStatus.methodNotAllowed);
-        }
-        final bytes = <int>[];
-        await for (final chunk in request.timeout(
-          const Duration(seconds: 10),
-        )) {
-          bytes.addAll(chunk);
-          if (bytes.length > (path == '/api/preferences' ? 262144 : 8192)) {
-            return await _respond(request, HttpStatus.requestEntityTooLarge);
-          }
-        }
-        final payload = jsonDecode(utf8.decode(bytes));
-        if (payload is! Map) {
-          return await _respond(request, HttpStatus.badRequest);
-        }
-        if (path == '/api/send') {
-          await runtime.send(
-            ChatPlatform.values.byName(payload['platform'] as String),
-            payload['message'] as String,
-          );
-        } else if (path == '/api/configured-action') {
-          await runtime.runConfiguredAction(
-            payload['id'] as String,
-            platform: ChatPlatform.values.byName(payload['platform'] as String),
-            messageIdentity: payload['identity'] as String?,
-            eventId: payload['eventId'] as String?,
-          );
-        } else if (path == '/api/preferences') {
-          await runtime.savePreferences(
-            ChatPreferences.fromJson(Map<String, dynamic>.from(payload)),
-          );
-        } else if (path == '/api/clear') {
-          runtime.clearHistory();
-        } else if (path == '/api/action') {
-          final target = runtime.messages
-              .where((m) => m.identity == payload['identity'])
-              .firstOrNull;
-          if (target == null) {
-            return await _respond(request, HttpStatus.notFound);
-          }
-          await runtime.quickAction(
-            target,
-            ChatQuickAction.values.byName(payload['action'] as String),
-          );
-        } else {
-          return await _respond(request, HttpStatus.notFound);
-        }
-        return await _respond(request, HttpStatus.ok, {'ok': true});
-      }
-      if (request.method != 'GET') {
-        return await _respond(request, HttpStatus.methodNotAllowed);
-      }
-      File file;
-      if (path == '/chat-dock') {
-        file = await containedFile(root, ['chat-dock.html']);
-      } else if (request.uri.pathSegments case [
-        'overlays',
-        'assets',
-        final String name,
-      ]) {
-        file = await containedFile(root, ['assets', name]);
-      } else {
-        return await _respond(request, HttpStatus.notFound);
-      }
-      if (!await file.exists()) {
-        return await _respond(request, HttpStatus.notFound);
-      }
-      request.response.headers.contentType = switch (file.path
-          .split('.')
-          .last) {
-        'html' => ContentType.html,
-        'css' => ContentType('text', 'css'),
-        'js' => ContentType('application', 'javascript'),
-        _ => ContentType.binary,
-      };
-      await request.response.addStream(file.openRead());
-      await request.response.close();
-    } catch (_) {
-      // Provider error bodies and internal filesystem paths never leave the desktop.
+  Future<void> stop({bool disable = false}) {
+    _generation++;
+    return _serialize(() async {
+      final server = _server;
+      _handler?.close();
+      _handler = null;
+      _server = null;
       try {
-        await _respond(request, HttpStatus.badRequest, {
-          'error':
-              'Chat operation failed. Check the account connection and permissions in ShowRunner.',
-        });
-      } catch (_) {
-        /* disconnected browser */
+        if (disable) {
+          await runtime.dataService.updatePluginSetting(
+            'chat-dock',
+            'enabled',
+            false,
+          );
+        }
+      } finally {
+        await server?.close(force: true);
       }
-    }
-  }
-
-  Future<void> _respond(HttpRequest request, int code, [Object? body]) async {
-    request.response.statusCode = code;
-    if (body != null) {
-      request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode(body));
-    }
-    await request.response.close();
+    });
   }
 
   Directory? _findWebRoot() {

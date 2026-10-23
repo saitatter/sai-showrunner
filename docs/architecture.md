@@ -471,6 +471,18 @@ disposed or superseded channels cannot publish late messages or state changes.
 These are data-channel checks, not evidence of cloud identity attestation or live
 network pairing. SDP/ICE signaling retains its separate contract.
 
+Chat dock HTTP remains a separate authenticated consumer. `ChatDockService` owns
+serialized listener startup/shutdown and secret settings; `ChatDockHttpHandler`
+captures one immutable port/root/token and owns routing, trust checks, body limits
+and static files. `ChatDockRequest` validates a sealed set of send, configured
+action, quick action, preferences and clear requests before runtime execution.
+Unknown fields, malformed identities/platforms/actions and platform message limits
+return safe validation codes. JSON syntax errors, unsupported preferences, missing
+targets, timeout and operation failures have distinct codes without provider text.
+Snapshot projection excludes whispers and bot whispers defensively; moderation
+privileges remain enforced by the runtime/provider. Polling frequency and full
+snapshots remain unchanged pending payload/DOM measurements.
+
 The service admits at most 32 connected or joining peers. Each peer owns up to
 64 outbound RPC deadlines and 16 actual inbound operations. Expired work retains
 its admission slot until it really finishes. A bounded window of 256 recent IDs
