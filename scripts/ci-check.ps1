@@ -33,6 +33,7 @@ try {
       'packages/showrunner-flutter/assets/overlay_widgets.generated.json',
       'packages/showrunner-flutter/lib/plugins/overlays/overlay_widget_catalog.generated.dart',
       'packages/showrunner-flutter/lib/plugins/overlays/overlay_protocol.generated.dart',
+      'packages/showrunner-flutter/lib/plugins/remote/remote_protocol.generated.dart',
       'libs/showrunner-overlay-core/src/generated')
   }
   if ($Stage -in @('All', 'Flutter')) {
