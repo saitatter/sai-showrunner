@@ -87,6 +87,21 @@ void main() {
   }
 
   test(
+    'serializes stop/start and concurrent starts without leaking listeners',
+    () async {
+      final stopping = dock.stop();
+      final restarted = dock.start();
+      await stopping;
+      url = await restarted;
+      final concurrent = await Future.wait([dock.start(), dock.start()]);
+      expect(concurrent, [url, url]);
+      expect((await get('/api/chat', authenticate: true)).status, 200);
+      await dock.stop(disable: true);
+      expect(dock.url, isNull);
+    },
+  );
+
+  test(
     'authenticated preferences update syncs and rejects unsupported versions',
     () async {
       final snapshot =
@@ -197,6 +212,73 @@ void main() {
       await response.drain<void>();
       expect(response.statusCode, 404);
       expect((await get('/api/action', authenticate: true)).status, 405);
+    },
+  );
+
+  test(
+    'validates typed dock requests before provider work with safe error codes',
+    () async {
+      Future<(int, Object?)> post(String path, String body) async {
+        final request = await client.postUrl(url.resolve(path));
+        request.headers.set('x-showrunner-chat', url.fragment);
+        request.headers.contentType = ContentType.json;
+        request.write(body);
+        final response = await request.close();
+        return (
+          response.statusCode,
+          jsonDecode(await utf8.decoder.bind(response).join()),
+        );
+      }
+
+      for (final (path, payload, code) in [
+        (
+          '/api/send',
+          <String, dynamic>{'platform': 'twitch', 'message': 42},
+          'invalid_payload',
+        ),
+        (
+          '/api/send',
+          <String, dynamic>{'platform': 'invalid', 'message': 'hello'},
+          'invalid_platform',
+        ),
+        (
+          '/api/send',
+          <String, dynamic>{'platform': 'youtube', 'message': 'x' * 201},
+          'invalid_payload',
+        ),
+        (
+          '/api/send',
+          <String, dynamic>{
+            'platform': 'twitch',
+            'message': 'hello',
+            'credential': 'private-marker',
+          },
+          'invalid_payload',
+        ),
+        (
+          '/api/action',
+          <String, dynamic>{'identity': 'one', 'action': 'unsupported'},
+          'invalid_action',
+        ),
+        ('/api/clear', <String, dynamic>{'surprise': true}, 'invalid_payload'),
+        (
+          '/api/preferences',
+          <String, dynamic>{'version': 99},
+          'unsupported_preferences',
+        ),
+      ]) {
+        final response = await post(path, jsonEncode(payload));
+        expect(response.$1, 400);
+        expect(response.$2, {'error': code});
+      }
+      final malformed = await post('/api/send', '{invalid');
+      expect(malformed.$1, 400);
+      expect(malformed.$2, {'error': 'invalid_json'});
+      expect(runtime.messages, hasLength(1));
+      final cleared = await post('/api/clear', '{}');
+      expect(cleared.$1, 200);
+      expect(cleared.$2, {'ok': true});
+      expect(runtime.messages, isEmpty);
     },
   );
 }
