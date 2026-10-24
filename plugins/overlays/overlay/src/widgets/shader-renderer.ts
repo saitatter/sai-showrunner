@@ -3,14 +3,13 @@
  * Framework-independent WebGL renderer used by the shader overlay widget.
  */
 
-export interface ShaderRendererOptions {
+import { overlayRenderLimits } from "showrunner-overlay-core"
+import { readShaderFrameInputs, shaderSurfaceSize, ShaderFrameInputSource } from "./shader-render-input"
+
+export interface ShaderRendererOptions extends ShaderFrameInputSource {
 	canvas: HTMLCanvasElement
 	fragmentSource: string
-	getAccentColor: () => [number, number, number]
-	getSecondaryColor: () => [number, number, number]
-	getIntensity: () => number
-	getSpeed: () => number
-	getCustomUniforms?: () => Record<string, number | number[]>
+	onError?: (message: string) => void
 }
 
 const vertexShaderSource = `
@@ -28,12 +27,16 @@ export class ShaderRenderer {
 	private resizeObserver: ResizeObserver
 	private startedAt = performance.now()
 	private options: ShaderRendererOptions
+	private disposed = false
+	private readonly hardwareLimit: number
 
 	constructor(options: ShaderRendererOptions) {
+		readShaderFrameInputs(options)
 		this.options = options
 		const gl = options.canvas.getContext("webgl", { alpha: true })
 		if (!gl) throw new Error("WebGL is not available.")
 		this.gl = gl
+		this.hardwareLimit = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number
 
 		const buffer = gl.createBuffer()
 		if (!buffer) throw new Error("Failed to create WebGL buffer.")
@@ -58,6 +61,8 @@ export class ShaderRenderer {
 	}
 
 	compileShader(fragmentSource: string): string | null {
+		if (this.disposed) return "Shader renderer is closed."
+		if (typeof fragmentSource !== "string" || new TextEncoder().encode(fragmentSource).length > overlayRenderLimits.maxShaderSourceBytes) return "Shader source limit exceeded."
 		const gl = this.gl
 		try {
 			const nextProgram = this.createProgram(fragmentSource)
@@ -71,6 +76,8 @@ export class ShaderRenderer {
 	}
 
 	dispose() {
+		if (this.disposed) return
+		this.disposed = true
 		cancelAnimationFrame(this.animationFrame)
 		this.resizeObserver.disconnect()
 		if (this.positionBuffer) this.gl.deleteBuffer(this.positionBuffer)
@@ -78,9 +85,13 @@ export class ShaderRenderer {
 	}
 
 	private render = () => {
+		if (this.disposed) return
 		const { gl, program, options } = this
 		const canvas = options.canvas
 		if (!program) return
+		let inputs: ReturnType<typeof readShaderFrameInputs>
+		try { inputs = readShaderFrameInputs(options) }
+		catch { this.dispose(); options.onError?.("Invalid shader inputs."); return }
 
 		this.resize()
 		const positionLocation = gl.getAttribLocation(program, "a_position")
@@ -100,20 +111,19 @@ export class ShaderRenderer {
 
 		if (uResolution) gl.uniform2f(uResolution, canvas.width, canvas.height)
 		if (uTime) gl.uniform1f(uTime, (performance.now() - this.startedAt) / 1000)
-		if (uAccent) gl.uniform3fv(uAccent, options.getAccentColor())
-		if (uSecondary) gl.uniform3fv(uSecondary, options.getSecondaryColor())
-		if (uIntensity) gl.uniform1f(uIntensity, options.getIntensity())
-		if (uSpeed) gl.uniform1f(uSpeed, options.getSpeed())
-		this.applyCustomUniforms()
+		if (uAccent) gl.uniform3fv(uAccent, inputs.accent)
+		if (uSecondary) gl.uniform3fv(uSecondary, inputs.secondary)
+		if (uIntensity) gl.uniform1f(uIntensity, inputs.intensity)
+		if (uSpeed) gl.uniform1f(uSpeed, inputs.speed)
+		this.applyCustomUniforms(inputs.uniforms)
 
 		gl.drawArrays(gl.TRIANGLES, 0, 6)
 		this.animationFrame = requestAnimationFrame(this.render)
 	}
 
-	private applyCustomUniforms() {
-		const { gl, program, options } = this
+	private applyCustomUniforms(uniforms: Record<string, number | number[]>) {
+		const { gl, program } = this
 		if (!program) return
-		const uniforms = options.getCustomUniforms?.() ?? {}
 		for (const [name, value] of Object.entries(uniforms)) {
 			const location = gl.getUniformLocation(program, name)
 			if (!location) continue
@@ -125,11 +135,10 @@ export class ShaderRenderer {
 	}
 
 	private resize() {
+		if (this.disposed) return
 		const { gl, options } = this
 		const canvas = options.canvas
-		const pixelRatio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2))
-		const width = Math.max(1, Math.floor(canvas.clientWidth * pixelRatio))
-		const height = Math.max(1, Math.floor(canvas.clientHeight * pixelRatio))
+		const {width,height} = shaderSurfaceSize(canvas.clientWidth,canvas.clientHeight,window.devicePixelRatio,this.hardwareLimit)
 		if (canvas.width === width && canvas.height === height) return
 		canvas.width = width
 		canvas.height = height

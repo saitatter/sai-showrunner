@@ -492,7 +492,7 @@ class ShaderLayerWidget extends DomWidget<ShaderLayerConfig> {
 		clearElement(this.container); this.container.append(root)
 		try {
 			this.error = ""
-			this.renderer = new ShaderRenderer({ canvas: this.canvas, fragmentSource: this.shaderSource(config), getAccentColor: () => hexToVec3(config.accentColor, [0.57, 0.27, 1]), getSecondaryColor: () => hexToVec3(config.secondaryColor, [0, 0.82, 1]), getIntensity: () => Number(config.intensity ?? 0.8), getSpeed: () => Number(config.speed ?? 1), getCustomUniforms: () => resolveShaderUniformBindings(config.shaderUniforms ?? {}, config.shaderUniformBindings ?? {}, { config, states: this.stateSnapshot(config.shaderUniformBindings ?? {}) }) })
+			this.renderer = new ShaderRenderer({ canvas: this.canvas, onError: (message) => { this.error = message; const fallback = createElement("div", "shader-layer__fallback"); fallback.textContent = `Shader unavailable: ${message}`; root.append(fallback) }, fragmentSource: this.shaderSource(config), getAccentColor: () => hexToVec3(config.accentColor, [0.57, 0.27, 1]), getSecondaryColor: () => hexToVec3(config.secondaryColor, [0, 0.82, 1]), getIntensity: () => Number(config.intensity ?? 0.8), getSpeed: () => Number(config.speed ?? 1), getCustomUniforms: () => resolveShaderUniformBindings(config.shaderUniforms ?? {}, config.shaderUniformBindings ?? {}, { config, states: this.stateSnapshot(config.shaderUniformBindings ?? {}) }) })
 		} catch (error) { this.error = error instanceof Error ? error.message : String(error); const fallback = createElement("div", "shader-layer__fallback"); fallback.textContent = `Shader unavailable: ${this.error}`; root.append(fallback) }
 	}
 

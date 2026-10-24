@@ -2,6 +2,7 @@
 import 'dart:convert';
 
 final Map<String, dynamic> _schema = jsonDecode(r'''__SCHEMA__''') as Map<String, dynamic>;
+final overlayRenderLimits = Map<String, int>.unmodifiable((_schema['x-renderLimits'] as Map).cast<String, int>());
 
 bool _valid(Object? value, Map<String, dynamic> rule) {
   if (rule.containsKey('const') && value != rule['const']) { return false; }

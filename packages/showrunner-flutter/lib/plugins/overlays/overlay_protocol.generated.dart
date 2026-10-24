@@ -3,9 +3,12 @@ import 'dart:convert';
 
 final Map<String, dynamic> _schema =
     jsonDecode(
-          r'''{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Showrunner resource RPC envelope","type":"object","additionalProperties":false,"required":["protocolVersion","type","resourceId","requestId","payload"],"properties":{"protocolVersion":{"const":1},"type":{"type":"string"},"resourceId":{"type":"string","minLength":1,"maxLength":128},"requestId":{"type":"string","minLength":1,"maxLength":128},"payload":{"type":"object"}},"oneOf":[{"properties":{"type":{"const":"request"},"payload":{"type":"object","additionalProperties":false,"required":["name","args"],"properties":{"name":{"type":"string","minLength":1,"maxLength":128},"args":{"type":"array","maxItems":32}}}}},{"properties":{"type":{"const":"response"},"payload":{"type":"object","additionalProperties":false,"required":["result"],"properties":{"result":{}}}}},{"properties":{"type":{"const":"error"},"payload":{"type":"object","additionalProperties":false,"required":["code"],"properties":{"code":{"const":"rpc_failed"}}}}}]}''',
+          r'''{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Showrunner resource RPC envelope","x-renderLimits":{"maxWidgets":256,"maxShaderLayers":8,"maxCanvasDimension":8192,"maxOverlayPixels":33554432,"maxShaderSourceBytes":131072,"maxShaderUniforms":64,"maxShaderSurfaceDimension":4096,"maxShaderNodes":512,"maxShaderEdges":2048},"type":"object","additionalProperties":false,"required":["protocolVersion","type","resourceId","requestId","payload"],"properties":{"protocolVersion":{"const":1},"type":{"type":"string"},"resourceId":{"type":"string","minLength":1,"maxLength":128},"requestId":{"type":"string","minLength":1,"maxLength":128},"payload":{"type":"object"}},"oneOf":[{"properties":{"type":{"const":"request"},"payload":{"type":"object","additionalProperties":false,"required":["name","args"],"properties":{"name":{"type":"string","minLength":1,"maxLength":128},"args":{"type":"array","maxItems":32}}}}},{"properties":{"type":{"const":"response"},"payload":{"type":"object","additionalProperties":false,"required":["result"],"properties":{"result":{}}}}},{"properties":{"type":{"const":"error"},"payload":{"type":"object","additionalProperties":false,"required":["code"],"properties":{"code":{"const":"rpc_failed"}}}}}]}''',
         )
         as Map<String, dynamic>;
+final overlayRenderLimits = Map<String, int>.unmodifiable(
+  (_schema['x-renderLimits'] as Map).cast<String, int>(),
+);
 
 bool _valid(Object? value, Map<String, dynamic> rule) {
   if (rule.containsKey('const') && value != rule['const']) {

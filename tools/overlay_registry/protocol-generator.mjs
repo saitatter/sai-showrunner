@@ -10,6 +10,7 @@ export function generateProtocol(root) {
   ]) {
     const source = readFileSync(path.join(root, "tools/overlay_registry", template), "utf8")
     const generated = source.replace("__SCHEMA__", JSON.stringify(schema))
+      .replace("__RENDER_LIMIT_TYPES__", Object.keys(schema["x-renderLimits"]).map(key => `${key}:number`).join(";"))
     writeFileSync(path.join(root, destination), destination.includes("/remote/")
       ? generated.replaceAll("decodeOverlayWire", "decodeRemoteWire").replaceAll("encodeOverlayWire", "encodeRemoteWire")
       : generated)

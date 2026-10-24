@@ -4,7 +4,7 @@ import type {
 	GeneratedOverlayWidgetConfig,
 	GeneratedOverlayWidgetKey,
 } from "./generated/overlay-contracts.generated"
-export { decodeOverlayWire, encodeOverlayWire } from "./generated/overlay-protocol.generated"
+export { decodeOverlayWire, encodeOverlayWire, overlayRenderLimits } from "./generated/overlay-protocol.generated"
 import type { OverlayTransportMessage } from "./generated/overlay-protocol.generated"
 export type { OverlayTransportMessage } from "./generated/overlay-protocol.generated"
 

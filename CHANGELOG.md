@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Bound shader source, uniform and GPU surface resources, reject non-finite GPU inputs and release renderer resources once while ignoring queued frames after disposal.
 - Remount the browser widget renderer when a saved widget changes type while retaining its ID, instead of updating the previous widget implementation with another type's fields.
 - Scope audio cancellation by overlay and playback ID, cancel duration timers on abort/shutdown and report undelivered playback as failed instead of successful.
 - Require overlay-scoped browser capabilities for config, media and WebSocket access, store the installation secret encrypted, bootstrap HttpOnly path-scoped cookies and restrict state/viewer projections to configured widget fields; existing OBS sources need the current Browser Source URL copied or fixed from the editor.
@@ -42,6 +43,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Generate shared render budgets for Dart/TypeScript and separate typed shader frame inputs from WebGL calls; preserve semantic-only GLSL invalidation and reject oversized authoring graphs without changing saved documents.
 - Give overlay peer admission its own manager, with authenticated connection limits and awaited join/configuration/serving teardown behind the existing service facade.
 - Coalesce overlay state snapshots with one in-flight update per connection, skip unchanged values, retain the latest queued values and drain pending state promises on disconnect without coalescing events or widget commands.
 - Separate overlay HTTP resources, canonical media containment and audio ownership; project browser configuration from declared widget fields, omit shader authoring documents and bound render resource allocation.
