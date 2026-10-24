@@ -58,6 +58,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
 
   Future<void> start() async {
     if (_started) return;
+    config.validate();
     _started = true;
     final peer = await peerFactory({
       'sdpSemantics': 'unified-plan',

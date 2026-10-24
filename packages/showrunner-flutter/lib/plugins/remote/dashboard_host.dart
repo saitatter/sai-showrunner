@@ -357,58 +357,41 @@ final class RemoteDashboardHost extends ChangeNotifier {
   }
 
   SatelliteConnectionConfig? _configFromSignal(SatelliteJson data) {
-    final satelliteService = data['satelliteService']?.toString().trim() ?? '';
-    final satelliteId = data['satelliteId']?.toString().trim() ?? '';
-    final showRunnerService =
-        data['ShowRunnerService']?.toString().trim() ?? '';
-    final showRunnerId = data['ShowRunnerId']?.toString().trim() ?? '';
-    final dashboardId = data['dashId']?.toString().trim() ?? '';
-    if ([
-      satelliteService,
-      satelliteId,
-      showRunnerService,
-      showRunnerId,
-      dashboardId,
-    ].any((value) => value.isEmpty)) {
+    try {
+      return SatelliteConnectionConfig.fromJson(data);
+    } on FormatException {
       return null;
     }
-    return SatelliteConnectionConfig(
-      satelliteService: satelliteService,
-      satelliteId: satelliteId,
-      showRunnerService: showRunnerService,
-      showRunnerId: showRunnerId,
-      dashboardId: dashboardId,
-    );
   }
 
   String? _signalKey(SatelliteJson data) {
-    final values = [
-      data['satelliteService']?.toString().trim() ?? '',
-      data['satelliteId']?.toString().trim() ?? '',
-      data['ShowRunnerService']?.toString().trim() ?? '',
-      data['ShowRunnerId']?.toString().trim() ?? '',
-      data['dashId']?.toString().trim() ?? '',
-    ];
-    if (values.any((value) => value.isEmpty)) return null;
-    return values.join('\u0000');
+    final config = _configFromSignal(data);
+    if (config == null) return null;
+    return [
+      config.satelliteService,
+      config.satelliteId,
+      config.showRunnerService,
+      config.showRunnerId,
+      config.dashboardId,
+    ].join('\u0000');
   }
 
   bool _requestIsAllowed(
     SatelliteConnectionConfig request,
     ResourceData dashboard,
   ) {
-    final configuredOwner = dashboard.config['ownerId']?.toString().trim();
+    final owner = dashboard.config['ownerId'];
+    if (owner != null && owner is! String) return false;
+    final configuredOwner = owner is String ? owner.trim() : null;
     if (configuredOwner?.isNotEmpty == true &&
         configuredOwner != request.showRunnerId) {
       return false;
     }
     final allowed = dashboard.config['remoteTwitchIds'];
-    if (allowed is List && allowed.isNotEmpty) {
-      return allowed
-          .map((value) => value.toString())
-          .contains(request.satelliteId);
-    }
-    return true;
+    return allowed is List &&
+        allowed.isNotEmpty &&
+        allowed.every((value) => value is String) &&
+        allowed.contains(request.satelliteId);
   }
 
   Future<ResourceData?> _loadSharedDashboard(String id) async {
@@ -547,6 +530,7 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
 
   Future<void> acceptOffer(Object? value) async {
     if (_closed) return;
+    final description = SatelliteSessionDescription.fromJson(value);
     final peer = _peer ??= await peerFactory({
       'sdpSemantics': 'unified-plan',
       'iceServers': const [
@@ -568,9 +552,7 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
       peer.onDataChannel = _handleDataChannel;
       peer.onStateChanged = _handlePeerState;
     }
-    await peer.setRemoteDescription(
-      SatelliteSessionDescription.fromJson(value),
-    );
+    await peer.setRemoteDescription(description);
     final answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
     final local = await peer.getLocalDescription() ?? answer;

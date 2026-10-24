@@ -108,6 +108,7 @@ void main() {
         );
       });
       final peer = _FakePeerConnection();
+      var peersCreated = 0;
       var sharedDashboard = await ResourceRepository(
         Directory('${directory.path}/dashboards'),
       ).load('dash-1');
@@ -116,11 +117,35 @@ void main() {
         registry: registry,
         eventHub: eventHub,
         signaling: signaling,
-        peerFactory: (_) async => peer,
+        peerFactory: (_) async {
+          peersCreated++;
+          return peer;
+        },
         dashboardLoader: (_) async => sharedDashboard,
       );
 
       await host.start();
+      socket.messagesController.add(
+        jsonEncode({
+          'type': 'message',
+          'dataType': 'json',
+          'data': {
+            'plugin': 'satellite',
+            'event': 'satelliteConnectionRequest',
+            'context': {
+              'satelliteService': 'twitch',
+              'satelliteId': 'satellite-1',
+              'ShowRunnerService': 'twitch',
+              'ShowRunnerId': 'owner-1',
+              'dashId': 'dash-1',
+              'sdp': {'sdp': 42, 'type': 'offer'},
+            },
+          },
+        }),
+      );
+      await _settle();
+      expect(peersCreated, 0);
+      expect(host.connectionIds, isEmpty);
       socket.messagesController.add(
         jsonEncode({
           'type': 'message',
