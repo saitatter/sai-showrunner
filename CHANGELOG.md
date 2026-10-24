@@ -44,7 +44,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
-- Separate Remote/Satellite control-session ownership from signaling and WebRTC adapters; start bounded RPC deadlines before native sends, close stale channels and settle timers/writes on teardown without late state updates; serialize signaling startup/stop and release sockets/native peers that arrive after shutdown.
+- Separate Remote/Satellite control-session ownership from signaling and WebRTC adapters; start bounded RPC deadlines before native sends, close stale channels and settle timers/writes on teardown without late state updates; serialize signaling startup/stop and release sockets/native peers that arrive after shutdown, bound host sessions/ICE queues and cancel owned file-watch timers.
 - Generate shared render budgets for Dart/TypeScript and separate typed shader frame inputs from WebGL calls; preserve semantic-only GLSL invalidation and reject oversized authoring graphs without changing saved documents.
 - Give overlay peer admission its own manager, with authenticated connection limits and awaited join/configuration/serving teardown behind the existing service facade.
 - Coalesce overlay state snapshots with one in-flight update per connection, skip unchanged values, retain the latest queued values and drain pending state promises on disconnect without coalescing events or widget commands.
