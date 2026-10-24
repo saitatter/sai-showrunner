@@ -326,6 +326,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     unawaited(disconnect().catchError((Object _) {}));
     unawaited(_broadcasts.close());
@@ -363,69 +364,146 @@ final class RemoteSatelliteConnectionManager extends ChangeNotifier {
   RemoteSatelliteConnection? get connection => _connection;
   Object? get lastError => _lastError;
 
-  Future<RemoteSatelliteConnection> connect(
+  int _epoch = 0;
+  bool _disposed = false;
+  Future<void>? _closing;
+  final _connects = <Future<RemoteSatelliteConnection>>{};
+  bool _current(int epoch) => !_disposed && epoch == _epoch;
+
+  Future<RemoteSatelliteConnection> connect(SatelliteConnectionConfig config) {
+    if (_disposed) return Future.error(StateError('Remote manager is closed.'));
+    config.validate();
+    final epoch = ++_epoch;
+    late final Future<RemoteSatelliteConnection> work;
+    work = _connect(config, epoch).whenComplete(() => _connects.remove(work));
+    _connects.add(work);
+    return work;
+  }
+
+  Future<RemoteSatelliteConnection> _connect(
     SatelliteConnectionConfig config,
+    int epoch,
   ) async {
-    await disconnect();
+    await _disconnectCurrent(epoch);
+    if (!_current(epoch)) throw StateError('Remote connection was cancelled.');
+    RemoteSatelliteConnection? owned;
     try {
       await signaling.start();
-      final connection = RemoteSatelliteConnection(
+      if (!_current(epoch)) {
+        throw StateError('Remote connection was cancelled.');
+      }
+      final connection = owned = RemoteSatelliteConnection(
         config: config,
         signaling: signaling,
         peerFactory: peerFactory,
         resourceRpc: resourceRpc,
       );
       _connection = connection;
+      _lastError = null;
       connection.addListener(notifyListeners);
       notifyListeners();
       await connection.start();
+      if (!_current(epoch)) {
+        throw StateError('Remote connection was cancelled.');
+      }
       return connection;
-    } catch (error) {
-      _lastError = error;
-      await disconnect();
-      notifyListeners();
+    } catch (_) {
+      if (_current(epoch)) {
+        _lastError = StateError('Remote connection failed.');
+        await _disconnectCurrent(epoch);
+        notifyListeners();
+      } else if (owned != null) {
+        owned.removeListener(notifyListeners);
+        await owned.disconnect();
+        owned.dispose();
+      }
       rethrow;
     }
   }
 
-  Future<void> disconnect() async {
-    final connection = _connection;
-    _connection = null;
-    if (connection != null) {
-      connection.removeListener(notifyListeners);
-      await connection.disconnect();
-      connection.dispose();
-    }
-    await signaling.stop();
-    notifyListeners();
+  Future<void> disconnect() {
+    if (_disposed) return _closing ?? Future<void>.value();
+    return _disconnectCurrent(++_epoch);
   }
 
-  void _handleSignal(SatelliteSignalingMessage message) {
+  Future<void> _disconnectCurrent(int epoch) async {
     final connection = _connection;
-    if (connection == null || !connection.config.matches(message.data)) return;
+    _connection = null;
     try {
-      if (message.event == 'satelliteConnectionResponse') {
-        unawaited(connection.applyResponse(message.data['sdp']));
-      } else if (message.event == 'satelliteConnectionIceCandidate' &&
-          message.data['side']?.toString() == 'ShowRunner') {
-        unawaited(connection.applyCandidate(message.data['candidate']));
+      if (connection != null) {
+        connection.removeListener(notifyListeners);
+        try {
+          await connection.disconnect();
+        } finally {
+          connection.dispose();
+        }
       }
-    } catch (error) {
-      _lastError = error;
+    } finally {
+      if (epoch == _epoch) await signaling.stop();
       notifyListeners();
     }
   }
 
+  void _handleSignal(SatelliteSignalingMessage message) {
+    final connection = _connection;
+    if (_disposed ||
+        connection == null ||
+        !connection.config.matches(message.data)) {
+      return;
+    }
+    final epoch = _epoch;
+    unawaited(
+      Future<void>.sync(() async {
+        if (message.event == 'satelliteConnectionResponse') {
+          await connection.applyResponse(message.data['sdp']);
+        } else if (message.event == 'satelliteConnectionIceCandidate' &&
+            message.data['side'] == 'ShowRunner') {
+          await connection.applyCandidate(message.data['candidate']);
+        }
+      }).catchError((Object _) async {
+        if (!_current(epoch) || !identical(_connection, connection)) return;
+        _lastError = StateError('Remote negotiation failed.');
+        await disconnect();
+        notifyListeners();
+      }),
+    );
+  }
+
+  Future<void> close() {
+    if (_closing != null) return _closing!;
+    _disposed = true;
+    final epoch = ++_epoch;
+    return _closing = _close(epoch);
+  }
+
+  Future<void> _close(int epoch) async {
+    try {
+      await _disconnectCurrent(epoch);
+      await Future.wait(
+        _connects
+            .map(
+              (work) =>
+                  work.then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+            )
+            .toList(),
+      );
+    } finally {
+      try {
+        await _signalingSubscription.cancel();
+      } finally {
+        await signaling.close();
+      }
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
   @override
   void dispose() {
-    final connection = _connection;
-    _connection = null;
-    if (connection != null) {
-      connection.removeListener(notifyListeners);
-      connection.dispose();
-    }
-    unawaited(_signalingSubscription.cancel());
-    signaling.dispose();
+    unawaited(close().catchError((Object _) {}));
     super.dispose();
   }
 }

@@ -44,6 +44,33 @@ final class RemoteDashboardHost extends ChangeNotifier {
   final _pendingCandidates = <String, List<Object?>>{};
   StreamSubscription<SatelliteSignalingMessage>? _signalingSubscription;
   StreamSubscription<FileSystemEvent>? _fileSubscription;
+  final _candidateExpiry = <String, Timer>{};
+  final _refreshTimers = <String, Timer>{};
+  final _work = <Future<void>>{};
+  final _retiring = <Future<void>>{};
+  Future<void> _lifecycle = Future<void>.value();
+  int _epoch = 0;
+  bool _current(int epoch) => _started && !_closed && epoch == _epoch;
+  Future<void> _serialize(Future<void> Function() operation) {
+    final work = _lifecycle.then((_) => operation());
+    _lifecycle = work.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return work;
+  }
+
+  void _observe(Future<void> Function() operation) {
+    if (!_started || _closed || _work.length >= 64) return;
+    final epoch = _epoch;
+    late final Future<void> work;
+    work = Future<void>.sync(operation)
+        .catchError((Object _) {
+          if (!_current(epoch)) return;
+          _lastError = StateError('Remote dashboard operation failed.');
+          notifyListeners();
+        })
+        .whenComplete(() => _work.remove(work));
+    _work.add(work);
+  }
+
   Object? _lastError;
   bool _started = false;
   bool _closed = false;
@@ -52,30 +79,46 @@ final class RemoteDashboardHost extends ChangeNotifier {
   Object? get lastError => _lastError;
   List<String> get connectionIds => List.unmodifiable(_connections.keys);
 
-  Future<void> start() async {
-    if (_started || _closed) return;
-    await _stopping;
-    _stopping = null;
-    if (_closed) return;
+  Future<void> start() {
+    final epoch = _epoch;
+    return _serialize(() => _start(epoch));
+  }
+
+  Future<void> _start(int epoch) async {
+    if (_started || _closed || epoch != _epoch) return;
     _started = true;
     registry.addListener(_handleRegistryStateChange);
     _signalingSubscription = signaling.messages.listen(
-      (message) => unawaited(_handleSignal(message)),
+      (message) => _observe(() => _handleSignal(message)),
     );
     _fileSubscription = _watchUserDirectory();
 
     // A project may have no shared dashboard or no Twitch token yet. That is
     // a valid desktop state and must not prevent the rest of the app starting.
-    if (await _hasSharedDashboard()) {
+    if (await _hasSharedDashboard() && _current(epoch)) {
       await _ensureSignalingStarted();
     }
   }
 
-  Future<void>? _stopping;
-  Future<void> stop() => _stopping ??= _stop();
-  Future<void> _stop() async {
-    if (!_started) return;
+  Future<void> stop() {
+    _epoch++;
     _started = false;
+    for (final connection in _connections.values.toList()) {
+      // Invalidate native callbacks before asynchronous subscription cleanup.
+      unawaited(connection.close().catchError((Object _) {}));
+    }
+    for (final timer in [
+      ..._candidateExpiry.values,
+      ..._refreshTimers.values,
+    ]) {
+      timer.cancel();
+    }
+    _candidateExpiry.clear();
+    _refreshTimers.clear();
+    return _serialize(_stop);
+  }
+
+  Future<void> _stop() async {
     registry.removeListener(_handleRegistryStateChange);
     Object? failure;
     StackTrace? failureStack;
@@ -105,6 +148,8 @@ final class RemoteDashboardHost extends ChangeNotifier {
         }
       });
     }
+    await attempt(() async => Future.wait(_work.toList()));
+    await attempt(() async => Future.wait(_retiring.toList()));
     await attempt(signaling.stop);
     if (failure != null) Error.throwWithStackTrace(failure!, failureStack!);
 
@@ -115,7 +160,10 @@ final class RemoteDashboardHost extends ChangeNotifier {
   /// satellites. This is also called by the filesystem watcher after an
   /// atomic resource save.
   Future<void> refreshDashboard(String dashboardId) async {
+    final epoch = _epoch;
+    if (!_current(epoch)) return;
     final resource = await _loadSharedDashboard(dashboardId);
+    if (!_current(epoch)) return;
     final matching = _connections.values
         .where((connection) => connection.config.dashboardId == dashboardId)
         .toList();
@@ -136,39 +184,67 @@ final class RemoteDashboardHost extends ChangeNotifier {
   }
 
   Future<void> _handleSignal(SatelliteSignalingMessage message) async {
+    final epoch = _epoch;
+    if (!_current(epoch)) return;
     try {
       if (message.event == 'satelliteConnectionRequest') {
-        await _handleConnectionRequest(message.data);
+        await _handleConnectionRequest(message.data, epoch);
       } else if (message.event == 'satelliteConnectionIceCandidate' &&
-          message.data['side']?.toString() == 'satellite') {
+          message.data['side'] == 'satellite') {
+        final candidate = SatelliteIceCandidate.fromJson(
+          message.data['candidate'],
+        );
         final connection = _findConnection(message.data);
         if (connection != null) {
-          await connection.applyCandidate(message.data['candidate']);
+          await connection.applyCandidate(candidate.toJson());
         } else {
           final key = _signalKey(message.data);
-          if (key != null) {
+          final config = _configFromSignal(message.data);
+          if (key != null && config != null) {
+            final dashboard = await _loadSharedDashboard(config.dashboardId);
+            if (!_current(epoch) ||
+                dashboard == null ||
+                !_requestIsAllowed(config, dashboard)) {
+              return;
+            }
+            if (!_pendingCandidates.containsKey(key) &&
+                _pendingCandidates.length >= 64) {
+              return;
+            }
+            _candidateExpiry.putIfAbsent(
+              key,
+              () => Timer(const Duration(seconds: 20), () {
+                _pendingCandidates.remove(key);
+                _candidateExpiry.remove(key);
+              }),
+            );
             final candidates = _pendingCandidates.putIfAbsent(
               key,
               () => <Object?>[],
             );
             if (candidates.length < 32) {
-              candidates.add(message.data['candidate']);
+              candidates.add(candidate.toJson());
             }
           }
         }
       }
-    } on Object catch (error) {
-      _lastError = error;
+    } on Object {
+      if (!_current(epoch)) return;
+      _lastError = StateError('Remote dashboard negotiation failed.');
       notifyListeners();
     }
   }
 
-  Future<void> _handleConnectionRequest(SatelliteJson data) async {
+  Future<void> _handleConnectionRequest(SatelliteJson data, int epoch) async {
     if (data['side']?.toString() == 'ShowRunner') return;
     final config = _configFromSignal(data);
     if (config == null) return;
     final dashboard = await _loadSharedDashboard(config.dashboardId);
-    if (dashboard == null || !_requestIsAllowed(config, dashboard)) return;
+    if (!_current(epoch) ||
+        dashboard == null ||
+        !_requestIsAllowed(config, dashboard)) {
+      return;
+    }
 
     final existing = _findConnection(data);
     if (existing != null) {
@@ -176,6 +252,7 @@ final class RemoteDashboardHost extends ChangeNotifier {
       return;
     }
 
+    if (_connections.length >= 32) return;
     late final _RemoteDashboardHostConnection connection;
     connection = _RemoteDashboardHostConnection(
       id: 'host-${DateTime.now().microsecondsSinceEpoch}',
@@ -190,7 +267,12 @@ final class RemoteDashboardHost extends ChangeNotifier {
     _stateSubscriptions[connection.id] = <String>{};
     try {
       await connection.acceptOffer(data['sdp']);
+      if (!_current(epoch) ||
+          !identical(_connections[connection.id], connection)) {
+        return;
+      }
       final key = _signalKey(data);
+      _candidateExpiry.remove(key)?.cancel();
       final candidates = key == null ? null : _pendingCandidates.remove(key);
       if (candidates != null) {
         for (final candidate in candidates) {
@@ -320,19 +402,20 @@ final class RemoteDashboardHost extends ChangeNotifier {
   void _connectionClosed(_RemoteDashboardHostConnection connection) {
     if (_connections.remove(connection.id) != null) {
       _stateSubscriptions.remove(connection.id);
-      unawaited(
-        connection.close().whenComplete(connection.dispose).catchError((
-          Object error,
-          StackTrace stack,
-        ) {
-          ShowRunnerLogger.instance.error(
-            'remote',
-            'Could not close dashboard connection.',
-            error: error,
-            stackTrace: stack,
-          );
-        }),
-      );
+      late final Future<void> closing;
+      closing = connection
+          .close()
+          .whenComplete(connection.dispose)
+          .catchError((Object error, StackTrace stack) {
+            ShowRunnerLogger.instance.error(
+              'remote',
+              'Could not close dashboard connection.',
+              error: error,
+              stackTrace: stack,
+            );
+          })
+          .whenComplete(() => _retiring.remove(closing));
+      _retiring.add(closing);
       notifyListeners();
     }
   }
@@ -343,7 +426,10 @@ final class RemoteDashboardHost extends ChangeNotifier {
     if (_connections.remove(connection.id) == null) return;
     _stateSubscriptions.remove(connection.id);
     final key = _signalKey(connection.config.toJson());
-    if (key != null) _pendingCandidates.remove(key);
+    if (key != null) {
+      _pendingCandidates.remove(key);
+      _candidateExpiry.remove(key)?.cancel();
+    }
     await connection.close();
     connection.dispose();
     notifyListeners();
@@ -427,8 +513,10 @@ final class RemoteDashboardHost extends ChangeNotifier {
 
   Future<void> _ensureSignalingStarted() async {
     if (!_started || _closed || signaling.isConnected) return;
+    final epoch = _epoch;
     try {
       await signaling.start();
+      if (!_current(epoch)) return;
       _lastError = null;
       notifyListeners();
     } on Object catch (error) {
@@ -455,17 +543,25 @@ final class RemoteDashboardHost extends ChangeNotifier {
                 return;
               }
               final id = name.replaceFirst(RegExp(r'\.(json|yaml)$'), '');
-              unawaited(
-                Future<void>.delayed(
-                  const Duration(milliseconds: 100),
-                  () async {
-                    await refreshDashboard(id);
-                    if (await _hasSharedDashboard()) {
-                      await _ensureSignalingStarted();
-                    }
-                  },
-                ),
-              );
+              if (!_started || _closed) return;
+              if (!_refreshTimers.containsKey(id) &&
+                  _refreshTimers.length >= 64) {
+                return;
+              }
+              _refreshTimers.remove(id)?.cancel();
+              final epoch = _epoch;
+              _refreshTimers[id] = Timer(const Duration(milliseconds: 100), () {
+                _refreshTimers.remove(id);
+                if (!_current(epoch)) return;
+                _observe(() async {
+                  await refreshDashboard(id);
+                  if (_current(epoch) &&
+                      await _hasSharedDashboard() &&
+                      _current(epoch)) {
+                    await _ensureSignalingStarted();
+                  }
+                });
+              });
             },
             onError: (Object error, StackTrace stackTrace) {
               _lastError = error;
@@ -528,34 +624,59 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
   bool _configSent = false;
   int _configEpoch = 0;
 
-  Future<void> acceptOffer(Object? value) async {
-    if (_closed) return;
+  Future<void>? _accepting;
+  Future<void> acceptOffer(Object? value) {
+    if (_closed) return Future<void>.value();
+    return _accepting ??= _acceptOffer(
+      value,
+    ).whenComplete(() => _accepting = null);
+  }
+
+  Future<void> _acceptOffer(Object? value) async {
     final description = SatelliteSessionDescription.fromJson(value);
-    final peer = _peer ??= await peerFactory({
-      'sdpSemantics': 'unified-plan',
-      'iceServers': const [
-        {'urls': 'stun:stun.l.google.com:19302'},
-        {'urls': 'stun:stun1.l.google.com:3478'},
-      ],
-    });
+    final peer =
+        _peer ??
+        await peerFactory({
+          'sdpSemantics': 'unified-plan',
+          'iceServers': const [
+            {'urls': 'stun:stun.l.google.com:19302'},
+            {'urls': 'stun:stun1.l.google.com:3478'},
+          ],
+        });
+    if (_closed) {
+      try {
+        await peer.close();
+      } finally {
+        await peer.dispose();
+      }
+      return;
+    }
+    _peer = peer;
     if (!_started) {
       _started = true;
       peer.onIceCandidate = (candidate) {
+        if (_closed || !identical(_peer, peer)) return;
         unawaited(
-          signaling.send('satelliteConnectionIceCandidate', {
-            ...config.toJson(),
-            'side': 'ShowRunner',
-            'candidate': candidate.toJson(),
-          }),
+          signaling
+              .send('satelliteConnectionIceCandidate', {
+                ...config.toJson(),
+                'side': 'ShowRunner',
+                'candidate': candidate.toJson(),
+              })
+              .catchError((Object _) {}),
         );
       };
       peer.onDataChannel = _handleDataChannel;
       peer.onStateChanged = _handlePeerState;
     }
     await peer.setRemoteDescription(description);
+    if (_closed) return;
     final answer = await peer.createAnswer();
+    if (_closed) return;
     await peer.setLocalDescription(answer);
+    if (_closed) return;
     final local = await peer.getLocalDescription() ?? answer;
+    if (_closed) return;
     await signaling.send('satelliteConnectionResponse', {
       ...config.toJson(),
       'sdp': local.toJson(),
@@ -614,7 +735,11 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
         try {
           await peer?.dispose();
         } finally {
-          await sessionClosing;
+          try {
+            await sessionClosing;
+          } finally {
+            await _accepting?.catchError((Object _) {});
+          }
         }
       }
     }

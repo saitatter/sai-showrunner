@@ -166,6 +166,76 @@ void main() {
     signaling.dispose();
   });
 
+  test('overlapping manager connects retain only the latest owner', () async {
+    final directory = await createTemporaryDirectory('satellite-manager-');
+    addTearDown(() => directory.delete(recursive: true));
+    final data = ShowRunnerDataService(directory);
+    await data.savePluginSettings('twitch', {'accessToken': 'token'});
+    final sockets = <_FakeCloudPubSubSocket>[];
+    final signaling = SatelliteSignalingController(
+      dataService: data,
+      negotiator: (_) async => 'wss://cloud.example.test/client',
+      socketFactory: (_) async {
+        final socket = _FakeCloudPubSubSocket();
+        sockets.add(socket);
+        return socket;
+      },
+    );
+    final entered = Completer<void>();
+    final opened = Completer<SatellitePeerConnection>();
+    final firstPeer = _FakePeerConnection(), secondPeer = _FakePeerConnection();
+    var created = 0;
+    final manager = RemoteSatelliteConnectionManager(
+      dataService: data,
+      signaling: signaling,
+      peerFactory: (_) {
+        if (created++ == 0) {
+          entered.complete();
+          return opened.future;
+        }
+        return Future.value(secondPeer);
+      },
+    );
+    const config = SatelliteConnectionConfig(
+      satelliteService: 'twitch',
+      satelliteId: 'satellite-1',
+      showRunnerService: 'twitch',
+      showRunnerId: 'owner-1',
+      dashboardId: 'dash-1',
+    );
+    final first = manager.connect(config);
+    final cancelled = expectLater(first, throwsStateError);
+    await entered.future;
+    final second = manager.connect(config);
+    opened.complete(firstPeer);
+    await cancelled;
+    final latest = await second;
+    expect(manager.connection, same(latest));
+    expect(firstPeer.closeCount, 1);
+    expect(firstPeer.disposeCount, 1);
+    // Malformed SDP fails asynchronously; the manager must observe that error.
+    sockets.last.messagesController.add(
+      jsonEncode({
+        'data': {
+          'plugin': 'satellite',
+          'event': 'satelliteConnectionResponse',
+          'context': {
+            ...config.toJson(),
+            'sdp': {'sdp': 42, 'type': 'answer'},
+          },
+        },
+      }),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(manager.lastError, isA<StateError>());
+    expect(manager.connection, isNull);
+    await manager.close();
+    expect(secondPeer.closeCount, 1);
+    expect(secondPeer.disposeCount, 1);
+    manager.dispose();
+    signaling.dispose();
+  });
+
   test(
     'negotiates a dashboard, handles config/state, slots, and widget RPC',
     () async {

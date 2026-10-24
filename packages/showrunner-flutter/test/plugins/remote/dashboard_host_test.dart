@@ -19,6 +19,97 @@ import 'package:showrunner_flutter/graph/runtime/graph_execution_engine.dart';
 import '../../support/graph_fixtures.dart';
 
 void main() {
+  for (final delayedStage in ['resource', 'peer']) {
+    test(
+      'stop awaits $delayedStage startup and prevents session resurrection',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'dashboard-late-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        final data = ShowRunnerDataService(directory);
+        await data.savePluginSettings('twitch', {'accessToken': 'token'});
+        final socket = _FakeCloudPubSubSocket();
+        final signaling = SatelliteSignalingController(
+          dataService: data,
+          negotiator: (_) async => 'wss://cloud.example.test/client',
+          socketFactory: (_) async => socket,
+        );
+        final entered = Completer<void>();
+        final resume = Completer<void>();
+        final peer = _FakePeerConnection();
+        var created = 0;
+        final registry = DartPluginRegistry();
+        final events = DartPluginEventHub();
+        final host = RemoteDashboardHost(
+          dataService: data,
+          registry: registry,
+          eventHub: events,
+          signaling: signaling,
+          dashboardLoader: (_) async {
+            if (delayedStage == 'resource') {
+              entered.complete();
+              await resume.future;
+            }
+            return const ResourceData(
+              id: 'dash-1',
+              config: {
+                'cloudId': 'cloud-1',
+                'remoteTwitchIds': ['satellite-1'],
+                'pages': [],
+                'resourceSlots': [],
+              },
+            );
+          },
+          peerFactory: (_) async {
+            created++;
+            if (delayedStage == 'peer') {
+              entered.complete();
+              await resume.future;
+            }
+            return peer;
+          },
+        );
+        await host.start();
+        await signaling.start();
+        socket.messagesController.add(
+          jsonEncode({
+            'data': {
+              'plugin': 'satellite',
+              'event': 'satelliteConnectionRequest',
+              'context': {
+                'satelliteService': 'twitch',
+                'satelliteId': 'satellite-1',
+                'ShowRunnerService': 'twitch',
+                'ShowRunnerId': 'owner-1',
+                'dashId': 'dash-1',
+                'sdp': {'sdp': 'offer', 'type': 'offer'},
+              },
+            },
+          }),
+        );
+        await entered.future;
+        var stopped = false;
+        final stopping = host.stop().then((_) => stopped = true);
+        await Future<void>.delayed(Duration.zero);
+        expect(stopped, isFalse);
+        resume.complete();
+        await stopping;
+        expect(host.connectionIds, isEmpty);
+        expect(socket.sent, isEmpty);
+        expect(created, delayedStage == 'peer' ? 1 : 0);
+        expect(peer.closeCount, created);
+        expect(peer.disposeCount, created);
+        expect(signaling.isConnected, isFalse);
+        host.dispose();
+        await signaling.close();
+        signaling.dispose();
+        await registry.close();
+        await events.dispose();
+      },
+    );
+  }
+
   test(
     'accepts a shared dashboard and serves its config and widget RPC',
     () async {
@@ -472,6 +563,7 @@ class _FakeDataChannel implements SatelliteDataChannel {
 }
 
 class _FakePeerConnection implements SatellitePeerConnection {
+  int closeCount = 0, disposeCount = 0;
   void Function(SatellitePeerState state)? _onStateChanged;
   void Function(SatelliteDataChannel channel)? _onDataChannel;
   final addedCandidates = <SatelliteIceCandidate>[];
@@ -523,11 +615,15 @@ class _FakePeerConnection implements SatellitePeerConnection {
       addedCandidates.add(candidate);
 
   @override
-  Future<void> close() async =>
-      _onStateChanged?.call(SatellitePeerState.closed);
+  Future<void> close() async {
+    closeCount++;
+    _onStateChanged?.call(SatellitePeerState.closed);
+  }
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    disposeCount++;
+  }
 
   void emitDataChannel(SatelliteDataChannel channel) =>
       _onDataChannel?.call(channel);
