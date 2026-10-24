@@ -206,7 +206,7 @@ final class FileViewerDataRepository implements ViewerDataRepository {
       }
     }
     rows.sort((left, right) {
-      final result = _compareViewerRows(left, right, sortBy);
+      final result = compareViewerDataRows(left, right, sortBy);
       return descending ? -result : result;
     });
     final from = start.clamp(0, rows.length).toInt();
@@ -491,7 +491,7 @@ final class InMemoryViewerDataRepository implements ViewerDataRepository {
   }) async {
     final rows = _rows.values.where((row) => row.provider == provider).toList();
     rows.sort((left, right) {
-      final result = _compareViewerRows(left, right, sortBy);
+      final result = compareViewerDataRows(left, right, sortBy);
       return descending ? -result : result;
     });
     final from = start.clamp(0, rows.length).toInt();
@@ -686,7 +686,7 @@ String _yamlScalar(dynamic value) {
   return jsonEncode(value.toString());
 }
 
-int _compareViewerRows(ViewerDataRow left, ViewerDataRow right, String sortBy) {
+int compareViewerDataRows(ViewerDataRow left, ViewerDataRow right, String sortBy) {
   final leftValue = _viewerSortValue(left, sortBy);
   final rightValue = _viewerSortValue(right, sortBy);
   if (leftValue is num && rightValue is num) {

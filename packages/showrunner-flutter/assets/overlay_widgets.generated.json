@@ -19,7 +19,20 @@
               "connection",
               "device"
             ],
-            "resizable": true
+            "resizable": true,
+            "stateFields": {
+              "heartRate": [
+                "bpm",
+                "stale"
+              ],
+              "connection": [
+                "status"
+              ],
+              "device": [
+                "connected",
+                "batteryPercent"
+              ]
+            }
           },
           "config": {
             "showLabel": {
@@ -58,7 +71,16 @@
               "heartRate",
               "connection"
             ],
-            "resizable": true
+            "resizable": true,
+            "stateFields": {
+              "heartRate": [
+                "bpm",
+                "stale"
+              ],
+              "connection": [
+                "status"
+              ]
+            }
           },
           "config": {
             "showLabel": {
@@ -93,7 +115,18 @@
               "zone",
               "connection"
             ],
-            "resizable": true
+            "resizable": true,
+            "stateFields": {
+              "zone": [
+                "bpm",
+                "name",
+                "index",
+                "color"
+              ],
+              "connection": [
+                "status"
+              ]
+            }
           },
           "config": {
             "showLabel": {

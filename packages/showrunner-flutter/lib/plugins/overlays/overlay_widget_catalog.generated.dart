@@ -12,6 +12,11 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     capabilities: {
       "states": ["heartRate", "connection", "device"],
       "resizable": true,
+      "stateFields": {
+        "heartRate": ["bpm", "stale"],
+        "connection": ["status"],
+        "device": ["connected", "batteryPercent"],
+      },
     },
     defaultSize: {"width": 260, "height": 110},
     config: {
@@ -31,6 +36,10 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     capabilities: {
       "states": ["heartRate", "connection"],
       "resizable": true,
+      "stateFields": {
+        "heartRate": ["bpm", "stale"],
+        "connection": ["status"],
+      },
     },
     defaultSize: {"width": 420, "height": 180},
     config: {
@@ -49,6 +58,10 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     capabilities: {
       "states": ["zone", "connection"],
       "resizable": true,
+      "stateFields": {
+        "zone": ["bpm", "name", "index", "color"],
+        "connection": ["status"],
+      },
     },
     defaultSize: {"width": 280, "height": 90},
     config: {

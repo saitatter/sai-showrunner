@@ -412,7 +412,7 @@ authentication and does not establish an end-to-end DNS-rebinding exploit.
 | Surface and audience | Inputs, outputs and authorization | Limits and evidence |
 | --- | --- | --- |
 | Overlay HTTP, OBS same host or opted-in trusted LAN | Default `127.0.0.1:8181`; `allowRemoteAccess` binds anyIPv4. Public GET `/overlays/<id>` and `/overlays/assets/*`; authenticated `/overlays/<id>/config` and `/overlays/<id>/media/*`. Fragment capability bootstraps an HttpOnly, SameSite=Strict cookie scoped to that overlay path; contained asset/media paths remain enforced | Shared Host/Origin guard before handlers; local IPs, localhost and the machine hostname remain supported. Existing isolated fixture verifies config projection, unknown IDs and foreign-origin rejection. Junction escape protection has a Windows persistence fixture |
-| Overlay WebSocket, same listener | Upgrade `/overlays/<id>/socket`, versioned resource-bound request/response IDs; config/widget/broadcast/audio notifications; plugin state acquisition and viewer schemas/query/events. Overlay-scoped capability plus same-origin guard; per-field projection remains under review | 1 MiB inbound messages, 64 pending outbound RPCs, 20-second default RPC deadline. Malformed JSON/binary/oversized frames close only their peer. Silent initial config ACK expires. 32 joining/connected peers, 16 actual inbound operations, 256 recent replay IDs, 64 state subscriptions and 100-row viewer pages. Aggregate rate and full repository scan cost remain open |
+| Overlay WebSocket, same listener | Upgrade `/overlays/<id>/socket`, versioned resource-bound request/response IDs; config/widget/broadcast/audio notifications; plugin state acquisition and viewer schemas/query/events. Overlay-scoped capability plus same-origin guard; state/viewer projection follows installed widget capabilities and saved bindings | 1 MiB inbound messages, 64 pending outbound RPCs, 20-second default RPC deadline. Malformed JSON/binary/oversized frames close only their peer. Silent initial config ACK expires. 32 joining/connected peers, 16 actual inbound operations, 256 recent replay IDs, 64 state subscriptions and 100-row viewer pages. Aggregate rate and full repository scan cost remain open |
 | Dynamic profile HTTP triggers | `/plugins/endpoints/<route>` with GET/POST/PUT/PATCH/DELETE, route/query/body to active profile subscriptions. Same bind as overlay; no token. Cancellation unregisters the route | 1 MiB body, 20-second dispatch/body timeout, Host/Origin validation. Timeout is not proof of cancellation of a handler already executing |
 | Remote button HTTP, explicitly enabled local integration | Disabled by default; `127.0.0.1:8390`, configurable host. GET `/buttons`; POST `/buttons/press?button=...` emits a named trigger. No bearer credential | Host/Origin guard before enumeration or action. Local native callers without Origin remain supported. Opted-in LAN access still trusts network peers; authentication, replay and rate quotas remain open |
 | Chat OBS dock | Separate loopback-only port; `/api/*` requires `x-showrunner-chat`, 32 random bytes stored in secret settings. HTML URL fragment carries bootstrap capability; no query token, browser storage or shared overlay token | Exact Host/Origin, no-store/no-referrer/CSP. POST bodies limited to 8 KiB, preferences 256 KiB, stream idle deadline 10 seconds. Private messages excluded. Existing dock tests probe forged Host/Origin even with valid credential |
@@ -503,8 +503,19 @@ with an overlay-specific path. Neither public settings nor config projections
 contain that secret. Legacy root media/socket routes are removed. Existing OBS
 Browser Sources require the current editor-generated URL; tests do not rewrite
 user profiles. Loopback and opted-in trusted LAN remain supported; plain HTTP on
-that opted-in LAN is not a claim of confidentiality on hostile networks. Field
-projection and authorized-client data minimization remain separate review work.
+that opted-in LAN is not a claim of confidentiality on hostile networks. `OverlayProjectionPolicy` selects public states from generated widget
+`stateFields` metadata and saved shader binding paths; shader bindings cannot
+project an entire provider object. Viewer access requires a configured leaderboard
+and exposes its selected/sort fields plus public identity fields. Query and event
+projections share the same filtering. Credential keys, local filesystem paths,
+non-finite values, deep/cyclic structures and excessive strings are excluded or
+bounded. Policies refresh on resource reload and validated requests; removed
+subscriptions are pruned before subsequent pushes. A page has at most 100 rows
+and 512 KiB of projected JSON; each provider supplies only its required sorted
+prefix before the numeric-aware global merge. The file repository still scans
+its local catalog to sort: response bounds do not prove indexed storage or a
+network-wide aggregate rate limit. Widget config projection is a separate resource
+handler boundary.
 
 Secret storage tests verify real Windows DPAPI encrypt/decrypt on isolated bytes,
 declared public/secret separation, opaque unknown encrypted fields and unavailable

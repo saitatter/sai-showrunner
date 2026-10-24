@@ -5,6 +5,8 @@ import '../../services/plugin_event_hub.dart';
 import '../registry/plugin_registry.dart';
 import 'manifest.dart';
 import 'overlay_peer.dart';
+import 'overlay_projection_policy.dart';
+import 'dart:convert';
 
 /// Validates browser RPC arguments before entering provider or repository work.
 final class OverlayRpcDispatcher {
@@ -14,12 +16,24 @@ final class OverlayRpcDispatcher {
     required this.eventHub,
     required this.overlayStore,
     required this.send,
+    this.onProjection,
   });
   final DartPluginRegistry registry;
   final ViewerDataRepository viewerDataRepository;
   final DartPluginEventHub eventHub;
   final OverlayResourceStore overlayStore;
   final Future<void> Function(OverlayPeer, String, List<dynamic>) send;
+  final void Function(OverlayPeer, OverlayProjectionPolicy)? onProjection;
+
+  Future<OverlayProjectionPolicy> _policy(OverlayPeer peer) async {
+    final resource = await overlayStore.load(peer.overlayId);
+    if (resource == null || peer.isClosed) {
+      throw StateError('Overlay is unavailable.');
+    }
+    final policy = OverlayProjectionPolicy.fromResource(resource);
+    onProjection?.call(peer, policy);
+    return policy;
+  }
 
   Future<Object?> handle(
     OverlayPeer peer,
@@ -32,6 +46,10 @@ final class OverlayRpcDispatcher {
         _count(args, 2, 2);
         final plugin = _identifier(args[0]);
         final state = _identifier(args[1]);
+        final policy = await _policy(peer);
+        if (!policy.statePaths.containsKey('$plugin\u0000$state')) {
+          throw StateError('Overlay state is not shared.');
+        }
         if (!registry.stateValues(plugin).containsKey(state)) {
           throw StateError('Unknown overlay state.');
         }
@@ -44,7 +62,11 @@ final class OverlayRpcDispatcher {
         await send(peer, 'overlays_stateUpdate', [
           plugin,
           state,
-          registry.stateValues(plugin)[state],
+          policy.projectState(
+            plugin,
+            state,
+            registry.stateValues(plugin)[state],
+          ),
         ]);
         return null;
       case 'overlays_freeState':
@@ -75,6 +97,9 @@ final class OverlayRpcDispatcher {
         return null;
       case 'overlays_observeViewerData':
         _count(args, 0, 0);
+        if (!(await _policy(peer)).viewerData) {
+          throw StateError('Viewer data is not shared.');
+        }
         peer.observingViewerData = true;
         return null;
       case 'overlays_unobserveViewerData':
@@ -82,16 +107,19 @@ final class OverlayRpcDispatcher {
         peer.observingViewerData = false;
         return null;
       case 'overlays_queryViewerData':
-        return _queryViewerData(args);
+        return _queryViewerData(peer, args);
       case 'overlays_getViewerVariables':
         _count(args, 0, 0);
-        return _viewerVariableSchemas();
+        return _viewerVariableSchemas(await _policy(peer));
       default:
         throw StateError('Unknown overlay request.');
     }
   }
 
-  Future<List<JsonMap>> _queryViewerData(List<dynamic> args) async {
+  Future<List<JsonMap>> _queryViewerData(
+    OverlayPeer peer,
+    List<dynamic> args,
+  ) async {
     _count(args, 0, 4);
     final start = _index(args.elementAtOrNull(0), 0);
     final end = _index(args.elementAtOrNull(1), start + 100);
@@ -107,36 +135,69 @@ final class OverlayRpcDispatcher {
       throw const FormatException('Invalid viewer sort order.');
     }
     final descending = order == -1;
+    final policy = await _policy(peer);
+    if (!policy.viewerData ||
+        !{
+          'id',
+          'name',
+          'displayName',
+          ...policy.viewerFields,
+        }.contains(sortBy)) {
+      throw StateError('Viewer field is not shared.');
+    }
+    final sortField = sortBy == 'name' ? 'displayName' : sortBy;
     final rows = <ViewerDataRow>[
-      ...await viewerDataRepository.queryViewers('twitch'),
-      ...await viewerDataRepository.queryViewers('youtube'),
+      ...await viewerDataRepository.queryViewers(
+        'twitch',
+        end: end,
+        sortBy: sortField,
+        descending: descending,
+      ),
+      ...await viewerDataRepository.queryViewers(
+        'youtube',
+        end: end,
+        sortBy: sortField,
+        descending: descending,
+      ),
     ];
     rows.sort((left, right) {
-      final leftValue = _viewerSortValue(left, sortBy);
-      final rightValue = _viewerSortValue(right, sortBy);
-      final result = leftValue.compareTo(rightValue);
+      final result = compareViewerDataRows(left, right, sortField);
       return descending ? -result : result;
     });
     final from = start.clamp(0, rows.length).toInt();
     final to = end.clamp(from, rows.length).toInt();
-    return rows.sublist(from, to).map((row) => row.toJson()).toList();
+    final result = <JsonMap>[];
+    var bytes = 2;
+    for (final row in rows.sublist(from, to)) {
+      final projected = policy.projectViewer(row);
+      bytes += utf8.encode(jsonEncode(projected)).length + 1;
+      if (bytes > 512 * 1024) {
+        throw StateError('Overlay viewer response limit reached.');
+      }
+      result.add(projected);
+    }
+    return result;
   }
 
-  Future<List<JsonMap>> _viewerVariableSchemas() async {
+  Future<List<JsonMap>> _viewerVariableSchemas(
+    OverlayProjectionPolicy policy,
+  ) async {
+    if (!policy.viewerData) return const [];
     final definitions = await viewerDataRepository.loadDefinitions();
     return [
       for (final definition in definitions)
-        {
-          'name': definition.name,
-          'type': _ipcType(definition.normalizedType),
-          if (definition.normalizedType == 'object')
-            'properties': <String, dynamic>{},
-          if (definition.normalizedType == 'list')
-            'items': <String, dynamic>{'type': 'String'},
-          if (definition.defaultValue != null)
-            'default': definition.defaultValue,
-          'required': definition.required,
-        },
+        if (policy.viewerFields.contains(definition.name))
+          {
+            'name': definition.name,
+            'type': _ipcType(definition.normalizedType),
+            if (definition.normalizedType == 'object')
+              'properties': <String, dynamic>{},
+            if (definition.normalizedType == 'list')
+              'items': <String, dynamic>{'type': 'String'},
+            if (definition.defaultValue != null)
+              'default': publicOverlayValue(definition.defaultValue),
+            'required': definition.required,
+          },
     ];
   }
 }
@@ -175,11 +236,3 @@ String _ipcType(String type) => switch (type) {
   'twitchviewer' => 'TwitchViewer',
   _ => 'String',
 };
-
-String _viewerSortValue(ViewerDataRow row, String sortBy) {
-  if (sortBy == 'id') return row.viewer.id;
-  if (sortBy == 'name' || sortBy == 'displayName') {
-    return row.viewer.displayName;
-  }
-  return '${row.values[sortBy] ?? ''}';
-}

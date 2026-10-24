@@ -7,6 +7,7 @@ import 'package:showrunner_flutter/plugins/overlays/manifest.dart';
 import 'package:showrunner_flutter/plugins/overlays/websocket_bridge.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/schema/resource.dart';
+import 'package:showrunner_flutter/schema/viewer_data.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 // Launched only by tools/overlay_registry/transport-browser-smoke.mjs.
@@ -20,11 +21,27 @@ void main() {
     final server = DartHttpEndpointService(port: 0);
     final hub = DartPluginEventHub();
     final registry = DartPluginRegistry();
+    final viewers = InMemoryViewerDataRepository();
+    await viewers.saveDefinitions(const [
+      ViewerVariableDefinition(name: 'score', type: 'number'),
+      ViewerVariableDefinition(name: 'privateNote', type: 'string'),
+    ]);
+    const identity = ViewerIdentity(
+      id: 'viewer-1',
+      displayName: 'Public Viewer',
+    );
+    await viewers.setViewerValue('twitch', identity, 'score', 42);
+    await viewers.setViewerValue(
+      'twitch',
+      identity,
+      'privateNote',
+      'private-browser-marker',
+    );
     final bridge = DartOverlayWebSocketService(
       server: server,
       eventHub: hub,
       registry: registry,
-      viewerDataRepository: InMemoryViewerDataRepository(),
+      viewerDataRepository: viewers,
       webRoot: Directory('../showrunner-obs-overlay/dist/obs-overlay'),
       overlayStore: OverlayResourceStore(
         load: (id) async => id != 'browser-probe'
@@ -35,6 +52,22 @@ void main() {
                   'name': 'Browser probe',
                   'size': {'width': 640, 'height': 360},
                   'widgets': [
+                    {
+                      'id': 'probe-leaderboard',
+                      'plugin': 'overlays',
+                      'widget': 'leaderboard',
+                      'name': 'Scores',
+                      'position': {'x': 0, 'y': 120},
+                      'size': {'width': 640, 'height': 120},
+                      'config': {
+                        'count': 5,
+                        'sortBy': 'score',
+                        'sortOrder': -1,
+                        'variables': [
+                          {'variable': 'score'},
+                        ],
+                      },
+                    },
                     {
                       'id': 'probe-label',
                       'plugin': 'overlays',
