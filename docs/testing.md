@@ -43,6 +43,32 @@ disposal. Real browser DOM smoke also verifies same-ID widget type replacement.
 SDK/capture contracts and frozen Electron/Flutter references remain unchanged;
 these are Chromium renderer proofs, not live OBS/CEF or hardware-driver guarantees.
 
+Remote fixtures exercise version/resource/replay rejection, blocked native send
+expiry, private dashboard-field omission, document budgets, malformed SDP before
+native allocation and the 65th subscription denial. Gated resource, socket and peer
+factories prove shutdown awaits accepted work without resurrecting a session;
+a native offer released only by peer close covers teardown ordering. Overlapping
+manager connects keep the newest owner and observe asynchronous SDP failures.
+Rejected dashboard updates retain the displayed valid document and report an
+error. These fake-transport tests do not establish external PubSub sender
+attestation, NAT traversal, real WebRTC pairing or live provider permissions.
+
+Phase 06 combined local validation on the supported Windows/Flutter SDK passes
+`scripts/ci-check.ps1 -Stage All`: 1,314 Flutter tests with 10 opt-in skips,
+164 browser/tooling tests across 24 files, fatal-info analysis, deterministic
+codegen, build, 18-workspace parity and the real Dart/Chromium transport smoke.
+The isolated application under `.tmp/chat-qa` passes
+`scripts/ci-check.ps1 -Stage Parity -Integration -Visual`: 102 native tests and
+one local-audio opt-in skip. Standalone DOM/chat-dock smoke and all 89 current
+shader fixtures also pass in Chromium. Inspection of the current full captures
+finds no intended desktop layout change; the reviewed label and font regions
+both contain zero differing pixels under the existing 1440x900/DPR-1, channel-3,
+maximum-0.5% contract. Frozen references are unchanged. The lexical import audit
+retains only the existing four-file TypeScript schema cycle and no Dart cycles.
+Raw logs, browser reports, captures and source-equivalence metadata remain in
+ignored `.tmp` directories. Live OBS/CEF, hardware GPU/audio and external
+cloud/NAT pairing remain separate opt-in validation boundaries.
+
 The reference for the baseline/security work is commit `872f3b2f1` (the integrated
 chat branch). It was captured with a clean working tree on Windows 11 Pro x64,
 build 26200, Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0. Both
