@@ -47,6 +47,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   bool _closed = false;
   bool _disposed = false;
   Future<void>? _disconnecting;
+  Future<void>? _starting;
   bool _peerConnected = false;
 
   SatelliteConnectionState get state => _state;
@@ -56,8 +57,10 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   List<RemoteResourceSlot> get slots => List.unmodifiable(_slots.values);
   Stream<RuntimeMap> get broadcasts => _broadcasts.stream;
 
-  Future<void> start() async {
-    if (_started) return;
+  Future<void> start() => _starting ??= _start();
+
+  Future<void> _start() async {
+    if (_started || _closed) return;
     config.validate();
     _started = true;
     final peer = await peerFactory({
@@ -68,27 +71,42 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
       ],
     });
     if (_closed) {
-      await peer.dispose();
+      try {
+        await peer.close();
+      } finally {
+        await peer.dispose();
+      }
       return;
     }
     _peer = peer;
     peer.onIceCandidate = (candidate) {
+      if (_closed || !identical(_peer, peer)) return;
       unawaited(
-        signaling.send('satelliteConnectionIceCandidate', {
-          ...config.toJson(),
-          'side': 'satellite',
-          'candidate': candidate.toJson(),
-        }),
+        signaling
+            .send('satelliteConnectionIceCandidate', {
+              ...config.toJson(),
+              'side': 'satellite',
+              'candidate': candidate.toJson(),
+            })
+            .catchError((Object _) {}),
       );
     };
     peer.onStateChanged = _handlePeerState;
     peer.onDataChannel = _handleDataChannel;
-    _control = await peer.createDataChannel('controlChannel');
-    _bindControl(_control!);
+    final channel = await peer.createDataChannel('controlChannel');
+    if (_closed) {
+      await channel.close();
+      return;
+    }
+    _control = channel;
+    _bindControl(channel);
 
     final offer = await peer.createOffer();
+    if (_closed) return;
     await peer.setLocalDescription(offer);
+    if (_closed) return;
     final local = await peer.getLocalDescription() ?? offer;
+    if (_closed) return;
     await signaling.send('satelliteConnectionRequest', {
       ...config.toJson(),
       'sdp': local.toJson(),
@@ -156,6 +174,11 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     _closed = true;
     _state = SatelliteConnectionState.disconnected;
     _rejectPendingCalls('Remote dashboard disconnected.');
+    try {
+      await _starting;
+    } on Object {
+      /* Startup caller owns the failure. */
+    }
     final sessionClosing = _session?.close();
     _session = null;
     final control = _control;

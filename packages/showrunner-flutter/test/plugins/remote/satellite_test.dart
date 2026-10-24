@@ -63,6 +63,109 @@ void main() {
     },
   );
 
+  test('stop invalidates negotiation before a socket can be opened', () async {
+    final directory = await createTemporaryDirectory('satellite-stop-');
+    addTearDown(() => directory.delete(recursive: true));
+    final data = ShowRunnerDataService(directory);
+    await data.savePluginSettings('twitch', {'accessToken': 'token'});
+    final entered = Completer<void>();
+    final negotiated = Completer<String>();
+    var opens = 0;
+    final signaling = SatelliteSignalingController(
+      dataService: data,
+      negotiator: (_) {
+        entered.complete();
+        return negotiated.future;
+      },
+      socketFactory: (_) async {
+        opens++;
+        return _FakeCloudPubSubSocket();
+      },
+    );
+    final starting = signaling.start();
+    await entered.future;
+    final stopping = signaling.stop();
+    negotiated.complete('wss://cloud.example.test/client');
+    await Future.wait([starting, stopping]);
+    expect(opens, 0);
+    expect(signaling.isConnected, isFalse);
+    await signaling.close();
+    signaling.dispose();
+  });
+
+  test('close awaits and releases a socket returned after stop', () async {
+    final directory = await createTemporaryDirectory('satellite-late-socket-');
+    addTearDown(() => directory.delete(recursive: true));
+    final data = ShowRunnerDataService(directory);
+    await data.savePluginSettings('twitch', {'accessToken': 'token'});
+    final entered = Completer<void>();
+    final opened = Completer<CloudPubSubSocket>();
+    final socket = _FakeCloudPubSubSocket();
+    final signaling = SatelliteSignalingController(
+      dataService: data,
+      negotiator: (_) async => 'wss://cloud.example.test/client',
+      socketFactory: (_) {
+        entered.complete();
+        return opened.future;
+      },
+    );
+    final starting = signaling.start();
+    await entered.future;
+    var closed = false;
+    final closing = signaling.close().then((_) => closed = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(closed, isFalse);
+    opened.complete(socket);
+    await starting;
+    await closing;
+    expect(socket.messagesController.isClosed, isTrue);
+    expect(signaling.isConnected, isFalse);
+    await signaling.start();
+    expect(signaling.isConnected, isFalse);
+    signaling.dispose();
+  });
+
+  test('disconnect awaits and disposes a late native peer', () async {
+    final directory = await createTemporaryDirectory('satellite-late-peer-');
+    addTearDown(() => directory.delete(recursive: true));
+    final signaling = SatelliteSignalingController(
+      dataService: ShowRunnerDataService(directory),
+    );
+    final entered = Completer<void>();
+    final opened = Completer<SatellitePeerConnection>();
+    final peer = _FakePeerConnection();
+    final connection = RemoteSatelliteConnection(
+      id: 'late',
+      config: const SatelliteConnectionConfig(
+        satelliteService: 'twitch',
+        satelliteId: 'satellite-1',
+        showRunnerService: 'twitch',
+        showRunnerId: 'owner-1',
+        dashboardId: 'dash-1',
+      ),
+      signaling: signaling,
+      peerFactory: (_) {
+        entered.complete();
+        return opened.future;
+      },
+    );
+    final starting = connection.start();
+    await entered.future;
+    var closed = false;
+    final closing = connection.disconnect().then((_) => closed = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(closed, isFalse);
+    opened.complete(peer);
+    await starting;
+    await closing;
+    expect(peer.closeCount, 1);
+    expect(peer.disposeCount, 1);
+    expect(peer.channel.sent, isEmpty);
+    connection.dispose();
+    await signaling.close();
+    signaling.dispose();
+  });
+
   test(
     'negotiates a dashboard, handles config/state, slots, and widget RPC',
     () async {
@@ -420,6 +523,7 @@ class _FakeDataChannel implements SatelliteDataChannel {
 }
 
 class _FakePeerConnection implements SatellitePeerConnection {
+  int closeCount = 0, disposeCount = 0;
   final channel = _FakeDataChannel();
   void Function(SatellitePeerState state)? _onStateChanged;
 
@@ -467,10 +571,14 @@ class _FakePeerConnection implements SatellitePeerConnection {
   Future<void> addCandidate(SatelliteIceCandidate candidate) async {}
 
   @override
-  Future<void> close() async {}
+  Future<void> close() async {
+    closeCount++;
+  }
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    disposeCount++;
+  }
 
   void emitPeerState(SatellitePeerState state) => _onStateChanged?.call(state);
 }

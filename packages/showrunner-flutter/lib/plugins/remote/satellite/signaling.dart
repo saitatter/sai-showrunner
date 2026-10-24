@@ -8,124 +8,215 @@ import '../../twitch/account_runtime.dart';
 import '../../spellcast/cloud_pubsub.dart';
 import 'protocol.dart';
 
-/// Raw Azure Web PubSub signaling used by remote satellite clients.
-///
-/// The cloud endpoint already authenticates the connection with the Twitch
-/// token. Only the three satellite signaling events are surfaced to the
-/// connection managers; unrelated PubSub traffic is ignored.
+/// Owns one bounded provider signaling socket; control RPC uses its own session.
 final class SatelliteSignalingController extends ChangeNotifier {
   SatelliteSignalingController({
     required this.dataService,
     this.negotiator = _negotiateSatellite,
     this.socketFactory = _connectSatelliteSocket,
   });
-
   final ShowRunnerDataService dataService;
   final SatelliteSignalingNegotiator negotiator;
   final SatelliteSignalingSocketFactory socketFactory;
-
   final _messages = StreamController<SatelliteSignalingMessage>.broadcast();
   CloudPubSubSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
-  bool _connected = false;
+  Future<void> _lifecycle = Future<void>.value();
+  int _epoch = 0;
+  bool _connected = false, _disposed = false;
   Object? _lastError;
-
+  Future<void>? _closing;
   Stream<SatelliteSignalingMessage> get messages => _messages.stream;
   bool get isConnected => _connected;
   Object? get lastError => _lastError;
+  bool _current(int epoch) => !_disposed && epoch == _epoch;
+  Future<void> _serialize(Future<void> Function() operation) {
+    final work = _lifecycle.then((_) => operation());
+    _lifecycle = work.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return work;
+  }
 
-  Future<void> start() async {
-    if (_socket != null && _connected) return;
-    final settings = await loadTwitchChannelSettings(dataService);
-    final token = settings['accessToken']?.toString().trim() ?? '';
-    if (token.isEmpty) {
-      throw StateError(
-        'Twitch access token is required for remote dashboard connections.',
+  Future<void> start() {
+    final epoch = _epoch;
+    return _serialize(() => _start(epoch));
+  }
+
+  Future<void> _start(int epoch) async {
+    if (!_current(epoch) || (_socket != null && _connected)) return;
+    try {
+      final settings = await loadTwitchChannelSettings(dataService);
+      if (!_current(epoch)) return;
+      final token = settings['accessToken'];
+      if (token is! String || token.trim().isEmpty) {
+        throw StateError('Connect the Twitch account before remote signaling.');
+      }
+      final url = await negotiator(token).timeout(const Duration(seconds: 20));
+      if (!_current(epoch)) return;
+      final uri = Uri.parse(url);
+      if (uri.scheme != 'wss' &&
+          !(uri.scheme == 'ws' &&
+              {'localhost', '127.0.0.1', '::1'}.contains(uri.host))) {
+        throw const FormatException('Unsupported signaling URL.');
+      }
+      final socket = await _openSocket(uri, epoch);
+      if (socket == null) return;
+      await _closeSocket();
+      if (!_current(epoch)) {
+        await socket.close();
+        return;
+      }
+      _socket = socket;
+      _connected = true;
+      bool owns() => _current(epoch) && identical(_socket, socket);
+      _subscription = socket.messages.listen(
+        (raw) {
+          if (owns() && _connected) _handleMessage(raw);
+        },
+        onError: (Object _) {
+          if (!owns()) return;
+          _lastError = StateError('Remote signaling disconnected.');
+          _connected = false;
+          notifyListeners();
+        },
+        onDone: () {
+          if (!owns()) return;
+          _connected = false;
+          _socket = null;
+          notifyListeners();
+        },
       );
+      _lastError = null;
+      notifyListeners();
+    } on Object {
+      if (!_current(epoch)) return;
+      _lastError = StateError('Remote signaling connection failed.');
+      _connected = false;
+      notifyListeners();
+      throw StateError('Remote signaling connection failed.');
     }
+  }
 
-    final url = await negotiator(token);
-    final socket = await socketFactory(Uri.parse(url));
-    await _closeSocket();
-    _socket = socket;
-    _subscription = socket.messages.listen(
-      _handleMessage,
-      onError: (Object error) {
-        _lastError = error;
-        _connected = false;
-        notifyListeners();
-      },
-      onDone: () {
-        _connected = false;
-        _socket = null;
-        notifyListeners();
-      },
-      cancelOnError: false,
-    );
-    _connected = true;
-    _lastError = null;
-    notifyListeners();
+  Future<CloudPubSubSocket?> _openSocket(Uri uri, int epoch) async {
+    var abandoned = false;
+    final opened = socketFactory(uri).then<CloudPubSubSocket?>((socket) async {
+      if (abandoned || !_current(epoch)) {
+        await socket.close();
+        return null;
+      }
+      return socket;
+    });
+    try {
+      return await opened.timeout(const Duration(seconds: 20));
+    } on Object {
+      abandoned = true;
+      rethrow;
+    }
   }
 
   Future<void> send(String event, SatelliteJson data) async {
     final socket = _socket;
-    if (!_connected || socket == null) {
-      throw StateError('Remote dashboard signaling is not connected.');
+    if (_disposed || !_connected || socket == null) {
+      throw StateError('Remote signaling is not connected.');
     }
-    socket.add(
-      jsonEncode({
-        'type': 'event',
-        'event': 'satellite_$event',
-        'dataType': 'json',
-        'data': data,
-      }),
-    );
+    if (!const {
+      'satelliteConnectionRequest',
+      'satelliteConnectionResponse',
+      'satelliteConnectionIceCandidate',
+    }.contains(event)) {
+      throw const FormatException('Unsupported signaling event.');
+    }
+    final encoded = jsonEncode({
+      'type': 'event',
+      'event': 'satellite_$event',
+      'dataType': 'json',
+      'data': data,
+    });
+    if (utf8.encode(encoded).length > 1024 * 1024) {
+      throw const FormatException('Signaling payload limit exceeded.');
+    }
+    socket.add(encoded);
   }
 
-  Future<void> stop() async {
-    await _closeSocket();
+  Future<void> stop() {
+    _epoch++;
     _connected = false;
-    notifyListeners();
+    return _serialize(() async {
+      await _closeSocket();
+      notifyListeners();
+    });
   }
 
   void _handleMessage(dynamic raw) {
-    final decoded = raw is String
-        ? _decodeJson(raw)
-        : raw is Map
-        ? Map<String, dynamic>.from(raw)
-        : null;
-    if (decoded is! Map) return;
-    final payload = decoded['data'] is Map
-        ? Map<String, dynamic>.from(decoded['data'] as Map)
-        : decoded;
-    if (payload['plugin']?.toString() != 'satellite') return;
-    final event = payload['event']?.toString() ?? '';
-    if (event != 'satelliteConnectionRequest' &&
-        event != 'satelliteConnectionResponse' &&
-        event != 'satelliteConnectionIceCandidate') {
-      return;
+    if (_disposed || !_connected) return;
+    try {
+      if (raw is String &&
+          (raw.length > 1024 * 1024 || utf8.encode(raw).length > 1024 * 1024)) {
+        return;
+      }
+      final decoded = raw is String
+          ? _decodeJson(raw)
+          : raw is Map
+          ? Map<String, dynamic>.from(raw)
+          : null;
+      if (decoded is! Map) return;
+      final payload = decoded['data'] is Map
+          ? Map<String, dynamic>.from(decoded['data'] as Map)
+          : decoded;
+      if (payload['plugin'] != 'satellite') return;
+      final event = payload['event'];
+      if (event is! String ||
+          !const {
+            'satelliteConnectionRequest',
+            'satelliteConnectionResponse',
+            'satelliteConnectionIceCandidate',
+          }.contains(event)) {
+        return;
+      }
+      final context = payload['context'];
+      final data = context is Map
+          ? Map<String, dynamic>.from(context)
+          : Map<String, dynamic>.from(payload);
+      _messages.add(SatelliteSignalingMessage(event: event, data: data));
+    } on Object {
+      /* Malformed provider frames never reach native sessions. */
     }
-    final context = payload['context'];
-    final data = context is Map
-        ? Map<String, dynamic>.from(context)
-        : Map<String, dynamic>.from(payload);
-    _messages.add(SatelliteSignalingMessage(event: event, data: data));
   }
 
   Future<void> _closeSocket() async {
-    await _subscription?.cancel();
-    _subscription = null;
+    final subscription = _subscription;
     final socket = _socket;
+    _subscription = null;
     _socket = null;
-    await socket?.close();
+    _connected = false;
+    try {
+      await subscription?.cancel();
+    } finally {
+      await socket?.close();
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
   }
 
   @override
   void dispose() {
-    _connected = false;
-    unawaited(_closeSocket());
-    unawaited(_messages.close());
+    unawaited(close().catchError((Object _) {}));
     super.dispose();
+  }
+
+  Future<void> close() {
+    _disposed = true;
+    return _closing ??= _close();
+  }
+
+  Future<void> _close() async {
+    try {
+      await stop();
+    } finally {
+      await _messages.close();
+    }
   }
 }
 
