@@ -166,6 +166,42 @@ void main() {
     signaling.dispose();
   });
 
+  test(
+    'disconnect closes the peer before awaiting a blocked native offer',
+    () async {
+      final directory = await createTemporaryDirectory(
+        'satellite-blocked-offer-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final signaling = SatelliteSignalingController(
+        dataService: ShowRunnerDataService(directory),
+      );
+      final peer = _BlockedOfferPeer();
+      final connection = RemoteSatelliteConnection(
+        id: 'blocked',
+        config: const SatelliteConnectionConfig(
+          satelliteService: 'twitch',
+          satelliteId: 'satellite-1',
+          showRunnerService: 'twitch',
+          showRunnerId: 'owner-1',
+          dashboardId: 'dash-1',
+        ),
+        signaling: signaling,
+        peerFactory: (_) async => peer,
+      );
+      final starting = connection.start();
+      await peer.entered.future;
+      await connection.disconnect().timeout(const Duration(seconds: 1));
+      await starting;
+      expect(peer.closeCount, 1);
+      expect(peer.disposeCount, 1);
+      expect(connection.state, SatelliteConnectionState.disconnected);
+      connection.dispose();
+      await signaling.close();
+      signaling.dispose();
+    },
+  );
+
   test('overlapping manager connects retain only the latest owner', () async {
     final directory = await createTemporaryDirectory('satellite-manager-');
     addTearDown(() => directory.delete(recursive: true));
@@ -664,4 +700,21 @@ class _FakePeerConnection implements SatellitePeerConnection {
   }
 
   void emitPeerState(SatellitePeerState state) => _onStateChanged?.call(state);
+}
+
+class _BlockedOfferPeer extends _FakePeerConnection {
+  final entered = Completer<void>();
+  final released = Completer<void>();
+  @override
+  Future<SatelliteSessionDescription> createOffer() async {
+    entered.complete();
+    await released.future;
+    return super.createOffer();
+  }
+
+  @override
+  Future<void> close() async {
+    await super.close();
+    released.complete();
+  }
 }
