@@ -686,7 +686,11 @@ String _yamlScalar(dynamic value) {
   return jsonEncode(value.toString());
 }
 
-int compareViewerDataRows(ViewerDataRow left, ViewerDataRow right, String sortBy) {
+int compareViewerDataRows(
+  ViewerDataRow left,
+  ViewerDataRow right,
+  String sortBy,
+) {
   final leftValue = _viewerSortValue(left, sortBy);
   final rightValue = _viewerSortValue(right, sortBy);
   if (leftValue is num && rightValue is num) {

@@ -13,7 +13,7 @@
 - Remount the browser widget renderer when a saved widget changes type while retaining its ID, instead of updating the previous widget implementation with another type's fields.
 - Scope audio cancellation by overlay and playback ID, cancel duration timers on abort/shutdown and report undelivered playback as failed instead of successful.
 - Require overlay-scoped browser capabilities for config, media and WebSocket access, store the installation secret encrypted, bootstrap HttpOnly path-scoped cookies and restrict state/viewer projections to configured widget fields; existing OBS sources need the current Browser Source URL copied or fixed from the editor.
-- Render leaderboard names and selected values in the browser's row format, sort numeric values consistently across providers and bound provider prefixes and paginated response size.
+- Render leaderboard names and selected values in the browser's row format, reuse numeric-aware row ordering across providers and bound provider prefixes and paginated response size.
 - Recheck shared-dashboard permissions and current button definitions before remote commands, close revoked sessions on refresh, bound pending remote RPCs and keep provider error text and stale callbacks out of disconnected sessions.
 - Prevent stopped, timed-out or unregistered HTTP handlers and endpoint routes from continuing dispatch; serialize listener startup/shutdown so concurrent starts cannot leak a server.
 - Ignore obsolete remote discovery failures and connection/RPC continuations after workspace replacement; keep provider, startup, registry and queue errors out of public diagnostic payloads.
