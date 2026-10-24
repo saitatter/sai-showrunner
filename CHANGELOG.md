@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Remount the browser widget renderer when a saved widget changes type while retaining its ID, instead of updating the previous widget implementation with another type's fields.
 - Scope audio cancellation by overlay and playback ID, cancel duration timers on abort/shutdown and report undelivered playback as failed instead of successful.
 - Require overlay-scoped browser capabilities for config, media and WebSocket access, store the installation secret encrypted, bootstrap HttpOnly path-scoped cookies and restrict state/viewer projections to configured widget fields; existing OBS sources need the current Browser Source URL copied or fixed from the editor.
 - Render leaderboard names and selected values in the browser's row format, sort numeric values consistently across providers and bound provider prefixes and paginated response size.

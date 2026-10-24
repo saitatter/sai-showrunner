@@ -230,12 +230,13 @@ export class OverlayRuntime {
 		for (const widgetConfig of config.widgets) {
 			if (!widgetConfig.visible) continue
 			const existing = this.instances.get(widgetConfig.id)
-			if (existing) {
+			if (existing && existing.config.plugin === widgetConfig.plugin && existing.config.widget === widgetConfig.widget) {
 				existing.config = widgetConfig
 				existing.widget.update(widgetConfig.config)
 				this.position(existing.container, widgetConfig)
 				continue
 			}
+			if (existing) this.removeInstance(widgetConfig.id)
 			this.addInstance(widgetConfig)
 		}
 	}

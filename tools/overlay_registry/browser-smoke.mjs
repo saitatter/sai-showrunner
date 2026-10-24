@@ -94,6 +94,9 @@ try {
   config.widgets = [config.widgets[0]];
   await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
   if (!(await evaluate(`document.querySelectorAll('.overlay-widget').length === 1 && document.body.innerText.includes('Browser update verified') && !document.querySelector('canvas')`))) throw new Error('Widget update/removal failed.');
+  config.widgets[0] = {...config.widgets[0],widget:'bar',config:{value:50,target:100}};
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
+  if (!(await evaluate(`document.querySelectorAll('.overlay-widget').length === 1 && Boolean(document.querySelector('.outer-bar')) && !document.body.innerText.includes('Browser update verified')`))) throw new Error('Same-ID widget type replacement did not remount its renderer.');
   await evaluate('window.showRunnerOverlayRuntime.stop()');
   if (await evaluate(`document.querySelectorAll('.overlay-widget').length`)) throw new Error('Runtime stop leaked widget elements.');
   if (errors.length) throw new Error(`Browser exceptions: ${JSON.stringify(errors)}`);
