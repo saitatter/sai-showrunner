@@ -41,6 +41,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Coalesce overlay state snapshots with one in-flight update per connection, skip unchanged values, retain the latest queued values and drain pending state promises on disconnect without coalescing events or widget commands.
 - Separate overlay HTTP resources, canonical media containment and audio ownership; project browser configuration from declared widget fields, omit shader authoring documents and bound render resource allocation.
 - Separate chat dock listener ownership, immutable HTTP routing and typed command/snapshot contracts; validate payload shapes and platform limits before provider work, return safe error codes and serialize dock restart/shutdown.
 - Use generated, versioned resource-scoped envelopes for Remote/Satellite control channels, reject recent request replay and bound active operations; serialize satellite disconnect cleanup and ignore messages after disposal.
