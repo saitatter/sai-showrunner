@@ -175,11 +175,6 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     _closed = true;
     _state = SatelliteConnectionState.disconnected;
     _rejectPendingCalls('Remote dashboard disconnected.');
-    try {
-      await _starting;
-    } on Object {
-      /* Startup caller owns the failure. */
-    }
     final sessionClosing = _session?.close();
     _session = null;
     final control = _control;
@@ -195,7 +190,15 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
         try {
           await peer?.dispose();
         } finally {
-          await sessionClosing;
+          try {
+            await sessionClosing;
+          } finally {
+            try {
+              await _starting;
+            } on Object {
+              /* Startup caller owns the failure. */
+            }
+          }
         }
       }
     }
