@@ -1,3 +1,4 @@
+import '../../services/public_data_projection.dart';
 import 'dart:async';
 import '../../services/structured_logger.dart';
 import 'dart:io';
@@ -306,19 +307,20 @@ final class RemoteDashboardHost extends ChangeNotifier {
     }
     switch (name) {
       case 'dashboard_acquireState':
-        if (args.length < 2) {
-          throw const FormatException('State request is incomplete.');
-        }
-        final plugin = args[0]?.toString() ?? '';
-        final state = args[1]?.toString() ?? '';
-        if (plugin.isEmpty || state.isEmpty) {
-          throw const FormatException('State request is incomplete.');
+        _validateStateArgs(args);
+        final plugin = args[0] as String;
+        final state = args[1] as String;
+        if (!registry.stateValues(plugin).containsKey(state)) {
+          throw const FormatException('Unknown dashboard state.');
         }
         final subscriptions = _stateSubscriptions[connection.id];
         if (subscriptions == null) {
           throw StateError('Unknown dashboard connection.');
         }
         final key = '$plugin\u0000$state';
+        if (!subscriptions.contains(key) && subscriptions.length >= 64) {
+          throw StateError('Dashboard subscription limit exceeded.');
+        }
         if (subscriptions.add(key)) {
           await connection.sendStateUpdate(
             plugin,
@@ -328,20 +330,22 @@ final class RemoteDashboardHost extends ChangeNotifier {
         }
         return null;
       case 'dashboard_freeState':
-        if (args.length >= 2) {
-          _stateSubscriptions[connection.id]?.remove(
-            '${args[0]}\u0000${args[1]}',
-          );
-        }
+        _validateStateArgs(args);
+        _stateSubscriptions[connection.id]?.remove(
+          '${args[0]}\u0000${args[1]}',
+        );
         return null;
       case 'dashboard_widgetRPC':
         return _handleWidgetRpc(resource.config, args);
       case 'satellite_resourceBind':
       case 'satellite_resourceUnbind':
-        // Resource slots are owned by the dashboard host. The binding itself
-        // is tracked by the satellite side; acknowledging these messages is
-        // enough for protocol parity and keeps the host ready for resource
-        // widgets added by future dashboard plugins.
+        if (args.length != 1 ||
+            !_validId(args.single) ||
+            !RemoteDashboardConfig.fromJson(
+              resource.config,
+            ).resourceSlots.any((slot) => slot.id == args.single)) {
+          throw const FormatException('Unknown dashboard resource slot.');
+        }
         return null;
       default:
         throw UnsupportedError('Unsupported dashboard RPC: $name');
@@ -352,8 +356,10 @@ final class RemoteDashboardHost extends ChangeNotifier {
     JsonMap dashboardConfig,
     List<dynamic> args,
   ) async {
-    if (args.length < 2) {
-      throw const FormatException('Widget RPC is incomplete.');
+    if (args.length < 2 ||
+        args.length > 3 ||
+        args.any((arg) => !_validId(arg))) {
+      throw const FormatException('Invalid dashboard action request.');
     }
     final rpcId = args[0]?.toString() ?? '';
     final widgetId = args[1]?.toString() ?? '';
@@ -376,6 +382,20 @@ final class RemoteDashboardHost extends ChangeNotifier {
     }
     eventHub.emit('remoteButton', {'name': configuredName});
     return true;
+  }
+
+  static bool _validId(Object? value) =>
+      value is String &&
+      value.trim().isNotEmpty &&
+      value.length <= 128 &&
+      !value.contains('\u0000');
+  static void _validateStateArgs(List<dynamic> args) {
+    if (args.length != 2 ||
+        args.any(
+          (arg) => !_validId(arg) || isPrivatePublicField(arg as String),
+        )) {
+      throw const FormatException('Invalid dashboard state request.');
+    }
   }
 
   void _handleRegistryStateChange() {
@@ -702,7 +722,9 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
   Future<void> sendDashboardConfig() async {
     if (_configSent || _closed) return;
     final epoch = _configEpoch;
-    await callRpc('dashboard_setConfig', [dashboardConfig]);
+    await callRpc('dashboard_setConfig', [
+      RemoteDashboardConfig.fromJson(dashboardConfig).toJson(),
+    ]);
     if (!_closed && epoch == _configEpoch) _configSent = true;
   }
 
@@ -713,7 +735,11 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
   }
 
   Future<void> sendStateUpdate(String plugin, String state, dynamic value) =>
-      callRpc('dashboard_stateUpdate', [plugin, state, value]);
+      callRpc('dashboard_stateUpdate', [
+        plugin,
+        state,
+        projectPublicValue(value),
+      ]);
 
   Future<void>? _closing;
   Future<void> close() => _closing ??= _close();

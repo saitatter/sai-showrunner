@@ -1,9 +1,9 @@
+import '../../services/public_data_projection.dart';
 import 'dart:convert';
 import '../../schema/json.dart';
 import '../../schema/resource.dart';
 import 'overlay_media_resources.dart';
 import 'overlay_widget_catalog.generated.dart';
-import 'overlay_projection_policy.dart';
 import 'overlay_protocol.generated.dart';
 
 /// Render DTO projection, independent of persisted shader/editor documents.
@@ -91,7 +91,7 @@ Future<JsonMap> _remoteWidget(
       if (!config.containsKey(entry.key) ||
           (metadata is Map &&
               (metadata['secret'] == true || metadata['browser'] == false)) ||
-          isPrivateOverlayField(entry.key)) {
+          isPrivatePublicField(entry.key)) {
         continue;
       }
       publicConfig[entry.key] = await values.project(config[entry.key], 0);
@@ -172,8 +172,7 @@ final class _ConfigValueProjector {
       }
       return {
         for (final entry in value.entries)
-          if (entry.key is String &&
-              !isPrivateOverlayField(entry.key as String))
+          if (entry.key is String && !isPrivatePublicField(entry.key as String))
             entry.key as String: await project(entry.value, depth + 1),
       };
     }

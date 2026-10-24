@@ -1,3 +1,4 @@
+import '../../services/public_data_projection.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -263,7 +264,14 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
         if (args.length != 1) {
           throw const FormatException('Invalid dashboard config request.');
         }
-        _applyDashboardConfig(args.single);
+        try {
+          _applyDashboardConfig(args.single);
+          _lastError = null;
+        } on FormatException {
+          _lastError = StateError('Remote dashboard configuration is invalid.');
+          notifyListeners();
+          rethrow;
+        }
         return null;
       case 'dashboard_stateUpdate':
         if (args.length != 3 || args[0] is! String || args[1] is! String) {
@@ -314,13 +322,28 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   }
 
   void _applyStateUpdate(Object? value) {
-    final args = value is List ? value : const [];
-    if (args.length < 3) return;
-    final plugin = args[0]?.toString() ?? '';
-    final state = args[1]?.toString() ?? '';
-    if (plugin.isEmpty || state.isEmpty) return;
+    if (value is! List ||
+        value.length != 3 ||
+        value
+            .take(2)
+            .any(
+              (id) =>
+                  id is! String ||
+                  id.trim().isEmpty ||
+                  id.length > 128 ||
+                  id.contains('\u0000') ||
+                  isPrivatePublicField(id),
+            )) {
+      throw const FormatException('Invalid remote state update.');
+    }
+    final plugin = value[0] as String, state = value[1] as String;
+    if (_states[plugin]?.containsKey(state) != true &&
+        _states.values.fold<int>(0, (count, states) => count + states.length) >=
+            64) {
+      throw StateError('Remote state limit exceeded.');
+    }
     final pluginStates = _states.putIfAbsent(plugin, () => <String, dynamic>{});
-    pluginStates[state] = args[2];
+    pluginStates[state] = projectPublicValue(value[2]);
     notifyListeners();
   }
 

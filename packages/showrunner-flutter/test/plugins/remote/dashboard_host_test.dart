@@ -302,6 +302,14 @@ void main() {
         (configRequest['args'] as List).single['name'],
         'Studio dashboard',
       );
+      expect(
+        (configRequest['args'] as List).single,
+        isNot(contains('cloudId')),
+      );
+      expect(
+        (configRequest['args'] as List).single,
+        isNot(contains('remoteTwitchIds')),
+      );
       channel.emitMessage(
         jsonEncode({'responseId': configRequest['requestId'], 'result': null}),
       );
@@ -352,6 +360,24 @@ void main() {
           .where((m) => m['name'] == 'dashboard_stateUpdate')
           .toList();
       expect(updates().last['args'], ['variables', 'counter', 1]);
+      registry.updateDynamicState('variables', 'accessToken', 'private-token');
+      for (final invalid in [
+        ['variables', 'accessToken'],
+        ['variables', 'missing'],
+        ['variables', 42],
+        ['variables', 'counter', 'extra'],
+      ]) {
+        final requestId = 'invalid-state-${invalid.join('-')}';
+        channel.emitMessage(
+          jsonEncode({
+            'requestId': requestId,
+            'name': 'dashboard_acquireState',
+            'args': invalid,
+          }),
+        );
+        expect((await _response(channel, requestId))['failed'], isTrue);
+      }
+      expect(jsonEncode(channel.sent), isNot(contains('private-token')));
       registry.updateDynamicState('variables', 'counter', 2);
       await _settle();
       expect(updates().last['args'], ['variables', 'counter', 2]);
@@ -363,6 +389,32 @@ void main() {
         }),
       );
       await _settle();
+      for (var i = 0; i < 65; i++) {
+        registry.updateDynamicState('variables', 'bounded-$i', i);
+      }
+      for (var i = 0; i < 65; i++) {
+        final requestId = 'bounded-sub-$i';
+        channel.emitMessage(
+          jsonEncode({
+            'requestId': requestId,
+            'name': 'dashboard_acquireState',
+            'args': ['variables', 'bounded-$i'],
+          }),
+        );
+        final response = await _response(channel, requestId);
+        expect(response['failed'] == true, i == 64);
+      }
+      for (var i = 0; i < 64; i++) {
+        final requestId = 'bounded-free-$i';
+        channel.emitMessage(
+          jsonEncode({
+            'requestId': requestId,
+            'name': 'dashboard_freeState',
+            'args': ['variables', 'bounded-$i'],
+          }),
+        );
+        expect((await _response(channel, requestId))['failed'], isNull);
+      }
       final count = updates().length;
       registry.updateDynamicState('variables', 'counter', 3);
       await _settle();
