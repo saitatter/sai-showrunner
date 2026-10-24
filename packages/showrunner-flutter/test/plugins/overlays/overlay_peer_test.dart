@@ -289,7 +289,7 @@ void main() {
     await pair.peer.close();
   });
   test(
-    'expired outbound calls release their slot and ignore a late response',
+    'expired outbound calls close stale peers and settle pending work',
     () async {
       final pair = await _Pair.open(
         timeout: const Duration(milliseconds: 40),
@@ -301,16 +301,10 @@ void main() {
       final request = await pair.next();
       await checked;
       expect(pair.peer.pendingRequests, 0);
-      pair.client.add(
-        jsonEncode(
-          encodeOverlayWire({
-            'responseId': request['requestId'],
-            'result': 'late',
-          }, 'fixture'),
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      expect(pair.peer.isClosed, isFalse);
+      expect(request['requestId'], isA<String>());
+      await pair.closed();
+      expect(pair.peer.isClosed, isTrue);
+      expect(pair.client.closeCode, WebSocketStatus.policyViolation);
     },
   );
   test('outbound admission is bounded and an ACK releases its slot', () async {
