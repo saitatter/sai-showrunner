@@ -6,6 +6,12 @@ OBS profiles and credentials are never disposable fixtures.
 
 ## Baseline and behavior contracts
 
+The overlay generator passes the Flutter package language version from its
+`pubspec.yaml` SDK constraint explicitly to `dart format`. Fresh-checkout
+generation before `flutter pub get` and generation with an existing package
+configuration must leave the same committed output; the Windows CI drift gate
+runs before dependency resolution and covers this boundary.
+
 Overlay protocol fixtures are shared verbatim by Dart
 `test/plugins/overlays/overlay_protocol_test.dart` and TypeScript
 `tools/overlay_registry/protocol.test.mjs`. Loopback peer/bridge tests cover

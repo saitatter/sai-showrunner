@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process"
+import { readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { generateRegistry } from "../../libs/showrunner-overlay-build/src/index.mjs"
@@ -20,9 +21,14 @@ generateRegistry({
 // The browser-only CI job does not install Flutter, but the Windows Flutter
 // and release jobs do. Format the generated Dart catalog whenever the SDK is
 // available so `overlay:generate` is clean in the environments that compile
-// the desktop application.
+// the desktop application. Pin the package language version explicitly: a fresh
+// checkout has no .dart_tool/package_config.json, so formatter inference would
+// otherwise use the installed SDK language version instead of pubspec's minimum.
+const pubspec = readFileSync(path.join(root, "packages/showrunner-flutter/pubspec.yaml"), "utf8")
+const languageVersion = pubspec.match(/^  sdk: \^(\d+\.\d+)\.\d+\s*$/m)?.[1]
+if (!languageVersion) throw new Error("Cannot determine the Flutter package language version from its SDK constraint.")
 const dartCommand = process.platform === "win32" ? "dart.bat" : "dart"
-const result = spawnSync(dartCommand, ["format", flutterCatalogLibraryOutput, flutterProtocolOutput, flutterRemoteProtocolOutput], {
+const result = spawnSync(dartCommand, ["format", `--language-version=${languageVersion}`, flutterCatalogLibraryOutput, flutterProtocolOutput, flutterRemoteProtocolOutput], {
 	stdio: "inherit",
 	shell: process.platform === "win32",
 })

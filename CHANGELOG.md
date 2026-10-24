@@ -81,7 +81,7 @@
 
 ### CI & Build
 - Run a real Dart/Chromium authenticated overlay transport smoke in full local checks and Windows CI, alongside DOM/WebGL verification.
-- Verify generated overlay and Remote/Satellite protocol codecs alongside widget contracts so runtime wire-schema drift fails CI.
+- Verify generated overlay and Remote/Satellite protocol codecs alongside widget contracts so runtime wire-schema drift fails CI; derive Dart formatter language from the package SDK constraint so clean checkouts and configured workspaces produce identical output.
 - Verify workspace/dialog replacement, scoped chat and health rebuilds, layer-menu identity and desktop size/DPI behavior; await active document identity, accepted resource operations and sequential native Save All writes before checking persisted results.
 - Add isolated persistence failure probes for mixed credential/config generations, hidden decryption failures, unsupported envelopes and resource identity confusion; await real filesystem completion in variable UI fixtures and ignore generated fixture owner locks; verify malformed resources survive native application restart without hiding healthy data or exposing parser source.
 
