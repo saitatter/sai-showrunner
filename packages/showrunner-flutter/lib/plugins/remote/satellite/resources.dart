@@ -1,5 +1,3 @@
-part of '../satellite.dart';
-
 final class RemoteResourceSlot {
   const RemoteResourceSlot({
     required this.id,

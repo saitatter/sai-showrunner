@@ -1,4 +1,12 @@
-part of '../satellite.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import '../../../services/showrunner_data_service.dart';
+import '../../../services/http_provider_transports.dart';
+import '../../twitch/account_runtime.dart';
+import '../../spellcast/cloud_pubsub.dart';
+import 'protocol.dart';
 
 /// Raw Azure Web PubSub signaling used by remote satellite clients.
 ///
@@ -120,3 +128,27 @@ final class SatelliteSignalingController extends ChangeNotifier {
     super.dispose();
   }
 }
+
+dynamic _decodeJson(String value) {
+  try {
+    return jsonDecode(value);
+  } on FormatException {
+    return null;
+  }
+}
+
+Future<String> _negotiateSatellite(String accessToken) async {
+  final response = await JsonHttpTransport(
+    baseUrl: 'https://api.showrunner.io',
+    accessToken: accessToken,
+  ).requestValue('GET', '/pubsub/satellite/negotiate', const {}, null);
+  if (response is Map && response['url']?.toString().isNotEmpty == true) {
+    return response['url'].toString();
+  }
+  throw const FormatException(
+    'Satellite PubSub negotiation did not return a URL.',
+  );
+}
+
+Future<CloudPubSubSocket> _connectSatelliteSocket(Uri uri) async =>
+    IoCloudPubSubSocket(await WebSocket.connect(uri.toString()));

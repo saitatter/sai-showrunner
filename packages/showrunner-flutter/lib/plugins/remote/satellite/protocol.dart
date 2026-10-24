@@ -1,4 +1,4 @@
-part of '../satellite.dart';
+import '../../spellcast/cloud_pubsub.dart';
 
 typedef SatelliteJson = Map<String, dynamic>;
 
