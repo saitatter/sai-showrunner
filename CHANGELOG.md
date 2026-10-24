@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Scope audio cancellation by overlay and playback ID, cancel duration timers on abort/shutdown and report undelivered playback as failed instead of successful.
 - Require overlay-scoped browser capabilities for config, media and WebSocket access, store the installation secret encrypted, bootstrap HttpOnly path-scoped cookies and restrict state/viewer projections to configured widget fields; existing OBS sources need the current Browser Source URL copied or fixed from the editor.
 - Render leaderboard names and selected values in the browser's row format, sort numeric values consistently across providers and bound provider prefixes and paginated response size.
 - Recheck shared-dashboard permissions and current button definitions before remote commands, close revoked sessions on refresh, bound pending remote RPCs and keep provider error text and stale callbacks out of disconnected sessions.
@@ -40,6 +41,7 @@
 - Fail visibly when encrypted credentials are unavailable, reject declared secret writes without encrypted storage, and preserve unsupported or mismatched resource documents instead of overwriting them.
 
 ### Refactors
+- Separate overlay HTTP resources, canonical media containment and audio ownership; project browser configuration from declared widget fields, omit shader authoring documents and bound render resource allocation.
 - Separate chat dock listener ownership, immutable HTTP routing and typed command/snapshot contracts; validate payload shapes and platform limits before provider work, return safe error codes and serialize dock restart/shutdown.
 - Use generated, versioned resource-scoped envelopes for Remote/Satellite control channels, reject recent request replay and bound active operations; serialize satellite disconnect cleanup and ignore messages after disposal.
 - Separate overlay browser RPC dispatch, validate method arguments before repository/event access, cap viewer pages and state subscriptions, and reject widget calls targeting another overlay or a deleted widget.

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io';
 import 'package:crypto/crypto.dart';
 import '../../services/showrunner_data_service.dart';
 
@@ -15,6 +16,13 @@ final class OverlayAccessTokens {
   );
   final List<int> _key;
   static const cookieName = 'showrunner-overlay';
+
+  bool authorizes(HttpRequest request, String overlayId) =>
+      accepts(overlayId, request.headers.value('x-showrunner-overlay')) ||
+      request.cookies.any(
+        (cookie) =>
+            cookie.name == cookieName && accepts(overlayId, cookie.value),
+      );
 
   String forOverlay(String id) => base64UrlEncode(
     Hmac(
