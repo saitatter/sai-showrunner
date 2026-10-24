@@ -369,6 +369,19 @@ void main() {
         'result': {'lightOn': true},
       });
 
+      peer.channel.emitMessage(
+        jsonEncode({
+          'requestId': 'bad-config',
+          'name': 'dashboard_setConfig',
+          'args': [
+            {'pages': 'invalid'},
+          ],
+        }),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(jsonDecode(peer.channel.sent.last)['failed'], isTrue);
+      expect(connection.lastError, isA<StateError>());
+      expect(connection.dashboard!.name, 'Studio dashboard');
       await connection.disconnect();
       connection.dispose();
       final sentBeforeLate = peer.channel.sent.length;

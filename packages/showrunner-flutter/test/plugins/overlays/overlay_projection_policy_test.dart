@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/services/public_data_projection.dart';
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/plugins/overlays/overlay_projection_policy.dart';
@@ -157,11 +158,11 @@ void main() {
         '/home/fixture/private',
         'file:///fixture/private',
       ]) {
-        expect(publicOverlayValue(path), isNull, reason: path);
+        expect(projectPublicValue(path), isNull, reason: path);
       }
-      expect(publicOverlayValue(double.infinity), isNull);
+      expect(projectPublicValue(double.infinity), isNull);
       expect(
-        publicOverlayValue('https://example.test/public'),
+        projectPublicValue('https://example.test/public'),
         'https://example.test/public',
       );
       final cycle = <String, dynamic>{};
@@ -169,7 +170,7 @@ void main() {
         cycle['item$index'] = cycle;
       }
       expect(
-        utf8.encode(jsonEncode(publicOverlayValue(cycle))).length,
+        utf8.encode(jsonEncode(projectPublicValue(cycle))).length,
         lessThan(32768),
       );
     },

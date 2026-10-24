@@ -1,3 +1,4 @@
+import '../../services/public_data_projection.dart';
 import '../../persistence/viewer_data_repository.dart';
 import '../../schema/json.dart';
 import '../../schema/viewer_data.dart';
@@ -197,7 +198,7 @@ final class OverlayRpcDispatcher {
             if (definition.normalizedType == 'list')
               'items': <String, dynamic>{'type': 'String'},
             if (definition.defaultValue != null)
-              'default': publicOverlayValue(definition.defaultValue),
+              'default': projectPublicValue(definition.defaultValue),
             'required': definition.required,
           },
     ];

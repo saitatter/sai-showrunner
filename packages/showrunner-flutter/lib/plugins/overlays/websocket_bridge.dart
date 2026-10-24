@@ -1,3 +1,4 @@
+import '../../services/public_data_projection.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -338,7 +339,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
             provider,
             id,
             variable,
-            publicOverlayValue(event['value']),
+            projectPublicValue(event['value']),
           ]),
         );
         continue;
@@ -352,7 +353,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
               provider,
               id,
               entry.key.toString(),
-              publicOverlayValue(entry.value),
+              projectPublicValue(entry.value),
             ]),
           );
         }
