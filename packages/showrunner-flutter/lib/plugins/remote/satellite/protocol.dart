@@ -30,6 +30,45 @@ final class SatelliteConnectionConfig {
   final String showRunnerId;
   final String dashboardId;
 
+  void validate() {
+    if (satelliteService != 'twitch' || showRunnerService != 'twitch') {
+      throw const FormatException('Unsupported satellite identity provider.');
+    }
+    for (final value in [satelliteId, showRunnerId, dashboardId]) {
+      if (value.isEmpty ||
+          value.length > 128 ||
+          value.trim() != value ||
+          value.contains('\u0000')) {
+        throw const FormatException('Invalid satellite session identity.');
+      }
+    }
+  }
+
+  factory SatelliteConnectionConfig.fromJson(Object? value) {
+    if (value is! Map) {
+      throw const FormatException('Satellite session must be an object.');
+    }
+    String field(String key) {
+      final item = value[key];
+      if (item is! String) {
+        throw const FormatException(
+          'Satellite session fields must be strings.',
+        );
+      }
+      return item;
+    }
+
+    final config = SatelliteConnectionConfig(
+      satelliteService: field('satelliteService'),
+      satelliteId: field('satelliteId'),
+      showRunnerService: field('ShowRunnerService'),
+      showRunnerId: field('ShowRunnerId'),
+      dashboardId: field('dashId'),
+    );
+    config.validate();
+    return config;
+  }
+
   SatelliteJson toJson() => {
     'satelliteService': satelliteService,
     'satelliteId': satelliteId,
@@ -39,12 +78,16 @@ final class SatelliteConnectionConfig {
   };
 
   bool matches(Object? value) {
-    if (value is! Map) return false;
-    return value['satelliteService']?.toString() == satelliteService &&
-        value['satelliteId']?.toString() == satelliteId &&
-        value['ShowRunnerService']?.toString() == showRunnerService &&
-        value['ShowRunnerId']?.toString() == showRunnerId &&
-        value['dashId']?.toString() == dashboardId;
+    try {
+      final next = SatelliteConnectionConfig.fromJson(value);
+      return next.satelliteService == satelliteService &&
+          next.satelliteId == satelliteId &&
+          next.showRunnerService == showRunnerService &&
+          next.showRunnerId == showRunnerId &&
+          next.dashboardId == dashboardId;
+    } on FormatException {
+      return false;
+    }
   }
 }
 
@@ -60,9 +103,13 @@ final class SatelliteSessionDescription {
     if (value is! Map) {
       throw const FormatException('Satellite SDP must be an object.');
     }
-    final sdp = value['sdp']?.toString() ?? '';
-    final type = value['type']?.toString() ?? '';
-    if (sdp.isEmpty || type.isEmpty) {
+    final sdp = value['sdp'];
+    final type = value['type'];
+    if (sdp is! String ||
+        sdp.isEmpty ||
+        sdp.length > 262144 ||
+        type is! String ||
+        !{'offer', 'answer'}.contains(type)) {
       throw const FormatException('Satellite SDP is incomplete.');
     }
     return SatelliteSessionDescription(sdp: sdp, type: type);
@@ -90,14 +137,20 @@ final class SatelliteIceCandidate {
     if (value is! Map) {
       throw const FormatException('Satellite ICE candidate must be an object.');
     }
-    final candidate = value['candidate']?.toString() ?? '';
-    if (candidate.isEmpty) {
+    final candidate = value['candidate'];
+    final mid = value['sdpMid'];
+    final index = value['sdpMLineIndex'];
+    if (candidate is! String ||
+        candidate.isEmpty ||
+        candidate.length > 8192 ||
+        (mid != null && (mid is! String || mid.length > 128)) ||
+        (index != null && (index is! int || index < 0 || index > 65535))) {
       throw const FormatException('Satellite ICE candidate is empty.');
     }
     return SatelliteIceCandidate(
       candidate: candidate,
-      sdpMid: value['sdpMid']?.toString(),
-      sdpMLineIndex: (value['sdpMLineIndex'] as num?)?.toInt(),
+      sdpMid: mid as String?,
+      sdpMLineIndex: index as int?,
     );
   }
 }

@@ -8,6 +8,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Reject malformed Remote/Satellite identities, SDP and ICE before creating native peers or applying candidates; require typed share-list identities instead of coercing payload values into account IDs.
 - Bound shader source, uniform and GPU surface resources, reject non-finite GPU inputs and release renderer resources once while ignoring queued frames after disposal.
 - Remount the browser widget renderer when a saved widget changes type while retaining its ID, instead of updating the previous widget implementation with another type's fields.
 - Scope audio cancellation by overlay and playback ID, cancel duration timers on abort/shutdown and report undelivered playback as failed instead of successful.

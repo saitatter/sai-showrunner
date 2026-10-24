@@ -482,6 +482,13 @@ completion, while late results cannot publish after session close. Ordinary
 adapter library; signaling, DTOs and dashboard/resource models are separate
 libraries. Connection UI state becomes disconnected on closing/failed channels.
 
+External Azure/PubSub signaling retains its provider event envelope. Its local
+adapter validates supported Twitch session identities as strings without coercion
+or separator collisions; SDP permits bounded offer/answer strings and ICE permits
+bounded candidate/mid strings with integer m-line indexes. SDP is decoded before
+native peer creation. These SDK DTO checks do not attest a claimed cloud sender:
+server identity enforcement and live pairing remain external opt-in proof boundaries.
+
 Chat dock HTTP remains a separate authenticated consumer. `ChatDockService` owns
 serialized listener startup/shutdown and secret settings; `ChatDockHttpHandler`
 captures one immutable port/root/token and owns routing, trust checks, body limits
