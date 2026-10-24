@@ -482,6 +482,31 @@ completion, while late results cannot publish after session close. Ordinary
 adapter library; signaling, DTOs and dashboard/resource models are separate
 libraries. Connection UI state becomes disconnected on closing/failed channels.
 
+Host startup/stop and provider signaling serialize ownership and invalidate the
+previous generation before asynchronous cleanup. Late sockets/native peer
+factories are released instead of registered; stop awaits accepted negotiation
+work. Native peers close before waiting for pending offer creation so operations
+that require close to unblock can finish. Reconnect generations prevent stale
+cleanup from closing the replacement connection, and asynchronous SDP failures
+are observed. Host admission permits 32 sessions and 64 signaling operations;
+pre-offer ICE is authorized against the current shared dashboard, bounded to 64
+session keys/32 candidates each and expires after 20 seconds. File-watch refreshes
+use owned, cancellable debounce timers rather than detached delayed tasks.
+
+`RemoteDashboardConfig` is the public document projection inside the versioned
+control envelope, not the saved resource map. It retains page/section geometry,
+known label/button fields and slot declarations; cloud IDs, share ACLs, local
+resource bindings and unknown widget configuration are omitted. Unknown widget
+kinds retain their identity for the UI placeholder. Immutable decoded snapshots
+reject malformed/duplicate IDs and enforce 64 pages, 256 sections, 512 widgets,
+128 slots and 512 KiB of projected JSON. A rejected update retains the last valid
+document and exposes an error in the client. Each authorized dashboard session
+can subscribe to at most 64 existing public-named states. Both outgoing state
+values and received client state use the common bounded JSON projector, removing
+credential keys, local paths and non-finite values. State acquisition still
+requires a current shared-dashboard ACL; it does not grant commands beyond the
+current document's button allowlist.
+
 External Azure/PubSub signaling retains its provider event envelope. Its local
 adapter validates supported Twitch session identities as strings without coercion
 or separator collisions; SDP permits bounded offer/answer strings and ICE permits
