@@ -135,6 +135,8 @@ final class OverlayPeerManager {
       onJoined(peer, resource);
       await configure(peer, resource).timeout(requestTimeout);
       await peer.done;
+    } on TimeoutException {
+      await peer.close(WebSocketStatus.policyViolation);
     } on Object {
       await peer.close();
     } finally {

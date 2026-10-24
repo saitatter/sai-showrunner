@@ -62,6 +62,7 @@ final class OverlayPeer {
       pending?.completer.completeError(
         TimeoutException('Overlay request expired.'),
       );
+      unawaited(close(WebSocketStatus.policyViolation));
     });
     _pending[id] = _PendingCall(completer, timer);
     try {

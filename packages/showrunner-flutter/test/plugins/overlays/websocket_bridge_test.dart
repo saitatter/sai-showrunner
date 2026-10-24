@@ -176,7 +176,7 @@ void main() {
           'malformed' => WebSocketStatus.invalidFramePayloadData,
           'oversized' => WebSocketStatus.messageTooBig,
           'binary' => WebSocketStatus.unsupportedData,
-          _ => WebSocketStatus.normalClosure,
+          _ => WebSocketStatus.policyViolation,
         });
       } finally {
         await subscription.cancel();
