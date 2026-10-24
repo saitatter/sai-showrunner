@@ -1,23 +1,23 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 
 import '../../runtime/expression.dart';
-import '../../services/http_provider_transports.dart';
 import '../../services/showrunner_data_service.dart';
-import '../twitch/account_runtime.dart';
-import '../spellcast/cloud_pubsub.dart';
-import 'remote_protocol.generated.dart';
-import 'remote_request_window.dart';
+import 'remote_control_session.dart';
 
-part 'satellite/protocol.dart';
-part 'satellite/signaling.dart';
-part 'satellite/webrtc.dart';
-part 'satellite/resources.dart';
-part 'satellite/dashboard.dart';
+import 'satellite/transport.dart';
+export 'satellite/transport.dart';
+import 'satellite/protocol.dart';
+export 'satellite/protocol.dart';
+import 'satellite/signaling.dart';
+export 'satellite/signaling.dart';
+import 'satellite/webrtc.dart';
+export 'satellite/webrtc.dart';
+import 'satellite/resources.dart';
+export 'satellite/resources.dart';
+import 'satellite/dashboard.dart';
+export 'satellite/dashboard.dart';
 
 final class RemoteSatelliteConnection extends ChangeNotifier {
   RemoteSatelliteConnection({
@@ -42,9 +42,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   final _states = <String, Map<String, dynamic>>{};
   final _slots = <String, RemoteResourceSlot>{};
   final _broadcasts = StreamController<RuntimeMap>.broadcast();
-  final _pendingCalls = <String, Completer<dynamic>>{};
-  final _inbound = RemoteRequestWindow();
-  int _requestNumber = 0;
+  RemoteControlSession? _session;
   bool _started = false;
   bool _closed = false;
   bool _disposed = false;
@@ -110,35 +108,16 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     await peer.addCandidate(candidate);
   }
 
-  Future<dynamic> callRpc(String name, [List<dynamic> args = const []]) async {
-    final channel = _control;
+  Future<dynamic> callRpc(String name, [List<dynamic> args = const []]) {
+    final session = _session;
     if (_closed ||
-        channel == null ||
-        channel.state != SatelliteChannelState.open) {
-      throw StateError('Remote dashboard control channel is not connected.');
-    }
-    final requestId = '$id-${_requestNumber++}';
-    if (_pendingCalls.length >= 64) {
-      throw StateError('Remote request limit reached.');
-    }
-    final completer = Completer<dynamic>();
-    _pendingCalls[requestId] = completer;
-    // A channel can disconnect synchronously while sendText is still pending.
-    completer.future.ignore();
-    try {
-      await channel.sendText(
-        jsonEncode(
-          encodeRemoteWire({
-            'requestId': requestId,
-            'name': name,
-            'args': args,
-          }, config.dashboardId),
-        ),
+        _state != SatelliteConnectionState.connected ||
+        session == null) {
+      return Future.error(
+        StateError('Remote dashboard control channel is not connected.'),
       );
-      return await completer.future.timeout(const Duration(seconds: 20));
-    } finally {
-      _pendingCalls.remove(requestId);
     }
+    return session.call(name, args);
   }
 
   Future<void> acquireState(String plugin, String state) async {
@@ -176,17 +155,25 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     _closed = true;
     _state = SatelliteConnectionState.disconnected;
     _rejectPendingCalls('Remote dashboard disconnected.');
-    try {
-      await _control?.close();
-    } finally {
-      try {
-        await _peer?.close();
-      } finally {
-        await _peer?.dispose();
-      }
-    }
+    final sessionClosing = _session?.close();
+    _session = null;
+    final control = _control;
+    final peer = _peer;
     _control = null;
     _peer = null;
+    try {
+      await control?.close();
+    } finally {
+      try {
+        await peer?.close();
+      } finally {
+        try {
+          await peer?.dispose();
+        } finally {
+          await sessionClosing;
+        }
+      }
+    }
     notifyListeners();
   }
 
@@ -198,6 +185,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
         state == SatellitePeerState.closed) {
       _state = SatelliteConnectionState.disconnected;
       _rejectPendingCalls('Remote dashboard disconnected.');
+      unawaited(disconnect().catchError((Object _) {}));
     } else if (_peerConnected &&
         _control?.state == SatelliteChannelState.open) {
       _state = SatelliteConnectionState.connected;
@@ -219,121 +207,64 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
   }
 
   void _bindControl(SatelliteDataChannel channel) {
+    _session = RemoteControlSession(
+      channel: channel,
+      resourceId: config.dashboardId,
+      requestPrefix: id,
+      onRequest: _handleControlRequest,
+      onInvalid: disconnect,
+    );
     channel.onStateChanged = (state) {
       if (_closed || !identical(_control, channel)) return;
       if (state == SatelliteChannelState.open && _peerConnected) {
         _state = SatelliteConnectionState.connected;
-      } else if (state == SatelliteChannelState.closed) {
+      } else if (state == SatelliteChannelState.closing ||
+          state == SatelliteChannelState.closed) {
         _state = SatelliteConnectionState.disconnected;
         _rejectPendingCalls('Remote dashboard control channel closed.');
+        unawaited(disconnect().catchError((Object _) {}));
       }
       notifyListeners();
     };
-    channel.onMessage = (message) => unawaited(
-      _handleControlMessage(message).catchError((Object _) {
-        unawaited(disconnect().catchError((Object _) {}));
-      }),
-    );
     if (channel.state == SatelliteChannelState.open && _peerConnected) {
       _state = SatelliteConnectionState.connected;
       notifyListeners();
     }
   }
 
-  Future<void> _handleControlMessage(String raw) async {
-    if (_closed) return;
-    Map<String, dynamic> decoded;
-    try {
-      if (raw.length > 1024 * 1024 || utf8.encode(raw).length > 1024 * 1024) {
-        throw const FormatException();
-      }
-      decoded = decodeRemoteWire(jsonDecode(raw), config.dashboardId);
-    } on Object {
-      await disconnect();
-      return;
-    }
-    if (decoded['responseId'] is String) {
-      final completer = _pendingCalls[decoded['responseId']];
-      if (completer == null || completer.isCompleted) return;
-      if (decoded.containsKey('failed')) {
-        completer.completeError(StateError('Remote RPC failed.'));
-      } else {
-        completer.complete(decoded['result']);
-      }
-      return;
-    }
-    final requestId = decoded['requestId']?.toString();
-    final name = decoded['name']?.toString();
-    if (requestId == null || name == null) return;
-    try {
-      _inbound.enter(requestId);
-    } on Object {
-      await disconnect();
-      return;
-    }
-    try {
-      dynamic result;
-      switch (name) {
-        case 'dashboard_setConfig':
-          final args = decoded['args'];
-          _applyDashboardConfig(
-            args is List && args.isNotEmpty ? args.first : null,
-          );
-          break;
-        case 'dashboard_stateUpdate':
-          _applyStateUpdate(decoded['args']);
-          break;
-        case 'dashboard_broadcast':
-          final args = decoded['args'] is List
-              ? decoded['args'] as List
-              : const [];
-          if (args.length >= 2 && args[1] is Map) {
-            _broadcasts.add(Map<String, dynamic>.from(args[1] as Map));
-          }
-          break;
-        case 'satellite_resourceRPC':
-          final args = decoded['args'] is List
-              ? decoded['args'] as List
-              : const [];
-          if (args.length < 2) {
-            throw const FormatException('Resource RPC is incomplete.');
-          }
-          final slot = _slots[args[0]?.toString()];
-          if (slot == null) throw StateError('Unknown remote resource slot.');
-          final handler = resourceRpc;
-          if (handler == null || slot.resourceId == null) {
-            throw StateError('Remote resource slot is not bound in Flutter.');
-          }
-          result = await handler(
-            slot,
-            args[1].toString(),
-            args.skip(2).toList(),
-          );
-          break;
-        default:
-          return;
-      }
-      if (_closed) return;
-      await _control?.sendText(
-        jsonEncode(
-          encodeRemoteWire({
-            'responseId': requestId,
-            'result': result,
-          }, config.dashboardId),
-        ),
-      );
-    } on Object {
-      if (_closed) return;
-      await _control?.sendText(
-        jsonEncode(
-          encodeRemoteWire({
-            'responseId': requestId,
-            'failed': true,
-          }, config.dashboardId),
-        ),
-      );
-    } finally {
-      _inbound.leave();
+  Future<Object?> _handleControlRequest(String name, List<dynamic> args) async {
+    if (_closed) throw StateError('Remote dashboard disconnected.');
+    switch (name) {
+      case 'dashboard_setConfig':
+        if (args.length != 1) {
+          throw const FormatException('Invalid dashboard config request.');
+        }
+        _applyDashboardConfig(args.single);
+        return null;
+      case 'dashboard_stateUpdate':
+        if (args.length != 3 || args[0] is! String || args[1] is! String) {
+          throw const FormatException('Invalid dashboard state request.');
+        }
+        _applyStateUpdate(args);
+        return null;
+      case 'dashboard_broadcast':
+        if (args.length != 2 || args[1] is! Map) {
+          throw const FormatException('Invalid dashboard broadcast.');
+        }
+        _broadcasts.add(Map<String, dynamic>.from(args[1] as Map));
+        return null;
+      case 'satellite_resourceRPC':
+        if (args.length < 2 || args[0] is! String || args[1] is! String) {
+          throw const FormatException('Invalid resource request.');
+        }
+        final slot = _slots[args[0]];
+        final handler = resourceRpc;
+        if (slot == null || slot.resourceId == null || handler == null) {
+          throw StateError('Remote resource slot is unavailable.');
+        }
+        return handler(slot, args[1] as String, args.skip(2).toList());
+      default:
+        throw UnsupportedError('Unsupported remote request.');
     }
   }
 
@@ -382,13 +313,7 @@ final class RemoteSatelliteConnection extends ChangeNotifier {
     if (!_disposed) super.notifyListeners();
   }
 
-  void _rejectPendingCalls(String message) {
-    final pending = List<Completer<dynamic>>.of(_pendingCalls.values);
-    _pendingCalls.clear();
-    for (final completer in pending) {
-      if (!completer.isCompleted) completer.completeError(StateError(message));
-    }
-  }
+  void _rejectPendingCalls(String message) => _session?.rejectPending(message);
 }
 
 final class RemoteSatelliteConnectionManager extends ChangeNotifier {
@@ -480,27 +405,3 @@ final class RemoteSatelliteConnectionManager extends ChangeNotifier {
     super.dispose();
   }
 }
-
-dynamic _decodeJson(String value) {
-  try {
-    return jsonDecode(value);
-  } on FormatException {
-    return null;
-  }
-}
-
-Future<String> _negotiateSatellite(String accessToken) async {
-  final response = await JsonHttpTransport(
-    baseUrl: 'https://api.showrunner.io',
-    accessToken: accessToken,
-  ).requestValue('GET', '/pubsub/satellite/negotiate', const {}, null);
-  if (response is Map && response['url']?.toString().isNotEmpty == true) {
-    return response['url'].toString();
-  }
-  throw const FormatException(
-    'Satellite PubSub negotiation did not return a URL.',
-  );
-}
-
-Future<CloudPubSubSocket> _connectSatelliteSocket(Uri uri) async =>
-    IoCloudPubSubSocket(await WebSocket.connect(uri.toString()));

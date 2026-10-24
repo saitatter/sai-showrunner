@@ -1,6 +1,5 @@
 import 'dart:async';
 import '../../services/structured_logger.dart';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -11,8 +10,7 @@ import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 import '../registry/plugin_registry.dart';
 import 'satellite.dart';
-import 'remote_protocol.generated.dart';
-import 'remote_request_window.dart';
+import 'remote_control_session.dart';
 
 typedef RemoteDashboardHostPeerFactory =
     Future<SatellitePeerConnection> Function(
@@ -541,12 +539,11 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
   JsonMap dashboardConfig;
   SatellitePeerConnection? _peer;
   SatelliteDataChannel? _control;
-  final _pending = <String, Completer<dynamic>>{};
-  final _inbound = RemoteRequestWindow();
-  int _requestNumber = 0;
+  RemoteControlSession? _session;
   bool _closed = false;
   bool _started = false;
   bool _configSent = false;
+  int _configEpoch = 0;
 
   Future<void> acceptOffer(Object? value) async {
     if (_closed) return;
@@ -589,50 +586,26 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
     await peer.addCandidate(SatelliteIceCandidate.fromJson(value));
   }
 
-  Future<dynamic> callRpc(String name, [List<dynamic> args = const []]) async {
-    final channel = _control;
-    if (_closed ||
-        channel == null ||
-        channel.state != SatelliteChannelState.open) {
-      throw StateError('Remote dashboard control channel is not connected.');
-    }
-    final requestId = '$id-${_requestNumber++}';
-    if (_pending.length >= 64) {
-      throw StateError('Remote request limit reached.');
-    }
-    final completer = Completer<dynamic>();
-    _pending[requestId] = completer;
-    // Attach before send: a synchronous disconnect may fail the reply early.
-    unawaited(
-      completer.future.then<void>(
-        (_) {},
-        onError: (Object error, StackTrace stack) {},
-      ),
-    );
-    try {
-      await channel.sendText(
-        jsonEncode(
-          encodeRemoteWire({
-            'requestId': requestId,
-            'name': name,
-            'args': args,
-          }, config.dashboardId),
-        ),
+  Future<dynamic> callRpc(String name, [List<dynamic> args = const []]) {
+    final session = _session;
+    if (_closed || session == null) {
+      return Future.error(
+        StateError('Remote dashboard control channel is not connected.'),
       );
-      return await completer.future.timeout(const Duration(seconds: 20));
-    } finally {
-      _pending.remove(requestId);
     }
+    return session.call(name, args);
   }
 
   Future<void> sendDashboardConfig() async {
     if (_configSent || _closed) return;
+    final epoch = _configEpoch;
     await callRpc('dashboard_setConfig', [dashboardConfig]);
-    _configSent = true;
+    if (!_closed && epoch == _configEpoch) _configSent = true;
   }
 
   void updateDashboardConfig(JsonMap config) {
     dashboardConfig = Map<String, dynamic>.from(config);
+    _configEpoch++;
     _configSent = false;
   }
 
@@ -644,12 +617,8 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
   Future<void> _close() async {
     if (_closed) return;
     _closed = true;
-    for (final completer in _pending.values) {
-      if (!completer.isCompleted) {
-        completer.completeError(StateError('Remote dashboard disconnected.'));
-      }
-    }
-    _pending.clear();
+    final sessionClosing = _session?.close();
+    _session = null;
     final control = _control;
     final peer = _peer;
     _control = null;
@@ -660,7 +629,11 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
       try {
         await peer?.close();
       } finally {
-        await peer?.dispose();
+        try {
+          await peer?.dispose();
+        } finally {
+          await sessionClosing;
+        }
       }
     }
   }
@@ -680,20 +653,25 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
       return;
     }
     _control = channel;
+    _session = RemoteControlSession(
+      channel: channel,
+      resourceId: config.dashboardId,
+      requestPrefix: id,
+      onRequest: onRequest,
+      onInvalid: () async {
+        onClosed(this);
+      },
+    );
     channel.onStateChanged = (state) {
       if (_closed || !identical(_control, channel)) return;
       if (state == SatelliteChannelState.open) {
         unawaited(sendDashboardConfig().catchError((_) {}));
         notifyListeners();
-      } else if (state == SatelliteChannelState.closed) {
+      } else if (state == SatelliteChannelState.closing ||
+          state == SatelliteChannelState.closed) {
         onClosed(this);
       }
     };
-    channel.onMessage = (message) => unawaited(
-      _handleControlMessage(message).catchError((Object _) {
-        onClosed(this);
-      }),
-    );
     if (channel.state == SatelliteChannelState.open) {
       unawaited(sendDashboardConfig().catchError((_) {}));
     }
@@ -705,67 +683,6 @@ final class _RemoteDashboardHostConnection extends ChangeNotifier {
         state == SatellitePeerState.disconnected ||
         state == SatellitePeerState.closed) {
       onClosed(this);
-    }
-  }
-
-  Future<void> _handleControlMessage(String raw) async {
-    if (_closed) return;
-    Map<String, dynamic> decoded;
-    try {
-      if (raw.length > 1024 * 1024 || utf8.encode(raw).length > 1024 * 1024) {
-        throw const FormatException();
-      }
-      decoded = decodeRemoteWire(jsonDecode(raw), config.dashboardId);
-    } on Object {
-      onClosed(this);
-      return;
-    }
-    final responseId = decoded['responseId']?.toString();
-    if (responseId != null) {
-      final completer = _pending[responseId];
-      if (completer == null || completer.isCompleted) return;
-      if (decoded.containsKey('failed')) {
-        completer.completeError(StateError('Remote RPC failed.'));
-      } else {
-        completer.complete(decoded['result']);
-      }
-      return;
-    }
-    final requestId = decoded['requestId']?.toString();
-    final name = decoded['name']?.toString();
-    if (requestId == null || name == null) return;
-    final args = decoded['args'] is List
-        ? List<dynamic>.from(decoded['args'] as List)
-        : const <dynamic>[];
-    try {
-      _inbound.enter(requestId);
-    } on Object {
-      onClosed(this);
-      return;
-    }
-    try {
-      final result = await onRequest(name, args);
-      if (_closed) return;
-      await _control?.sendText(
-        jsonEncode(
-          encodeRemoteWire({
-            'responseId': requestId,
-            'result': result,
-          }, config.dashboardId),
-        ),
-      );
-    } on Object {
-      if (_closed) return;
-      await _control?.sendText(
-        jsonEncode(
-          encodeRemoteWire({
-            'responseId': requestId,
-            'failed': true,
-          }, config.dashboardId),
-        ),
-      );
-    } finally {
-      _inbound.leave();
     }
   }
 }

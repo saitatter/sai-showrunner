@@ -1,4 +1,5 @@
-part of '../satellite.dart';
+import 'protocol.dart';
+import 'resources.dart';
 
 final class RemoteDashboardConfig {
   const RemoteDashboardConfig({

@@ -471,6 +471,17 @@ disposed or superseded channels cannot publish late messages or state changes.
 These are data-channel checks, not evidence of cloud identity attestation or live
 network pairing. SDP/ICE signaling retains its separate contract.
 
+`RemoteControlSession` owns the common versioned channel IO, replay window,
+pending calls and write deadlines used by host and satellite. The request timer
+starts before native `sendText`, so a blocked send cannot postpone expiry. Expiry
+closes the stale session and asks its connection owner to close the native
+channel/peer; close rejects pending calls, cancels timers, detaches messages and
+awaits tracked writes. Domain operations retain their inbound slots until actual
+completion, while late results cannot publish after session close. Ordinary
+`satellite/transport.dart` ports keep `flutter_webrtc` references inside the
+adapter library; signaling, DTOs and dashboard/resource models are separate
+libraries. Connection UI state becomes disconnected on closing/failed channels.
+
 Chat dock HTTP remains a separate authenticated consumer. `ChatDockService` owns
 serialized listener startup/shutdown and secret settings; `ChatDockHttpHandler`
 captures one immutable port/root/token and owns routing, trust checks, body limits
