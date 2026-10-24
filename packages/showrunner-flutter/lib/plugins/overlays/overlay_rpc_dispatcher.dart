@@ -17,6 +17,7 @@ final class OverlayRpcDispatcher {
     required this.overlayStore,
     required this.send,
     this.onProjection,
+    this.onStateReleased,
   });
   final DartPluginRegistry registry;
   final ViewerDataRepository viewerDataRepository;
@@ -24,6 +25,7 @@ final class OverlayRpcDispatcher {
   final OverlayResourceStore overlayStore;
   final Future<void> Function(OverlayPeer, String, List<dynamic>) send;
   final void Function(OverlayPeer, OverlayProjectionPolicy)? onProjection;
+  final void Function(OverlayPeer, String key)? onStateReleased;
 
   Future<OverlayProjectionPolicy> _policy(OverlayPeer peer) async {
     final resource = await overlayStore.load(peer.overlayId);
@@ -71,9 +73,9 @@ final class OverlayRpcDispatcher {
         return null;
       case 'overlays_freeState':
         _count(args, 2, 2);
-        peer.acquiredStates.remove(
-          '${_identifier(args[0])}\u0000${_identifier(args[1])}',
-        );
+        final key = '${_identifier(args[0])}\u0000${_identifier(args[1])}';
+        peer.acquiredStates.remove(key);
+        onStateReleased?.call(peer, key);
         return null;
       case 'overlays_widgetRPC':
         _count(args, 2, 32);

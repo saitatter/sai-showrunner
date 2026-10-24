@@ -19,6 +19,7 @@ import 'overlay_projection_policy.dart';
 import 'overlay_http_resources.dart';
 import 'overlay_audio_bridge.dart';
 import 'overlay_media_resources.dart';
+import 'overlay_state_subscriptions.dart';
 
 /// Bridges the Flutter runtime to the browser/WebGL overlay.
 ///
@@ -80,10 +81,23 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     viewerDataRepository: viewerDataRepository,
     eventHub: eventHub,
     overlayStore: overlayStore,
-    send: _send,
+    send: (peer, _, args) => _states.update(
+      peer,
+      args[0] as String,
+      args[1] as String,
+      args[2],
+      force: true,
+    ),
+    onStateReleased: (peer, key) => _states.forget(peer, key),
     onProjection: (peer, policy) {
       if (!peer.isClosed) _setProjection(peer.overlayId, policy);
     },
+  );
+  late final _states = OverlayStateSubscriptionService<OverlayPeer>(
+    send: (peer, plugin, state, value) async {
+      await peer.call('overlays_stateUpdate', [plugin, state, value]);
+    },
+    onFailure: (peer) => peer.close(),
   );
   late final _media = OverlayMediaResources(
     mediaRoot: mediaRoot,
@@ -141,13 +155,15 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     registry.removeListener(_broadcastStates);
     server.removeRequestHandler(_http.handle);
     server.removeWebSocketHandler(_handleWebSocket);
-    await Future.wait(
-      _subscriptions.map((subscription) => subscription.cancel()),
-    );
     final peers = List<OverlayPeer>.of(_peers);
     _peers.clear();
     _projections.clear();
-    await Future.wait([_audio.close(), ...peers.map((peer) => peer.close())]);
+    await Future.wait([
+      ..._subscriptions.map((subscription) => subscription.cancel()),
+      _audio.close(),
+      _states.close(),
+      ...peers.map((peer) => peer.close()),
+    ]);
     await Future.wait(_joins.toList());
   }
 
@@ -232,6 +248,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
       await peer.close();
     } finally {
       _peers.remove(peer);
+      _states.detach(peer);
       if (!_peers.any((other) => other.overlayId == peer.overlayId)) {
         _projections.remove(peer.overlayId);
       }
@@ -282,6 +299,12 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     if (peers.isEmpty) return;
     _projections[overlayId] = policy;
     for (final peer in peers) {
+      for (final key
+          in peer.acquiredStates
+              .where((key) => !policy.statePaths.containsKey(key))
+              .toList()) {
+        _states.forget(peer, key);
+      }
       peer.acquiredStates.removeWhere(
         (key) => !policy.statePaths.containsKey(key),
       );
@@ -290,6 +313,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   }
 
   void _publishConfig(RuntimeMap event) {
+    if (_disposed) return;
     final overlayId = event['overlayId']?.toString().trim() ?? '';
     if (overlayId.isEmpty) return;
     unawaited(_reloadConfig(overlayId));
@@ -302,6 +326,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
       return;
     }
     final resource = await overlayStore.load(overlayId);
+    if (_disposed) return;
     if (resource == null) {
       await Future.wait(_targetPeers(overlayId).map((peer) => peer.close()));
       return;
@@ -403,7 +428,9 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   }
 
   void _broadcastStates() {
+    final snapshots = <String, Map<String, dynamic>>{};
     for (final peer in List<OverlayPeer>.of(_peers)) {
+      if (peer.isClosed) continue;
       for (final key in peer.acquiredStates) {
         final policy = _projections[peer.overlayId];
         if (policy == null || !policy.statePaths.containsKey(key)) continue;
@@ -412,15 +439,21 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
         final plugin = key.substring(0, separator);
         final state = key.substring(separator + 1);
         unawaited(
-          _send(peer, 'overlays_stateUpdate', [
-            plugin,
-            state,
-            policy.projectState(
-              plugin,
-              state,
-              registry.stateValues(plugin)[state],
-            ),
-          ]),
+          _states
+              .update(
+                peer,
+                plugin,
+                state,
+                policy.projectState(
+                  plugin,
+                  state,
+                  snapshots.putIfAbsent(
+                    plugin,
+                    () => registry.stateValues(plugin),
+                  )[state],
+                ),
+              )
+              .catchError((Object _) {}),
         );
       }
     }

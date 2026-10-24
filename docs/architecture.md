@@ -534,6 +534,18 @@ uniform settings. Config projection permits at most 256 widgets, eight shader
 layers, 8192 pixels per layout dimension, 32 megapixels per overlay and 1 MiB of
 wire JSON. Invalid/unsupported resources fail without modifying stored documents.
 
+`OverlayStateSubscriptionService` owns state-only delivery queues and fingerprints.
+One state RPC may be in flight per peer; at most 64 subscribed keys retain their
+latest queued values. Unchanged snapshots are skipped, while forced acquisition
+still supplies initial data after a release. Peer detach/close settles queued
+promises; delivery failure closes the peer so reconnect can resubscribe rather
+than silently lose the latest state. One registry snapshot per plugin is reused
+within each fanout. Events, broadcasts, audio and widget commands bypass this
+coalescer. A synthetic two-peer/64-state fixture records 128 initial sends, zero
+additional sends across ten unchanged notifications and two sends for one changed
+state. A blocked sender receives values 0 and 100 from 101 queued updates. These
+are deterministic message-count probes, not throughput or GPU latency benchmarks.
+
 Secret storage tests verify real Windows DPAPI encrypt/decrypt on isolated bytes,
 declared public/secret separation, opaque unknown encrypted fields and unavailable
 credential failures. Injected ciphers additionally make fault recovery deterministic.
