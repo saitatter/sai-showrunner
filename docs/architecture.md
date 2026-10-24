@@ -517,6 +517,23 @@ its local catalog to sort: response bounds do not prove indexed storage or a
 network-wide aggregate rate limit. Widget config projection is a separate resource
 handler boundary.
 
+`OverlayHttpResourceHandler` owns read-only HTTP routing and invalidates delayed
+resource reads on close. `OverlayMediaResources` resolves canonical media paths for
+both HTTP and audio; an escaped Windows junction cannot become a public URL.
+`OverlayAudioBridge` owns up to 64 playbacks, keyed by overlay and play ID, with
+cancellable duration timers, bounded one-day finite waits and awaited shutdown.
+Duplicate active IDs are rejected within one overlay; other overlays remain
+independent. A failed delivery is not reported as successful playback.
+
+`projectOverlayConfig` is a render DTO boundary shared by HTTP and WebSocket
+config delivery. It uses generated widget field metadata, drops secret/unavailable
+fields and `browser: false` authoring data, and resolves contained absolute media
+paths to scoped URLs without exposing filesystem paths. Shader authoring graphs
+remain in immutable desktop documents; browser inputs contain compiled GLSL and
+uniform settings. Config projection permits at most 256 widgets, eight shader
+layers, 8192 pixels per layout dimension, 32 megapixels per overlay and 1 MiB of
+wire JSON. Invalid/unsupported resources fail without modifying stored documents.
+
 Secret storage tests verify real Windows DPAPI encrypt/decrypt on isolated bytes,
 declared public/secret separation, opaque unknown encrypted fields and unavailable
 credential failures. Injected ciphers additionally make fault recovery deterministic.

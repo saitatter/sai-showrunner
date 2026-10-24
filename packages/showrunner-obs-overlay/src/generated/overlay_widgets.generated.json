@@ -1533,7 +1533,8 @@
             },
             "shaderGraph": {
               "type": "object",
-              "name": "Shader Graph (JSON)"
+              "name": "Shader Graph (JSON)",
+              "browser": false
             },
             "shaderUniforms": {
               "type": "object"

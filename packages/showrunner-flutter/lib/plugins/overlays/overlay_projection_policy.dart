@@ -62,8 +62,11 @@ final class OverlayProjectionPolicy {
                   state.contains('\u0000')) {
                 continue;
               }
-              if (path.split('.').any(_privateKey)) continue;
-              if (_privateKey(owner) || _privateKey(state)) continue;
+              if (path.split('.').any(isPrivateOverlayField)) continue;
+              if (isPrivateOverlayField(owner) ||
+                  isPrivateOverlayField(state)) {
+                continue;
+              }
               states.putIfAbsent('$owner\u0000$state', () => {}).add(path);
             }
           }
@@ -77,7 +80,7 @@ final class OverlayProjectionPolicy {
               if (name is String &&
                   name.isNotEmpty &&
                   name.length <= 128 &&
-                  !_privateKey(name)) {
+                  !isPrivateOverlayField(name)) {
                 fields.add(name);
               }
             }
@@ -86,7 +89,7 @@ final class OverlayProjectionPolicy {
           if (sort is String &&
               sort.isNotEmpty &&
               sort.length <= 128 &&
-              !_privateKey(sort)) {
+              !isPrivateOverlayField(sort)) {
             fields.add(sort);
           }
         }
@@ -98,7 +101,9 @@ final class OverlayProjectionPolicy {
   Object? projectState(String plugin, String state, Object? value) {
     final paths = statePaths['$plugin\u0000$state'];
     if (paths == null) return null;
-    if (paths.contains('')) return value is Map ? null : publicOverlayValue(value);
+    if (paths.contains('')) {
+      return value is Map ? null : publicOverlayValue(value);
+    }
     final result = <String, dynamic>{};
     for (final path in paths) {
       final segments = path
@@ -119,7 +124,11 @@ final class OverlayProjectionPolicy {
         }
         target = next;
       }
-      if (target != null) target[segments.last] = selected is Map ? null : publicOverlayValue(selected);
+      if (target != null) {
+        target[segments.last] = selected is Map
+            ? null
+            : publicOverlayValue(selected);
+      }
     }
     return result;
   }
@@ -137,7 +146,7 @@ final class OverlayProjectionPolicy {
   };
 }
 
-bool _privateKey(String key) => const {
+bool isPrivateOverlayField(String key) => const {
   'token',
   'accesstoken',
   'refreshtoken',
@@ -189,7 +198,7 @@ final class _PublicValueProjector {
         if (remaining <= 0) break;
         if (entry.key is! String ||
             (entry.key as String).length > 128 ||
-            _privateKey(entry.key as String)) {
+            isPrivateOverlayField(entry.key as String)) {
           continue;
         }
         result[entry.key as String] = project(entry.value, depth + 1);

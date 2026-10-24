@@ -805,7 +805,11 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       "opacity": {"type": "number", "default": 1},
       "blendMode": {"type": "string", "default": "normal"},
       "text": {"type": "string", "default": "", "template": true},
-      "shaderGraph": {"type": "object", "name": "Shader Graph (JSON)"},
+      "shaderGraph": {
+        "type": "object",
+        "name": "Shader Graph (JSON)",
+        "browser": false,
+      },
       "shaderUniforms": {"type": "object"},
       "shaderUniformBindings": {"type": "object"},
     },
