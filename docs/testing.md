@@ -26,6 +26,13 @@ The token persistence fixture verifies concurrent owners retain one encrypted-st
 secret, public settings exclude it, and malformed stored secrets are preserved.
 This is loopback evidence, not live OBS or untrusted-network/cloud identity proof.
 
+Projection fixtures verify installed widget field declarations, selected shader
+paths and leaderboard columns, deny unrelated widget/state access, redact credential
+keys/local paths and bound cyclic public values. The real transport browser fixture
+renders a synthetic leaderboard name/score while proving an unselected private
+column is absent from both the RPC response and DOM. Repository/peer probes verify
+numeric merge order, bounded provider prefixes and rejection before private reads.
+
 The reference for the baseline/security work is commit `872f3b2f1` (the integrated
 chat branch). It was captured with a clean working tree on Windows 11 Pro x64,
 build 26200, Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0. Both

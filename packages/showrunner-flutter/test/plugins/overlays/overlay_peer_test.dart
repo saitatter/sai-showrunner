@@ -14,6 +14,7 @@ import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 final class _ViewerProbe implements ViewerDataRepository {
   int reads = 0;
+  final requestedEnds = <int?>[];
   @override
   Future<List<ViewerDataRow>> queryViewers(
     String provider, {
@@ -23,14 +24,23 @@ final class _ViewerProbe implements ViewerDataRepository {
     bool descending = false,
   }) async {
     reads++;
-    return [
+    requestedEnds.add(end);
+    final rows = [
       for (var index = 0; index < 150; index++)
         ViewerDataRow(
           provider: provider,
           viewer: ViewerIdentity(id: '$index', displayName: 'Viewer $index'),
-          values: const {},
+          values: {'score': index, 'privateNote': 'private-marker'},
         ),
     ];
+    rows.sort(
+      (left, right) =>
+          (descending ? -1 : 1) * compareViewerDataRows(left, right, sortBy),
+    );
+    return rows.sublist(
+      start.clamp(0, rows.length),
+      (end ?? rows.length).clamp(start, rows.length),
+    );
   }
 
   @override
@@ -127,11 +137,52 @@ void main() {
         overlayStore: OverlayResourceStore(
           load: (_) async {
             resourceReads++;
-            return const ResourceData(
+            return ResourceData(
               id: 'fixture',
               config: {
                 'widgets': [
                   {'id': 'owned'},
+                  {
+                    'id': 'table',
+                    'plugin': 'overlays',
+                    'widget': 'leaderboard',
+                    'config': {
+                      'variables': [
+                        {'variable': 'score'},
+                      ],
+                    },
+                  },
+                  {
+                    'id': 'shader',
+                    'plugin': 'overlays',
+                    'widget': 'shaderLayer',
+                    'config': {
+                      'shaderUniformBindings': {
+                        for (var index = 0; index < 64; index++)
+                          'u_$index': {
+                            'source': 'state',
+                            'plugin': 'probe',
+                            'state': 'state$index',
+                            'path': '',
+                          },
+                      },
+                    },
+                  },
+                  {
+                    'id': 'shader-extra',
+                    'plugin': 'overlays',
+                    'widget': 'shaderLayer',
+                    'config': {
+                      'shaderUniformBindings': {
+                        'u_extra': {
+                          'source': 'state',
+                          'plugin': 'probe',
+                          'state': 'state64',
+                          'path': '',
+                        },
+                      },
+                    },
+                  },
                 ],
               },
             );
@@ -159,13 +210,17 @@ void main() {
         expect(await pair.next(), {'responseId': id, 'failed': true});
       }
       expect(repository.reads, 0);
-      pair.request('valid', 'overlays_queryViewerData', [0, 100]);
-      expect((await pair.next())['result'], hasLength(100));
+      pair.request('valid', 'overlays_queryViewerData', [0, 100, 'score', -1]);
+      final page = (await pair.next())['result'] as List;
+      expect(page, hasLength(100));
+      expect((page.first as Map)['score'], 149);
+      expect(jsonEncode(page), isNot(contains('private-marker')));
+      expect(repository.requestedEnds, [100, 100]);
       expect(repository.reads, 2);
       pair.request('wrong-widget', 'overlays_widgetRPC', ['click', 'foreign']);
       expect(await pair.next(), {'responseId': 'wrong-widget', 'failed': true});
       expect(events, 0);
-      expect(resourceReads, 1);
+      expect(resourceReads, 2);
       pair.request('owned-widget', 'overlays_widgetRPC', ['click', 'owned']);
       expect(await pair.next(), {'responseId': 'owned-widget', 'result': null});
       expect(events, 1);

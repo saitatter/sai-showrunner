@@ -53,7 +53,7 @@ try {
   await send('Page.enable');await send('Runtime.enable');
   await send('Page.navigate',{url});
   const connectedDeadline=Date.now()+10000;
-  while (!await evaluate(`document.body.innerText.includes('Authenticated bridge connected')`)) {
+  while (!await evaluate(`document.body.innerText.includes('Authenticated bridge connected') && document.body.innerText.includes('Public Viewer') && document.body.innerText.includes('42')`)) {
     if (Date.now()>connectedDeadline) throw new Error('Authenticated WebSocket config did not render.');
     await pause(50);
   }
@@ -61,12 +61,13 @@ try {
     const config=await fetch('/overlays/browser-probe/config');
     const foreign=await fetch('/overlays/another/config');
     const runtime=window.showRunnerOverlayRuntime;
-    const rows=await runtime.callBackend('overlays_queryViewerData',0,5);
-    const result={config:config.status,foreign:foreign.status,rows:rows.length,widgets:document.querySelectorAll('.overlay-widget').length,cookieHidden:!document.cookie.includes('showrunner-overlay')};
+    const rows=await runtime.callBackend('overlays_queryViewerData',0,5,'score',-1);
+    const variables=await runtime.callBackend('overlays_getViewerVariables');
+    const result={config:config.status,foreign:foreign.status,rows:rows.length,score:rows[0]?.score,variables:variables.map(value=>value.name),privateExcluded:!JSON.stringify(rows).includes('private-browser-marker') && !document.body.innerText.includes('private-browser-marker'),widgets:document.querySelectorAll('.overlay-widget').length,cookieHidden:!document.cookie.includes('showrunner-overlay')};
     await runtime.stop();
     return result;
   })()`);
-  if (proof.config!==200 || proof.foreign!==401 || proof.rows!==0 || proof.widgets!==1 || !proof.cookieHidden) throw new Error('Authenticated browser isolation proof failed.');
+  if (proof.config!==200 || proof.foreign!==401 || proof.rows!==1 || proof.score!==42 || proof.widgets!==2 || proof.variables.join()!=='score' || !proof.privateExcluded || !proof.cookieHidden) throw new Error('Authenticated browser isolation proof failed.');
   writeFileSync(join(scratch,'report.json'),JSON.stringify(proof,null,2));
   console.log('Real Dart/Chromium bootstrap, HttpOnly cookie, scoped config, versioned WebSocket RPC and shutdown passed.');
 } finally {
