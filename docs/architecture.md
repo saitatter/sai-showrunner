@@ -546,6 +546,13 @@ additional sends across ten unchanged notifications and two sends for one change
 state. A blocked sender receives values 0 and 100 from 101 queued updates. These
 are deterministic message-count probes, not throughput or GPU latency benchmarks.
 
+`OverlayPeerManager` owns authenticated admission, pending joins, active peer sets
+and configuration/serving tasks. The facade composes HTTP, media, audio, RPC and
+state owners, keeps event routing in one place and unregisters handlers before
+awaiting component shutdown. Pending resource loads cannot register peers after
+close; configuration uses the same deadline as RPC and late results meet a closed
+transport. Presence reads observe the manager's current peers.
+
 Secret storage tests verify real Windows DPAPI encrypt/decrypt on isolated bytes,
 declared public/secret separation, opaque unknown encrypted fields and unavailable
 credential failures. Injected ciphers additionally make fault recovery deterministic.

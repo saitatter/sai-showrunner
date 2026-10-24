@@ -3,7 +3,6 @@ import 'dart:io';
 
 import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/filesystem/safe_path.dart';
-import '../../schema/resource.dart';
 import '../../schema/viewer_data.dart';
 import '../../runtime/expression.dart';
 import '../../services/plugin_event_hub.dart';
@@ -20,6 +19,7 @@ import 'overlay_http_resources.dart';
 import 'overlay_audio_bridge.dart';
 import 'overlay_media_resources.dart';
 import 'overlay_state_subscriptions.dart';
+import 'overlay_peer_manager.dart';
 
 /// Bridges the Flutter runtime to the browser/WebGL overlay.
 ///
@@ -42,11 +42,13 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     Directory? webRoot,
   }) : access = access ?? OverlayAccessTokens.random(),
        webRoot = webRoot ?? discoverOverlayWebRoot() {
-    if (maxPeers <= 0) {
+    if (maxPeers <= 0 ||
+        maxMessageBytes <= 0 ||
+        requestTimeout <= Duration.zero) {
       throw ArgumentError('Overlay peer limit must be positive.');
     }
     server.addRequestHandler(_http.handle);
-    server.addWebSocketHandler(_handleWebSocket);
+    server.addWebSocketHandler(_manager.handle);
     registry.addListener(_broadcastStates);
     _subscriptions = [
       eventHub.stream(OverlayEventIds.widget).listen(_publishWidget),
@@ -110,7 +112,37 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     webRoot: webRoot,
     media: _media,
   );
-  final _peers = <OverlayPeer>{};
+  late final OverlayPeerManager _manager = OverlayPeerManager(
+    overlayStore: overlayStore,
+    access: access,
+    maxPeers: maxPeers,
+    maxMessageBytes: maxMessageBytes,
+    requestTimeout: requestTimeout,
+    onRequest: (peer, name, args) {
+      if (_disposed) {
+        return Future.error(StateError('Overlay service is closed.'));
+      }
+      return _rpc.handle(peer, name, args);
+    },
+    onJoined: (peer, resource) {
+      registerAudioOutput(resource.id);
+      _setProjection(
+        resource.id,
+        OverlayProjectionPolicy.fromResource(resource),
+      );
+    },
+    configure: (peer, resource) async {
+      await peer.call('overlays_setConfig', [
+        await _http.projectConfig(resource),
+      ]);
+    },
+    onClosed: (peer) {
+      _states.detach(peer);
+      if (_manager.targets(peer.overlayId).isEmpty) {
+        _projections.remove(peer.overlayId);
+      }
+    },
+  );
   final _projections = <String, OverlayProjectionPolicy>{};
   late final _audio = OverlayAudioBridge(
     send: _sendAudio,
@@ -118,15 +150,11 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     resolveMedia: _media.browserUrl,
   );
   bool _disposed = false;
-  int _joining = 0;
-  final _joins = <Future<bool>>{};
   Future<void>? _closing;
 
   @override
   Future<OverlayPresence> getPresence(String overlayId) async {
-    final subscribers = _peers
-        .where((peer) => peer.overlayId == overlayId)
-        .length;
+    final subscribers = _manager.targets(overlayId).length;
     return OverlayPresence(
       overlayId: overlayId,
       connected: subscribers > 0,
@@ -154,105 +182,14 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     _http.close();
     registry.removeListener(_broadcastStates);
     server.removeRequestHandler(_http.handle);
-    server.removeWebSocketHandler(_handleWebSocket);
-    final peers = List<OverlayPeer>.of(_peers);
-    _peers.clear();
+    server.removeWebSocketHandler(_manager.handle);
     _projections.clear();
     await Future.wait([
       ..._subscriptions.map((subscription) => subscription.cancel()),
       _audio.close(),
       _states.close(),
-      ...peers.map((peer) => peer.close()),
+      _manager.close(),
     ]);
-    await Future.wait(_joins.toList());
-  }
-
-  Future<bool> _handleWebSocket(HttpRequest request, WebSocket socket) {
-    final joining = _joinSocket(request, socket);
-    _joins.add(joining);
-    joining.then<void>(
-      (_) {
-        _joins.remove(joining);
-      },
-      onError: (Object _, StackTrace _) {
-        _joins.remove(joining);
-      },
-    );
-    return joining;
-  }
-
-  Future<void> _rejectSocket(WebSocket socket, int code) async {
-    try {
-      await socket.close(code).timeout(requestTimeout);
-    } on Object {
-      /* The server owns final socket teardown. */
-    }
-  }
-
-  Future<bool> _joinSocket(HttpRequest request, WebSocket socket) async {
-    final segments = request.uri.pathSegments;
-    if (segments.length != 3 ||
-        segments.first != 'overlays' ||
-        segments.last != 'socket') {
-      return false;
-    }
-    final overlayId = segments[1];
-    if (overlayId.isEmpty) return false;
-    try {
-      validateFileIdentifier(overlayId);
-    } on ArgumentError {
-      return false;
-    }
-    if (_disposed ||
-        !access.authorizes(request, overlayId) ||
-        _peers.length + _joining >= maxPeers) {
-      await _rejectSocket(socket, WebSocketStatus.policyViolation);
-      return true;
-    }
-    _joining++;
-    try {
-      final resource = await overlayStore
-          .load(overlayId)
-          .timeout(requestTimeout);
-      if (_disposed || resource == null) {
-        await _rejectSocket(socket, WebSocketStatus.normalClosure);
-        return true;
-      }
-      registerAudioOutput(resource.id);
-      final peer = OverlayPeer(
-        socket,
-        overlayId: overlayId,
-        maxMessageBytes: maxMessageBytes,
-        requestTimeout: requestTimeout,
-      );
-      peer.onRequest = (name, args) => _rpc.handle(peer, name, args);
-      _peers.add(peer);
-      _setProjection(overlayId, OverlayProjectionPolicy.fromResource(resource));
-      unawaited(_servePeer(peer, resource));
-      return true;
-    } on Object {
-      await _rejectSocket(socket, WebSocketStatus.policyViolation);
-      return true;
-    } finally {
-      _joining--;
-    }
-  }
-
-  Future<void> _servePeer(OverlayPeer peer, ResourceData resource) async {
-    try {
-      await peer.call('overlays_setConfig', [
-        await _http.projectConfig(resource),
-      ]);
-      await peer.done;
-    } catch (_) {
-      await peer.close();
-    } finally {
-      _peers.remove(peer);
-      _states.detach(peer);
-      if (!_peers.any((other) => other.overlayId == peer.overlayId)) {
-        _projections.remove(peer.overlayId);
-      }
-    }
   }
 
   void _publishWidget(RuntimeMap event) {
@@ -287,11 +224,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     }
   }
 
-  Iterable<OverlayPeer> _targetPeers(String overlayId) sync* {
-    for (final peer in List<OverlayPeer>.of(_peers)) {
-      if (overlayId.isEmpty || peer.overlayId == overlayId) yield peer;
-    }
-  }
+  Iterable<OverlayPeer> _targetPeers(String id) => _manager.targets(id);
 
   void _setProjection(String overlayId, OverlayProjectionPolicy policy) {
     if (_disposed) return;
@@ -367,7 +300,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   }
 
   void _publishViewerData(String eventId, RuntimeMap event) {
-    for (final peer in List<OverlayPeer>.of(_peers)) {
+    for (final peer in _manager.peers) {
       if (!peer.observingViewerData) continue;
       final projection = _projections[peer.overlayId];
       if (projection == null || !projection.viewerData) continue;
@@ -429,7 +362,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
 
   void _broadcastStates() {
     final snapshots = <String, Map<String, dynamic>>{};
-    for (final peer in List<OverlayPeer>.of(_peers)) {
+    for (final peer in _manager.peers) {
       if (peer.isClosed) continue;
       for (final key in peer.acquiredStates) {
         final policy = _projections[peer.overlayId];
