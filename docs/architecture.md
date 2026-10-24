@@ -553,6 +553,16 @@ awaiting component shutdown. Pending resource loads cannot register peers after
 close; configuration uses the same deadline as RPC and late results meet a closed
 transport. Presence reads observe the manager's current peers.
 
+The shared protocol source also declares render budgets consumed by generated
+Dart/TypeScript constants. Shader graphs allow 512 nodes, 2048 edges and 64 custom
+uniforms; emitted and custom GLSL is limited to 128 KiB. `ShaderFrameInputSource`
+is adapted into a finite scalar/vector snapshot before WebGL uploads. Drawing
+surfaces preserve aspect ratio within the device limit and a 4096-pixel edge cap.
+Renderer disposal is idempotent and late animation/resize callbacks cannot issue
+more GPU work. Native controller tests retain semantic-only compilation caching;
+pan, movement and selection reuse the compiled result. These input/resource bounds
+do not preempt a synchronous driver compile or prove hardware GPU behavior.
+
 Secret storage tests verify real Windows DPAPI encrypt/decrypt on isolated bytes,
 declared public/secret separation, opaque unknown encrypted fields and unavailable
 credential failures. Injected ciphers additionally make fault recovery deterministic.

@@ -8,8 +8,47 @@ import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_co
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_editor.dart';
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_graph_model.dart';
 import 'package:showrunner_flutter/plugins/overlays/shader_graph/shader_node_definitions.dart';
+import 'package:showrunner_flutter/plugins/overlays/overlay_protocol.generated.dart';
 
 void main() {
+  test(
+    'shader graph resource limits reject oversized work before compilation',
+    () {
+      final nodes = createShaderDocument(
+        nodes: [
+          for (
+            var index = 0;
+            index <= overlayRenderLimits['maxShaderNodes']!;
+            index++
+          )
+            createShaderNode('node$index', 'float'),
+        ],
+        connections: [],
+      );
+      expect(compileShaderGraph(nodes).glsl, isEmpty);
+      expect(
+        validateShaderGraph(nodes),
+        contains('Shader graph resource limits exceeded.'),
+      );
+      final uniforms = createShaderDocument(
+        nodes: [
+          createShaderNode('output', 'fragment_output'),
+          for (
+            var index = 0;
+            index <= overlayRenderLimits['maxShaderUniforms']!;
+            index++
+          )
+            createShaderNode('param$index', 'uniform_float'),
+        ],
+        connections: [],
+      );
+      expect(compileShaderGraph(uniforms).glsl, isEmpty);
+      expect(
+        validateShaderGraph(uniforms),
+        contains('Shader uniform resource limit exceeded.'),
+      );
+    },
+  );
   test(
     'every shader catalog node and starter generates a renderable fixture',
     () async {

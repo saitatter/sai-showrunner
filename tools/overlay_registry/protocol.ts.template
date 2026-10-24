@@ -9,6 +9,7 @@ export interface OverlayTransportMessage {
 }
 
 const schema: Record<string, any> = __SCHEMA__
+export const overlayRenderLimits: Readonly<{__RENDER_LIMIT_TYPES__}> = Object.freeze(schema["x-renderLimits"])
 const owns = (object: object, key: string) => Object.prototype.hasOwnProperty.call(object, key)
 
 function valid(value: unknown, rule: Record<string, any>): boolean {

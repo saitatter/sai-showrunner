@@ -13,6 +13,7 @@ import {
 	WidgetScope,
 	mediaUrl,
 	playMedia,
+	overlayRenderLimits,
 } from "showrunner-overlay-core"
 import { StateStore } from "../state/state_store"
 import { ViewerDataStore } from "../viewer_data/viewer_data_store"
@@ -222,6 +223,11 @@ export class OverlayRuntime {
 			this.setStatus("unsupported-config")
 			console.error(`Unsupported overlay schema version: ${config.schemaVersion}`)
 			return
+		}
+		const {width,height} = config.size
+		if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1 || width > overlayRenderLimits.maxCanvasDimension || height > overlayRenderLimits.maxCanvasDimension || width*height > overlayRenderLimits.maxOverlayPixels || config.widgets.length > overlayRenderLimits.maxWidgets || config.widgets.filter(widget=>widget.plugin==="overlays" && widget.widget==="shaderLayer").length > overlayRenderLimits.maxShaderLayers || new Set(config.widgets.map(widget=>widget.id)).size !== config.widgets.length) {
+			this.setStatus("invalid-config")
+			throw new Error("Overlay render resource limits exceeded.")
 		}
 		this.config = config
 		document.title = `ShowRunner Overlay -- ${config.name}`

@@ -14,11 +14,13 @@ class FakeWebGLRenderingContext {
 	readonly COLOR_BUFFER_BIT = 0x4000
 	readonly FLOAT = 0x1406
 	readonly TRIANGLES = 0x0004
+	readonly MAX_RENDERBUFFER_SIZE = 0x84e8
 	readonly calls: string[] = []
 
 	createBuffer(): WebGLBuffer {
 		return {} as WebGLBuffer
 	}
+	getParameter(): number { return 4096 }
 
 	bindBuffer(): void {
 		this.calls.push("bindBuffer")
@@ -178,6 +180,33 @@ function createOptions(canvas: HTMLCanvasElement, fragmentSource = "void main() 
 
 describe("ShaderRenderer", () => {
 	afterEach(() => vi.unstubAllGlobals())
+	it("disposes once and ignores queued frames and compilation after close",()=>{
+		const gl=new FakeWebGLRenderingContext()
+		const frames:FrameRequestCallback[]=[]
+		vi.stubGlobal("ResizeObserver",FakeResizeObserver)
+		vi.stubGlobal("requestAnimationFrame",(callback:FrameRequestCallback)=>{frames.push(callback);return frames.length})
+		vi.stubGlobal("cancelAnimationFrame",vi.fn())
+		vi.stubGlobal("window",{devicePixelRatio:1})
+		const renderer=new ShaderRenderer(createOptions(createCanvas(gl)))
+		renderer.dispose();renderer.dispose()
+		frames[0](100)
+		expect(gl.calls.filter(call=>call==="drawArrays")).toHaveLength(1)
+		expect(gl.calls.filter(call=>call==="deleteBuffer")).toHaveLength(1)
+		expect(gl.calls.filter(call=>call==="deleteProgram")).toHaveLength(1)
+		expect(renderer.compileShader("void main() {}" )).toContain("closed")
+	})
+
+	it("rejects oversized source without replacing a live program",()=>{
+		const gl=new FakeWebGLRenderingContext()
+		vi.stubGlobal("ResizeObserver",FakeResizeObserver)
+		vi.stubGlobal("requestAnimationFrame",()=>1)
+		vi.stubGlobal("cancelAnimationFrame",vi.fn())
+		vi.stubGlobal("window",{devicePixelRatio:1})
+		const renderer=new ShaderRenderer(createOptions(createCanvas(gl)))
+		expect(renderer.compileShader("x".repeat(131073))).toContain("limit")
+		expect(gl.calls.filter(call=>call==="deleteProgram")).toHaveLength(0)
+		renderer.dispose()
+	})
 
 	it("renders a valid shader and applies built-in and custom uniforms", () => {
 		const gl = new FakeWebGLRenderingContext()

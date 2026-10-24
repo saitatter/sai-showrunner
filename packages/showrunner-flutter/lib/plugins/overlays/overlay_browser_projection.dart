@@ -4,6 +4,7 @@ import '../../schema/resource.dart';
 import 'overlay_media_resources.dart';
 import 'overlay_widget_catalog.generated.dart';
 import 'overlay_projection_policy.dart';
+import 'overlay_protocol.generated.dart';
 
 /// Render DTO projection, independent of persisted shader/editor documents.
 Future<JsonMap> projectOverlayConfig(
@@ -22,10 +23,10 @@ Future<JsonMap> projectOverlayConfig(
   final height = _dimension(size['height'], 1080);
   if (width <= 0 ||
       height <= 0 ||
-      width > 8192 ||
-      height > 8192 ||
-      width * height > 33554432 ||
-      (config['widgets'] as List).length > 256) {
+      width > overlayRenderLimits['maxCanvasDimension']! ||
+      height > overlayRenderLimits['maxCanvasDimension']! ||
+      width * height > overlayRenderLimits['maxOverlayPixels']! ||
+      (config['widgets'] as List).length > overlayRenderLimits['maxWidgets']!) {
     throw const FormatException('Overlay resource limits exceeded.');
   }
   if ((config['widgets'] as List)
@@ -36,7 +37,7 @@ Future<JsonMap> projectOverlayConfig(
                 widget['widget'] == 'shaderLayer',
           )
           .length >
-      8) {
+      overlayRenderLimits['maxShaderLayers']!) {
     throw const FormatException('Overlay shader layer limit exceeded.');
   }
   final values = _ConfigValueProjector(media, resource.id);
@@ -117,7 +118,10 @@ Future<JsonMap> _remoteWidget(
 
 int _dimension(Object? value, int fallback) {
   if (value == null) return fallback;
-  if (value is! num || !value.isFinite || value < 1 || value > 8192) {
+  if (value is! num ||
+      !value.isFinite ||
+      value < 1 ||
+      value > overlayRenderLimits['maxCanvasDimension']!) {
     throw const FormatException('Invalid overlay dimensions.');
   }
   return value.toInt();
@@ -143,7 +147,8 @@ final class _ConfigValueProjector {
     if (value == null || value is bool) return value;
     if (value is num) return value.isFinite ? value : null;
     if (value is String) {
-      if (value.length > 131072) {
+      if (utf8.encode(value).length >
+          overlayRenderLimits['maxShaderSourceBytes']!) {
         throw const FormatException('Overlay string limit exceeded.');
       }
       if (RegExp(

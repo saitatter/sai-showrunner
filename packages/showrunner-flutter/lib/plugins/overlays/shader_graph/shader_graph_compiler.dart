@@ -5,6 +5,7 @@ import 'package:sai_nodes_core/sai_nodes_core.dart';
 
 import 'shader_graph_model.dart';
 import 'shader_node_definitions.dart';
+import '../overlay_protocol.generated.dart';
 
 String shaderPortKey(PortRef port) => port.portId.startsWith('out:')
     ? port.portId.substring(4)
@@ -114,6 +115,10 @@ bool wouldCreateShaderGraphCycle(
 }
 
 List<String> validateShaderGraph(ShaderDocument graph) {
+  if (graph.space.nodes.length > overlayRenderLimits['maxShaderNodes']! ||
+      graph.space.connections.length > overlayRenderLimits['maxShaderEdges']!) {
+    return ['Shader graph resource limits exceeded.'];
+  }
   final errors = <String>[
     for (final issue in const GraphDocumentValidator().validate(graph.graph))
       issue.message,
@@ -151,6 +156,10 @@ List<String> validateShaderGraph(ShaderDocument graph) {
     if (!uniformNames.add(name)) {
       errors.add('Uniform name "$name" is used by multiple parameter nodes.');
     }
+  }
+
+  if (uniformNames.length > overlayRenderLimits['maxShaderUniforms']!) {
+    errors.add('Shader uniform resource limit exceeded.');
   }
 
   if (graph.outputNodeId != null) {
@@ -501,9 +510,8 @@ ShaderGraphCompileResult compileShaderGraph(ShaderDocument graph) {
     }
     body.add('');
   }
-  return ShaderGraphCompileResult(
-    glsl:
-        '''precision mediump float;
+  final glsl =
+      '''precision mediump float;
 uniform vec2 u_resolution;
 uniform float u_time;
 uniform vec3 u_accent;
@@ -520,7 +528,16 @@ $_shaderNoiseGlsl
 void main() {
 ${body.join('\n')}
 }
-''',
+''';
+  if (utf8.encode(glsl).length > overlayRenderLimits['maxShaderSourceBytes']!) {
+    return ShaderGraphCompileResult(
+      glsl: '',
+      errors: const ['Compiled shader source limit exceeded.'],
+      warnings: warnings,
+    );
+  }
+  return ShaderGraphCompileResult(
+    glsl: glsl,
     errors: const [],
     warnings: warnings,
   );

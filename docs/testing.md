@@ -33,6 +33,16 @@ renders a synthetic leaderboard name/score while proving an unselected private
 column is absent from both the RPC response and DOM. Repository/peer probes verify
 numeric merge order, bounded provider prefixes and rejection before private reads.
 
+Shader verification exports current immutable node/starter GLSL fixtures with
+`SHOWRUNNER_EXPORT_SHADER_FIXTURES=1 flutter test test/plugins/overlays/shader_graph_test.dart`.
+After rebuilding, `node tools/overlay_registry/shader-catalog-smoke.mjs` compiles and
+links all 89 fixtures in Chromium; the current run reports no failures and renders
+starter pixels without GL errors. Typed input tests cover finite float/vector
+values, uniform/source ceilings, device/pixel bounds and queued callbacks after
+disposal. Real browser DOM smoke also verifies same-ID widget type replacement.
+SDK/capture contracts and frozen Electron/Flutter references remain unchanged;
+these are Chromium renderer proofs, not live OBS/CEF or hardware-driver guarantees.
+
 The reference for the baseline/security work is commit `872f3b2f1` (the integrated
 chat branch). It was captured with a clean working tree on Windows 11 Pro x64,
 build 26200, Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0. Both

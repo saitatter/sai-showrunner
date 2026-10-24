@@ -1,6 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Showrunner resource RPC envelope",
+  "x-renderLimits": {
+    "maxWidgets": 256,
+    "maxShaderLayers": 8,
+    "maxCanvasDimension": 8192,
+    "maxOverlayPixels": 33554432,
+    "maxShaderSourceBytes": 131072,
+    "maxShaderUniforms": 64,
+    "maxShaderSurfaceDimension": 4096,
+    "maxShaderNodes": 512,
+    "maxShaderEdges": 2048
+  },
   "type": "object",
   "additionalProperties": false,
   "required": ["protocolVersion", "type", "resourceId", "requestId", "payload"],
