@@ -25,6 +25,14 @@ graphics path after repeated verification-stage timeouts; GitHub also tracks
 The missing Intel job logs do not establish that upstream issue as our exact
 cause. Rosetta proof does not establish physical Intel graphics-driver coverage.
 
+Linux shutdown retains the GTK renderer widget tree until the owned Flutter engine
+has stopped, so child compositor finalization cannot race an in-flight raster call.
+[Flutter #188659](https://github.com/flutter/flutter/issues/188659) describes a
+related lifetime failure; [its upstream fix](https://github.com/flutter/flutter/pull/188702)
+is already included in 3.47.7. That issue does not establish our remaining crash
+as the identical defect. The packaged proof requires both the scenario marker and
+a zero process exit; a native abort after a successful scenario still fails CI.
+
 Cipher fixtures inject a temporary keyring and verify concurrent owners share
 one OS key, ciphertext authentication, relocation with the same keyring and
 visible failure without replacing a missing key or unsupported metadata. Native
