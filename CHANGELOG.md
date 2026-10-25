@@ -76,7 +76,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
-- Document desktop package formats, proof hosts and Rosetta coverage limits, OS-keyring behavior, portable data locations, default SDK rendering and macOS/Linux support limits.
+- Document desktop package formats, proof hosts and Rosetta coverage limits, OS-keyring behavior, portable data locations, default SDK rendering, related upstream Linux lifetime issues and macOS/Linux support limits.
 - Document overlay/Remote transport ownership, public projection limits, authentication and measured browser/native/visual proof boundaries.
 - Document completed workspace view-state boundaries, editor/dialog ownership, responsive input contracts and measured Flutter/native/visual checks, including active-document identity and owned Save All completion, with explicit live-provider/device limitations.
 - Document typed storage ownership, journal recovery and stale-write policy, provider editor/codec boundaries, secret handling and measured Phase 04 validation limits.
