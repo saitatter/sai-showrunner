@@ -66,7 +66,7 @@ Future<ShowRunnerWindowState?> loadShowRunnerWindowState(File file) async {
 }
 
 Future<void> saveShowRunnerWindowState(File file) async {
-  if (!Platform.isWindows) return;
+  if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return;
   try {
     final state = ShowRunnerWindowState(
       size: await windowManager.getSize(),
@@ -80,19 +80,21 @@ Future<void> saveShowRunnerWindowState(File file) async {
 }
 
 Future<void> configureShowRunnerWindow({File? stateFile}) async {
-  if (!Platform.isWindows) return;
+  if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return;
 
   await windowManager.ensureInitialized();
   final saved = stateFile == null
       ? null
       : await loadShowRunnerWindowState(stateFile);
-  const options = WindowOptions(
+  final options = WindowOptions(
     size: showRunnerWindowSize,
     minimumSize: showRunnerMinimumWindowSize,
     center: false,
     title: 'ShowRunner',
-    titleBarStyle: TitleBarStyle.hidden,
-    windowButtonVisibility: false,
+    titleBarStyle: Platform.isWindows
+        ? TitleBarStyle.hidden
+        : TitleBarStyle.normal,
+    windowButtonVisibility: !Platform.isWindows,
   );
   await windowManager.waitUntilReadyToShow(options, () async {
     if (saved != null) {

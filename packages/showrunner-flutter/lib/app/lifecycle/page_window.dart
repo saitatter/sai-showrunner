@@ -58,7 +58,9 @@ extension _ShowRunnerPageWindow on _ShowRunnerPageState {
   Future<bool> _handleWindowClose({bool forceClose = false}) async {
     if (!mounted || _disposed) return false;
     try {
-      return await _windowClose.request(forceClose: forceClose);
+      return await _windowClose.request(
+        forceClose: forceClose || _tray == null,
+      );
     } catch (error, stack) {
       ShowRunnerLogger.instance.error(
         'lifecycle',

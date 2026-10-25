@@ -1,9 +1,44 @@
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/app/data_directory.dart';
 
 void main() {
+  test('uses macOS Application Support and Linux XDG locations', () {
+    expect(
+      showRunnerUserDirectory(
+        environment: {'HOME': '/home/test'},
+        release: true,
+        platform: TargetPlatform.macOS,
+      ).path,
+      '/home/test/Library/Application Support/ShowRunner/user',
+    );
+    expect(
+      showRunnerUserDirectory(
+        environment: {'HOME': '/home/test'},
+        release: true,
+        platform: TargetPlatform.linux,
+      ).path,
+      '/home/test/.local/share/ShowRunner/user',
+    );
+    expect(
+      showRunnerUserDirectory(
+        environment: {'HOME': '/home/test', 'XDG_DATA_HOME': '/data'},
+        release: true,
+        platform: TargetPlatform.linux,
+      ).path,
+      '/data/ShowRunner/user',
+    );
+    expect(
+      showRunnerUserDirectory(
+        environment: {'HOME': '/home/test', 'XDG_DATA_HOME': 'relative'},
+        release: true,
+        platform: TargetPlatform.linux,
+      ).path,
+      '/home/test/.local/share/ShowRunner/user',
+    );
+  });
   test('honors the explicit data directory override', () {
     final directory = showRunnerUserDirectory(
       environment: {'SHOWRUNNER_USER_DIR': r'C:\smoke-user'},

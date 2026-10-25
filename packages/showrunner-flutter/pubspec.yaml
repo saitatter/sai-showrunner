@@ -25,6 +25,8 @@ dependencies:
   media_kit_libs_audio: ^1.0.7
   tray_manager: ^0.5.3
   universal_ble: 2.3.0
+  flutter_secure_storage: ^11.2.0
+  cryptography: ^2.9.0
 
 dev_dependencies:
   flutter_test:

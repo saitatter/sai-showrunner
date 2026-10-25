@@ -46,12 +46,12 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       await Future<void>.delayed(const Duration(milliseconds: 250));
       // Smoke runs are already isolated and must not open the interactive
       // hide-to-tray/close dialog introduced for normal desktop shutdown.
-      if (Platform.isWindows) await _handleWindowClose(forceClose: true);
+      await _handleWindowClose(forceClose: true);
     } catch (error, stackTrace) {
       stderr.writeln('Flutter smoke failed: $error');
       stderr.writeln(stackTrace);
       exitCode = 1;
-      if (Platform.isWindows) await windowManager.destroy();
+      await windowManager.destroy();
     }
   }
 

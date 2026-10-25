@@ -6,6 +6,7 @@ Directory showRunnerUserDirectory({
   Map<String, String>? environment,
   bool? release,
   bool portable = false,
+  TargetPlatform? platform,
 }) {
   final values = environment ?? Platform.environment;
   final override = values['SHOWRUNNER_USER_DIR']?.trim();
@@ -30,6 +31,16 @@ Directory showRunnerUserDirectory({
     return Directory(
       '$localAppData${Platform.pathSeparator}ShowRunner${Platform.pathSeparator}user',
     );
+  }
+  final target = platform ?? defaultTargetPlatform;
+  final home = values['HOME']?.trim();
+  if (target == TargetPlatform.macOS && home?.isNotEmpty == true) {
+    return Directory('$home/Library/Application Support/ShowRunner/user');
+  }
+  if (target == TargetPlatform.linux && home?.isNotEmpty == true) {
+    final xdg = values['XDG_DATA_HOME']?.trim();
+    final root = xdg?.startsWith('/') == true ? xdg! : '$home/.local/share';
+    return Directory('$root/ShowRunner/user');
   }
   return Directory('user');
 }
