@@ -225,10 +225,13 @@ jobs:
         include:
           - runner: ubuntu-24.04
             target: linux-x64
+            arch: x64
           - runner: macos-15
             target: macos-arm64
-          - runner: macos-15-intel
+            arch: arm64
+          - runner: macos-15
             target: macos-x64
+            arch: x64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
@@ -237,6 +240,7 @@ jobs:
           ref: ${{ needs.plan.outputs.tag }}
       - uses: ./.github/actions/package-desktop
         with:
+          architecture: ${{ matrix.arch }}
           version: ${{ needs.plan.outputs.version }}
           build: ${{ needs.plan.outputs.build }}
           require-client: 'true'

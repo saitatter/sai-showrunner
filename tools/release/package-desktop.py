@@ -26,14 +26,16 @@ def main():
     parser.add_argument('--version', required=True)
     parser.add_argument('--build', required=True, type=int)
     parser.add_argument('--require-client', action='store_true')
+    parser.add_argument('--arch', choices=('arm64', 'x64'))
     args = parser.parse_args()
     if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', args.version) or not 1 <= args.build <= 65535:
         parser.error('Invalid version or build number')
     system = platform.system()
     if system not in ('Darwin', 'Linux'):
         parser.error('Run this tool on macOS or Linux')
-    arch = {'arm64': 'arm64', 'aarch64': 'arm64', 'x86_64': 'x64'}.get(platform.machine())
-    if arch is None or (system == 'Linux' and arch != 'x64'):
+    host_arch = {'arm64': 'arm64', 'aarch64': 'arm64', 'x86_64': 'x64'}.get(platform.machine())
+    arch = args.arch or host_arch
+    if host_arch is None or (system == 'Linux' and (host_arch != 'x64' or arch != 'x64')):
         parser.error('Unsupported package architecture')
     client = os.environ.get('SHOWRUNNER_YOUTUBE_CLIENT_ID', '').strip()
     if args.require_client and not client:
@@ -60,6 +62,10 @@ def main():
             '-derivedDataPath', '../build/macos', 'ARCHS=' + ('arm64' if arch == 'arm64' else 'x86_64'),
             'ONLY_ACTIVE_ARCH=YES', 'CODE_SIGNING_ALLOWED=NO', cwd=APP / 'macos')
         bundle = APP / 'build/macos/Build/Products/Release/ShowRunner.app'
+        actual_arch = subprocess.check_output(['lipo', '-archs', str(bundle / 'Contents/MacOS/ShowRunner')], text=True).strip()
+        expected_arch = 'arm64' if arch == 'arm64' else 'x86_64'
+        if actual_arch != expected_arch:
+            raise RuntimeError('macOS executable architecture does not match the package target: ' + actual_arch)
     else:
         run(*command, cwd=APP)
         bundle = APP / 'build/linux/x64/release/bundle'
