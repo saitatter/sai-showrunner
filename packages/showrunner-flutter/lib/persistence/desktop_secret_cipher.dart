@@ -62,6 +62,17 @@ final class DesktopSecretCipher {
           if (!create) {
             throw StateError('The OS keyring identity is unavailable.');
           }
+          if (await directory
+              .list(recursive: true, followLinks: false)
+              .any(
+                (entry) =>
+                    entry.path.endsWith('.yaml') ||
+                    entry.path.endsWith('.json'),
+              )) {
+            throw StateError(
+              'Existing secrets have lost their OS keyring identity.',
+            );
+          }
           final random = Random.secure();
           id = List.generate(
             32,
