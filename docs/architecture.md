@@ -615,3 +615,15 @@ projection. These are scoped proofs, not a claim that arbitrary widget config or
 every remote error path has been exhaustively reviewed. Further secret-projection,
 shader-input, emote-host and data-channel failure-path tests remain part of the
 baseline exit gate. See the [behavior contract matrix](testing.md#baseline-and-behavior-contracts).
+
+
+Desktop package targets use the same Flutter composition root on Windows,
+macOS and Linux. Installed data is OS-user scoped; portable launchers provide an
+explicit writable directory alongside the extracted app. Windows retains existing
+DPAPI files. `DesktopSecretCipher` keeps AES-256-GCM ciphertext in the transactional
+secret store and its key in macOS Keychain or Linux Secret Service, guarded by a
+separate per-store owner lock. A public random key identity travels with the data;
+key material never does. Corruption, an unavailable keyring or a missing key fails
+without plaintext fallback or key replacement. Portable credentials remain bound
+to the OS account. A single release publication job waits for Windows plus both
+Mac architectures and Linux installer/portable proofs before publishing the draft.

@@ -11,7 +11,7 @@ baseline, not evidence that the Flutter cutover is already released.
 | version (empty) | Pick MAJOR for breaking commits, MINOR for feat, PATCH for fix/perf since the last reachable stable tag |
 | version | Explicit X.Y.Z or X.Y.Z-beta.N, without v or build metadata |
 | dry_run | Preview version and Unreleased notes only; no commits, tags or releases, and no signing credentials needed |
-| backfill_version | Validate and rebuild Windows assets from an existing immutable Flutter tag; preserve release/prerelease/latest state |
+| backfill_version | Validate and rebuild available desktop assets from an existing immutable Flutter tag; preserve release/prerelease/latest state |
 
 Docs, CI, refactor, build and chore commits alone do not automatically release.
 An explicit version can release maintenance work. A release must advance reachable
@@ -38,8 +38,8 @@ untested new snapshot. The notes come from Unreleased, with a full comparison li
 
 The GitHub release starts as a **draft**. Windows packaging checks the bundled
 YouTube client, builds the browser overlay, validates the unsigned bundle, and runs
-isolated application and updater install/rollback smokes. Only a successful asset
-upload publishes it. Prereleases are never marked Latest. Stable releases become
+isolated application and updater install/rollback smokes. Only successful packaging, startup proofs and asset uploads on every supported
+platform publish it. Prereleases are never marked Latest. Stable releases become
 Latest only after the package is present. A failed build leaves a draft for
 inspection; it does not publish an incomplete release. Windows packages are
 deliberately distributed without an Authenticode signature.
@@ -82,5 +82,36 @@ Prefer rebase-and-merge for independent commits, or a meaningful conventional
 squash title for a single logical change. Do not hide breaking changes in a generic
 merge title. Never reset user data to make a schema change or upgrade pass.
 
-Only Windows ZIP assets are currently supported. Do not copy Colectarr's Linux,
-Android, macOS or container release jobs until ShowRunner supports those products.
+Desktop release packaging now covers:
+
+| Platform | Installer | Portable | Native proof host |
+| --- | --- | --- | --- |
+| Windows x64 | Existing ZIP distribution | Existing ZIP with `--portable` | Windows |
+| macOS 13+ Apple Silicon | `.pkg` | ZIP containing `.app` and `ShowRunner Portable.command` | macOS ARM64 |
+| macOS 13+ Intel | `.pkg` | ZIP containing `.app` and `ShowRunner Portable.command` | macOS Intel |
+| Linux x64, Ubuntu 24.04-compatible desktop | `.deb` | `tar.gz` with `ShowRunner Portable.sh` | Ubuntu 24.04/X11 |
+
+`Desktop packages` runs installer, portable, encrypted-settings restart and
+portable data-directory proofs on isolated PR/push runners. Publishing stays
+manual: the Release workflow keeps the release draft until Windows and every
+macOS/Linux package job pass. A failing platform cannot publish an incomplete
+release. Each native platform supplies a SHA-256 manifest. Backfill retains the
+existing release state; historical tags only build targets present in that tag.
+
+macOS packages use ad-hoc application signing and an unsigned installer, without
+Apple Developer ID/notarization. Gatekeeper therefore requires the user's local
+approval; this is not an Apple-trusted distribution. Linux requires GTK3, libmpv2,
+libsecret, AppIndicator and an unlocked Secret Service keyring, including for the
+portable archive. These archives bundle the application, not a complete OS.
+Portable launchers store data beside the extracted app; installed macOS uses
+`~/Library/Application Support/ShowRunner/user`, and Linux uses
+`$XDG_DATA_HOME/ShowRunner/user` or `~/.local/share/ShowRunner/user`.
+`SHOWRUNNER_USER_DIR` still overrides all defaults.
+
+Windows keeps DPAPI. macOS/Linux persist authenticated ciphertext with an AES-256
+key held by Keychain/Secret Service; credentials stay bound to the OS account even
+when using a portable archive. Missing/unavailable keys fail visibly without
+replacing data or falling back to plaintext. OAuth launches the platform browser.
+Automatic update installation, Windows output-device routing and Windows TTS-file
+synthesis remain Windows-only; macOS/Linux updates use these download packages.
+Android and container distributions are not part of this release pipeline.
