@@ -27,7 +27,7 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev libayatana-appindicator3-dev libsecret-1-dev libsecret-tools libjsoncpp-dev libmpv-dev libasound2-dev libpulse-dev gnome-keyring dbus-x11 xvfb openbox
+        sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev libayatana-appindicator3-dev libsecret-1-dev libsecret-tools libjsoncpp-dev libmpv-dev libasound2-dev libpulse-dev gnome-keyring dbus-x11 xvfb openbox gdb
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.47.7'

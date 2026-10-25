@@ -33,10 +33,21 @@ def launch(binary, scenario, data, *, portable_default=False):
         (log_directory / (name + '.log')).write_text(output, encoding='utf-8')
         print(output, flush=True)
         raise
+    if result.returncode < 0 and platform.system() == 'Linux':
+        # Keep the ordinary run authoritative. A debugger rerun supplies crash
+        # evidence only and can never turn the failed package probe green.
+        try:
+            debug = subprocess.run(['gdb', '--batch', '-ex', 'set pagination off', '-ex', 'run',
+                                    '-ex', 'thread apply all bt', '--args', *command],
+                                   env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   text=True, timeout=150)
+            output += '\nNative crash backtrace:\n' + debug.stdout
+        except (OSError, subprocess.TimeoutExpired) as error:
+            output += '\nNative backtrace unavailable: ' + type(error).__name__
     (log_directory / (name + '.log')).write_text(output, encoding='utf-8')
     if result.returncode != 0 or 'Flutter smoke passed: ' + scenario not in output:
         print(output, flush=True)
-        raise RuntimeError('Packaged smoke failed: ' + scenario)
+        raise RuntimeError('Packaged smoke failed: ' + scenario + ' (exit ' + str(result.returncode) + ')')
     print('Packaged smoke passed: ' + scenario, flush=True)
     return result
 

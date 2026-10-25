@@ -102,7 +102,8 @@ existing release state; historical tags only build targets present in that tag.
 
 macOS packages use ad-hoc application signing and an unsigned installer, without
 Apple Developer ID/notarization. Gatekeeper therefore requires the user's local
-approval; this is not an Apple-trusted distribution. Linux requires GTK3, libmpv2,
+approval; this is not an Apple-trusted distribution. Linux desktop uses the accelerated Skia/OpenGL renderer on the supported SDK;
+the OBS browser renderer remains TypeScript/WebGL. Linux requires GTK3, libmpv2,
 libsecret, AppIndicator and an unlocked Secret Service keyring, including for the
 portable archive. These archives bundle the application, not a complete OS.
 Portable launchers store data beside the extracted app; installed macOS uses
