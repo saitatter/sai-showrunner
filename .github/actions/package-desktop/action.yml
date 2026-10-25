@@ -1,6 +1,9 @@
 name: Package native desktop
 description: Build and smoke-test macOS and Linux installers and portable archives.
 inputs:
+  architecture:
+    description: Target CPU architecture (arm64 or x64); defaults to the host.
+    default: ''
   phase:
     description: Build packages, verify existing packages, or run both (all).
     default: all
@@ -72,13 +75,22 @@ runs:
       env:
         PACKAGE_VERSION: ${{ inputs.version }}
         PACKAGE_BUILD: ${{ inputs.build }}
+        PACKAGE_ARCH: ${{ inputs.architecture }}
         REQUIRE_CLIENT: ${{ inputs.require-client }}
         SHOWRUNNER_YOUTUBE_CLIENT_ID: ${{ inputs.youtube-client-id }}
         SHOWRUNNER_YOUTUBE_CLIENT_SECRET: ${{ inputs.youtube-client-secret }}
       run: |
         args=(--version "$PACKAGE_VERSION" --build "$PACKAGE_BUILD")
+        if [ -n "$PACKAGE_ARCH" ]; then args+=(--arch "$PACKAGE_ARCH"); fi
         if [ "$REQUIRE_CLIENT" = true ]; then args+=(--require-client); fi
         python3 tools/release/package-desktop.py "${args[@]}"
+    - name: Prepare macOS x64 execution on Apple Silicon
+      if: runner.os == 'macOS' && inputs.architecture == 'x64' && inputs.phase != 'build'
+      shell: bash
+      run: |
+        if [ "$(uname -m)" = arm64 ] && ! /usr/bin/arch -x86_64 /usr/bin/true; then
+          sudo softwareupdate --install-rosetta --agree-to-license
+        fi
     - name: Verify installed and portable macOS packages
       if: runner.os == 'macOS' && inputs.phase != 'build'
       shell: bash

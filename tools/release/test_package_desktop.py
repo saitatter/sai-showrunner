@@ -4,6 +4,7 @@ import io
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -11,6 +12,9 @@ from unittest.mock import patch
 SPEC = importlib.util.spec_from_file_location('desktop_smoke', Path(__file__).with_name('smoke-desktop.py'))
 SMOKE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(SMOKE)
+PACKAGE_SPEC = importlib.util.spec_from_file_location('desktop_package', Path(__file__).with_name('package-desktop.py'))
+PACKAGE = importlib.util.module_from_spec(PACKAGE_SPEC)
+PACKAGE_SPEC.loader.exec_module(PACKAGE)
 
 class DesktopSmokeDiagnosticsTest(unittest.TestCase):
     def setUp(self):
@@ -52,6 +56,20 @@ class DesktopSmokeDiagnosticsTest(unittest.TestCase):
             SMOKE.launch(Path('/fixture/portable'), 'startup', self.root / 'portable/user', portable_default=True)
         self.assertNotIn('SHOWRUNNER_USER_DIR', process.call_args.kwargs['env'])
         self.assertEqual(process.call_args.kwargs['timeout'], 150)
+
+    def test_macos_cross_build_rejects_a_mislabeled_host_architecture(self):
+        arguments = ['package-desktop.py', '--version=2.1.0', '--build=1', '--arch=x64']
+        with patch.object(PACKAGE, 'ROOT', self.root), patch.object(PACKAGE, 'APP', self.root / 'app'), patch.object(sys, 'argv', arguments), patch.object(PACKAGE.platform, 'system', return_value='Darwin'), patch.object(PACKAGE.platform, 'machine', return_value='arm64'), patch.object(PACKAGE, 'run') as build, patch.object(PACKAGE.subprocess, 'check_output', return_value='arm64\n'):
+            with self.assertRaisesRegex(RuntimeError, 'architecture does not match'):
+                PACKAGE.main()
+        self.assertIn('ARCHS=x86_64', build.call_args.args)
+
+    def test_linux_rejects_cross_architecture_before_building(self):
+        arguments = ['package-desktop.py', '--version=2.1.0', '--build=1', '--arch=arm64']
+        with patch.object(sys, 'argv', arguments), patch.object(PACKAGE.platform, 'system', return_value='Linux'), patch.object(PACKAGE.platform, 'machine', return_value='x86_64'), patch.object(PACKAGE, 'run') as build, contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                PACKAGE.main()
+        build.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

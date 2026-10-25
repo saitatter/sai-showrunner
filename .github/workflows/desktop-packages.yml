@@ -17,10 +17,13 @@ jobs:
         include:
           - runner: ubuntu-24.04
             target: linux-x64
+            arch: x64
           - runner: macos-15
             target: macos-arm64
-          - runner: macos-15-intel
+            arch: arm64
+          - runner: macos-15
             target: macos-x64
+            arch: x64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
@@ -34,12 +37,14 @@ jobs:
         uses: ./.github/actions/package-desktop
         with:
           phase: build
+          architecture: ${{ matrix.arch }}
           version: ${{ steps.version.outputs.version }}
           build: ${{ steps.version.outputs.build }}
       - name: Verify native installer and portable packages
         uses: ./.github/actions/package-desktop
         with:
           phase: verify
+          architecture: ${{ matrix.arch }}
           version: ${{ steps.version.outputs.version }}
           build: ${{ steps.version.outputs.build }}
       - uses: actions/upload-artifact@v7
