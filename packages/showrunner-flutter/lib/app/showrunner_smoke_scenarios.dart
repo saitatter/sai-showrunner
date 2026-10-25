@@ -6,11 +6,10 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       stdout.writeln(
         'Flutter smoke bootstrap: awaiting runtime initialization',
       );
-      await Future.wait([
-        _healthFuture,
-        _pluginRegistryFuture,
-        _profileRuntimeFuture,
-      ]);
+      // Wait for the authoritative owner, including all managed module starts.
+      // Individual construction futures may already have completed when a later
+      // startup failure triggers rollback and disposes their runtime services.
+      await _application.start();
       stdout.writeln('Flutter smoke bootstrap: runtime ready');
       final scenario = widget.smokeScenario;
       if (scenario == 'first-run') {

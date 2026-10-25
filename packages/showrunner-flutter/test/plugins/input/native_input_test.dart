@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/plugins/input/bootstrap.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +16,38 @@ import '../../support/graph_fixtures.dart';
 import 'package:showrunner_flutter/schema/profile.dart';
 
 void main() {
+  for (final supported in [true, false]) {
+    test(
+      'input registration owns hooks only on supported platforms: $supported',
+      () async {
+        final platform = _FakeInputPlatform();
+        final registry = DartPluginRegistry();
+        registerConfiguredInput(
+          registry,
+          platform: platform,
+          nativeHooksSupported: supported,
+        );
+        await registry.initialize();
+        await registry.start();
+        expect(platform.calls, supported ? ['start-events'] : isEmpty);
+        final health = await registry.checkHealthDetailsId(
+          const PluginId('input'),
+        );
+        expect(
+          health.status,
+          supported
+              ? DartPluginHealthStatus.ready
+              : DartPluginHealthStatus.unavailable,
+        );
+        if (!supported) expect(health.message, contains('Windows-only'));
+        await registry.close();
+        expect(
+          platform.calls,
+          supported ? ['start-events', 'stop-events'] : isEmpty,
+        );
+      },
+    );
+  }
   test('decodes input actions and shortcuts into typed contracts', () {
     final plugin = createInputPlugin();
     final key = plugin.actions

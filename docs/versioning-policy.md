@@ -114,6 +114,6 @@ Windows keeps DPAPI. macOS/Linux persist authenticated ciphertext with an AES-25
 key held by Keychain/Secret Service; credentials stay bound to the OS account even
 when using a portable archive. Missing/unavailable keys fail visibly without
 replacing data or falling back to plaintext. OAuth launches the platform browser.
-Automatic update installation, Windows output-device routing and Windows TTS-file
-synthesis remain Windows-only; macOS/Linux updates use these download packages.
+Automatic update installation, global input hooks/simulation, Windows output-device
+routing and Windows TTS-file synthesis remain Windows-only; macOS/Linux updates use these download packages.
 Android and container distributions are not part of this release pipeline.
