@@ -30,8 +30,16 @@ jobs:
         shell: bash
         run: |
           node --input-type=module -e 'import fs from "node:fs"; const v=JSON.parse(fs.readFileSync("package.json")).version; const build=fs.readFileSync("packages/showrunner-flutter/pubspec.yaml","utf8").match(/^version:.*\+(\d+)/m)[1]; fs.appendFileSync(process.env.GITHUB_OUTPUT,`version=${v}\nbuild=${build}\n`);'
-      - uses: ./.github/actions/package-desktop
+      - name: Build native installer and portable packages
+        uses: ./.github/actions/package-desktop
         with:
+          phase: build
+          version: ${{ steps.version.outputs.version }}
+          build: ${{ steps.version.outputs.build }}
+      - name: Verify native installer and portable packages
+        uses: ./.github/actions/package-desktop
+        with:
+          phase: verify
           version: ${{ steps.version.outputs.version }}
           build: ${{ steps.version.outputs.build }}
       - uses: actions/upload-artifact@v7
