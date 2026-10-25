@@ -38,7 +38,7 @@ def launch(binary, scenario, data, *, portable_default=False):
         # evidence only and can never turn the failed package probe green.
         try:
             debug = subprocess.run(['gdb', '--batch', '-ex', 'set pagination off', '-ex', 'run',
-                                    '-ex', 'thread apply all bt', '--args', *command],
+                                    '-ex', 'thread apply all bt', '--args', '/bin/bash', *command],
                                    env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    text=True, timeout=150)
             output += '\nNative crash backtrace:\n' + debug.stdout
