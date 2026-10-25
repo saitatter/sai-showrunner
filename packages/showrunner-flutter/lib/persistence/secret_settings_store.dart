@@ -1,3 +1,4 @@
+import 'desktop_secret_cipher.dart';
 import 'filesystem/persistence_directory.dart';
 import 'secret_storage_exception.dart';
 import 'document_codec.dart';
@@ -69,6 +70,10 @@ final class SecretSettingsStore {
   final PersistenceDirectory? location;
   final SecretSettingsCipher? encrypt;
   final SecretSettingsCipher? decrypt;
+  late final _desktopCipher = DesktopSecretCipher(
+    directory: directory,
+    location: location,
+  );
 
   Future<JsonMap> load(String pluginId) async {
     return _loadFile(_file(pluginId), 'Secret settings');
@@ -113,7 +118,10 @@ final class SecretSettingsStore {
     try {
       final plaintext = utf8.encode(encodeYaml(values));
       return List.unmodifiable(
-        await (encrypt ?? encryptWithWindowsDpapi)(plaintext),
+        await (encrypt ??
+            (Platform.isWindows
+                ? encryptWithWindowsDpapi
+                : _desktopCipher.encrypt))(plaintext),
       );
     } catch (_) {
       throw SecretStorageException(owner: owner, operation: 'write');
@@ -134,7 +142,11 @@ final class SecretSettingsStore {
     if (!await file.exists()) return <String, dynamic>{};
     try {
       final encrypted = await file.readAsBytes();
-      final plaintext = await (decrypt ?? decryptWithWindowsDpapi)(encrypted);
+      final plaintext =
+          await (decrypt ??
+              (Platform.isWindows
+                  ? decryptWithWindowsDpapi
+                  : _desktopCipher.decrypt))(encrypted);
       final parsed = loadYaml(utf8.decode(plaintext));
       if (parsed is! YamlMap) {
         throw const FormatException('Secrets must contain a map.');

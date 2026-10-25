@@ -442,10 +442,21 @@ final class OAuthTokenManager {
 HttpClient _defaultHttpClient() => HttpClient();
 
 Future<void> openOAuthUrlInBrowser(Uri url) async {
-  if (!Platform.isWindows) {
-    throw UnsupportedError(
-      'OAuth browser launch is currently supported on Windows only.',
+  if (url.scheme != 'https' && url.scheme != 'http') {
+    throw const FormatException('OAuth authorization requires an HTTP URL.');
+  }
+  if (Platform.isMacOS || Platform.isLinux) {
+    final result = await Process.run(
+      Platform.isMacOS ? '/usr/bin/open' : 'xdg-open',
+      [url.toString()],
     );
+    if (result.exitCode != 0) {
+      throw StateError('Could not open the authorization page.');
+    }
+    return;
+  }
+  if (!Platform.isWindows) {
+    throw UnsupportedError('Unsupported desktop platform.');
   }
   // Use the registered Windows URL handler. Explorer can silently ignore long
   // authorization URLs; a shell command with an unquoted URL drops '&' fields.

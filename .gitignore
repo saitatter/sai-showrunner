@@ -13,6 +13,9 @@
 **/.flutter-plugins-dependencies
 **/pubspec_overrides.yaml
 **/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
 
 # JavaScript dependencies and build output
 node_modules/
@@ -53,3 +56,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Persistent owner locks created while reading repository fixtures
 packages/showrunner-flutter/test/fixtures/**/.locks/
+
+# Python packaging tool bytecode
+__pycache__/

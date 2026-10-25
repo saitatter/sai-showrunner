@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Add native macOS/Linux desktop runners with secure OS-keyring credentials, platform data directories and native window/browser lifecycles.
 - Add shader graph node search with Ctrl+F and a snap-to-grid toggle using the shared immutable canvas controls.
 - Keep overlay canvas/save actions usable in compact desktop layouts, with a keyboard-toggleable inspector/layers panel that retains draft and focus state across resizing.
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.

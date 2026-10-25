@@ -180,7 +180,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _navigation.addListener(_onNavigationChanged);
     _scratchEditor.graph.addDocumentListener(_scratchChanged);
     _automationDocuments.addListener(_onGraphDirtyChanged);
-    if (Platform.isWindows) {
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       windowManager.addListener(this);
       unawaited(windowManager.setPreventClose(true));
     }
@@ -288,7 +288,9 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
     _navigation.removeListener(_onNavigationChanged);
     _scratchEditor.graph.removeDocumentListener(_scratchChanged);
     _automationDocuments.removeListener(_onGraphDirtyChanged);
-    if (Platform.isWindows) windowManager.removeListener(this);
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      windowManager.removeListener(this);
+    }
     _graphExecution.dispose();
     final shutdown = _shutdownFuture ??= _lifecycle.shutdown();
     unawaited(
