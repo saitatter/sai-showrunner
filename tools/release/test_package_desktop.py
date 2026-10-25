@@ -1,4 +1,4 @@
-﻿import contextlib
+import contextlib
 import importlib.util
 import io
 import os
@@ -34,6 +34,16 @@ class DesktopSmokeDiagnosticsTest(unittest.TestCase):
         diagnostic = next((self.root / '.tmp/desktop-proof-logs').glob('*.log')).read_text(encoding='utf-8')
         self.assertIn('fixture bootstrap progress', diagnostic)
         self.assertIn('fixture runtime failure', diagnostic)
+
+    def test_debugger_cannot_hide_a_native_crash_after_the_success_marker(self):
+        failed = subprocess.CompletedProcess([], -11, stdout='Flutter smoke passed: startup')
+        debugger = subprocess.CompletedProcess([], 0, stdout='fixture native stack')
+        with patch.object(SMOKE.platform, 'system', return_value='Linux'), patch.object(SMOKE.subprocess, 'run', side_effect=[failed, debugger]) as process, contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(RuntimeError, 'exit -11'):
+                SMOKE.launch(Path('/fixture/app'), 'startup', self.root / 'installed/startup')
+        self.assertEqual(process.call_args_list[1].args[0][0], 'gdb')
+        diagnostic = next((self.root / '.tmp/desktop-proof-logs').glob('*.log')).read_text(encoding='utf-8')
+        self.assertIn('fixture native stack', diagnostic)
 
     def test_portable_probe_removes_explicit_data_override(self):
         result = subprocess.CompletedProcess([], 0, stdout='Flutter smoke passed: startup')
