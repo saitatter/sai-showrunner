@@ -87,6 +87,9 @@ try {
     }
     $stdout = $stdoutTask.GetAwaiter().GetResult()
     $stderr = $stderrTask.GetAwaiter().GetResult()
+    foreach ($applicationLog in Get-ChildItem -LiteralPath (Join-Path $UserDirectory 'logs') -Filter 'showrunner.jsonl*' -File -ErrorAction SilentlyContinue) {
+      $stderr += "`nApplication log: $($applicationLog.Name)`n" + ((Get-Content -LiteralPath $applicationLog.FullName -Tail 60) -join "`n")
+    }
     throw "Flutter process did not finish the $Scenario smoke scenario. Exited=$($process.HasExited), WaitError=$waitError`nstdout: $stdout`nstderr: $stderr"
   }
   $stdout = $stdoutTask.GetAwaiter().GetResult()

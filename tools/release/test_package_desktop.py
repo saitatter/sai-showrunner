@@ -42,6 +42,7 @@ class DesktopSmokeDiagnosticsTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'exit -11'):
                 SMOKE.launch(Path('/fixture/app'), 'startup', self.root / 'installed/startup')
         self.assertEqual(process.call_args_list[1].args[0][0], 'gdb')
+        self.assertEqual(process.call_args_list[1].args[0][-3:], ['/bin/bash', str(Path('/fixture/app')), '--showrunner-smoke=startup'])
         diagnostic = next((self.root / '.tmp/desktop-proof-logs').glob('*.log')).read_text(encoding='utf-8')
         self.assertIn('fixture native stack', diagnostic)
 
