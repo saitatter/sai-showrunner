@@ -6,8 +6,9 @@ OBS profiles and credentials are never disposable fixtures.
 
 ## Native package proof
 
-`Desktop packages` builds Linux x64 and macOS Intel/Apple Silicon on native CI
-hosts, through `.github/actions/package-desktop`. It produces installer and
+`Desktop packages` builds Linux x64 and macOS Intel/Apple Silicon on Linux/macOS CI
+hosts, through `.github/actions/package-desktop`, with separate build and verification
+steps. It produces installer and
 portable artifacts and SHA-256 manifests. `tools/release/smoke-desktop.py` refuses
 installation outside disposable GitHub Actions hosts: it installs the actual
 package, extracts the portable archive, runs startup/first-run/automation/workflow/
@@ -15,6 +16,14 @@ profile/integration/overlay scenarios, restarts with the same encrypted settings
 and checks portable data placement. Linux proof runs in an isolated D-Bus/Xvfb
 session with an unlocked temporary keyring; normal users need an unlocked desktop
 keyring. Proof artifacts do not create tags or GitHub releases.
+
+Both macOS jobs use Apple Silicon hosts. The x64 job explicitly cross-builds the
+Intel executable, checks its Mach-O CPU architecture, and executes the same full
+installer/portable scenarios through Rosetta. This avoids the Intel hosted VM
+graphics path after repeated verification-stage timeouts; GitHub also tracks
+[Intel VM Metal hangs](https://github.com/actions/runner-images/issues/14836).
+The missing Intel job logs do not establish that upstream issue as our exact
+cause. Rosetta proof does not establish physical Intel graphics-driver coverage.
 
 Cipher fixtures inject a temporary keyring and verify concurrent owners share
 one OS key, ciphertext authentication, relocation with the same keyring and

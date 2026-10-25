@@ -84,11 +84,11 @@ merge title. Never reset user data to make a schema change or upgrade pass.
 
 Desktop release packaging now covers:
 
-| Platform | Installer | Portable | Native proof host |
+| Platform | Installer | Portable | Package proof host |
 | --- | --- | --- | --- |
 | Windows x64 | Existing ZIP distribution | Existing ZIP with `--portable` | Windows |
 | macOS 13+ Apple Silicon | `.pkg` | ZIP containing `.app` and `ShowRunner Portable.command` | macOS ARM64 |
-| macOS 13+ Intel | `.pkg` | ZIP containing `.app` and `ShowRunner Portable.command` | macOS Intel |
+| macOS 13+ Intel | `.pkg` | ZIP containing `.app` and `ShowRunner Portable.command` | macOS ARM64, executing x64 through Rosetta |
 | Linux x64, Ubuntu 24.04-compatible desktop | `.deb` | `tar.gz` with `ShowRunner Portable.sh` | Ubuntu 24.04/X11 |
 
 `Desktop packages` runs installer, portable, encrypted-settings restart and
@@ -99,6 +99,12 @@ release. Each native platform supplies a SHA-256 manifest. Native packaging uses
 3.12+ and the supported Flutter/Node/Yarn versions; the checked-in package tool
 can build locally, while installer smoke deliberately requires disposable CI. Backfill retains the
 existing release state; historical tags only build targets present in that tag.
+
+macOS builds select the target CPU explicitly (`--arch arm64` or `--arch x64`)
+and verify the resulting Mach-O architecture before packaging. The x64 CI job
+runs the actual Intel executable through Rosetta, including installed/portable
+workflows and encrypted-settings restart. This validates x64 execution and
+packaging; physical Intel graphics drivers remain an unverified hardware boundary.
 
 macOS packages use ad-hoc application signing and an unsigned installer, without
 Apple Developer ID/notarization. Gatekeeper therefore requires the user's local
