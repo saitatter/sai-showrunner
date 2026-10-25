@@ -96,17 +96,18 @@ Future<void> configureShowRunnerWindow({File? stateFile}) async {
         : TitleBarStyle.normal,
     windowButtonVisibility: !Platform.isWindows,
   );
-  await windowManager.waitUntilReadyToShow(options, () async {
-    if (saved != null) {
-      await windowManager.setSize(saved.size);
-      await windowManager.setPosition(saved.position);
-    } else {
-      await windowManager.center();
-    }
-    await windowManager.show();
-    await windowManager.focus();
-    if (saved?.maximized == true) await windowManager.maximize();
-  });
+  // The package takes a VoidCallback and does not await an async callback.
+  // Keep positioning/showing in this owner's future rather than detaching it.
+  await windowManager.waitUntilReadyToShow(options);
+  if (saved != null) {
+    await windowManager.setSize(saved.size);
+    await windowManager.setPosition(saved.position);
+  } else {
+    await windowManager.center();
+  }
+  await windowManager.show();
+  await windowManager.focus();
+  if (saved?.maximized == true) await windowManager.maximize();
 }
 
 double? _finiteNumber(Object? value) {

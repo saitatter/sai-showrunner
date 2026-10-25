@@ -10,7 +10,9 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       // Individual construction futures may already have completed when a later
       // startup failure triggers rollback and disposes their runtime services.
       await _application.start();
-      stdout.writeln('Flutter smoke bootstrap: runtime ready');
+      await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
+      await WidgetsBinding.instance.endOfFrame;
+      stdout.writeln('Flutter smoke bootstrap: runtime and first frame ready');
       final scenario = widget.smokeScenario;
       if (scenario == 'first-run') {
         final appSettings = await widget.dataService.loadPluginSettings(
@@ -45,6 +47,7 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
               'integrations, overlays, or updates.',
         );
       }
+      await WidgetsBinding.instance.endOfFrame;
       stdout.writeln('Flutter smoke passed: $scenario');
       await Future<void>.delayed(const Duration(milliseconds: 250));
       // Smoke runs are already isolated and must not open the interactive
