@@ -31,6 +31,12 @@ Existing OBS sources using an older URL need that URL refreshed with the editor'
 source helper. Overlay capabilities are independent of the chat dock token.
 The automation and shader editors use [sai_nodes](https://github.com/saitatter/sai_nodes).
 
+Desktop packaging includes macOS Intel/Apple Silicon (`.pkg` and portable ZIP)
+and Linux x64 (`.deb` and portable `tar.gz`), validated on native CI hosts before
+release publication. See [platform requirements and release policy](docs/versioning-policy.md)
+for system dependencies, unsigned macOS distribution, portable credential limits
+and features that currently remain Windows-only.
+
 The Flutter desktop shipped in **v2.0.0**. New development features remain under
 **Unreleased** until publication. Supported features,
 external-service limits and missing integrations are documented in
