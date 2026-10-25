@@ -53,6 +53,28 @@ void main() {
     },
   );
   test(
+    'missing key metadata never creates a replacement over stored secrets',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'desktop-missing-identity-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final saved = File('${directory.path}/obs.yaml');
+      await saved.writeAsString('existing ciphertext');
+      final cipher = DesktopSecretCipher(
+        directory: directory,
+        readKey: (_) async => null,
+        writeKey: (_, _) async => fail('must not replace a missing identity'),
+      );
+      await expectLater(cipher.encrypt([1]), throwsStateError);
+      expect(await saved.readAsString(), 'existing ciphertext');
+      expect(
+        await File('${directory.path}/.platform-key.json').exists(),
+        isFalse,
+      );
+    },
+  );
+  test(
     'lost key and unsupported metadata fail without replacing stored identity',
     () async {
       final directory = await Directory.systemTemp.createTemp(
