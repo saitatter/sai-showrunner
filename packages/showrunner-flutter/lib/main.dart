@@ -17,8 +17,15 @@ import 'app/showrunner_page.dart';
 export 'app/showrunner_page.dart' show ShowRunnerPage;
 
 Future<void> main(List<String> args) async {
+  final smokeMode = args.any((arg) => arg.startsWith('--showrunner-smoke='));
+  void progress(String stage) {
+    if (smokeMode) stdout.writeln('Flutter smoke bootstrap: $stage');
+  }
+
   WidgetsFlutterBinding.ensureInitialized();
+  progress('binding ready');
   MediaKit.ensureInitialized();
+  progress('media ready');
   final portable = args.contains('--portable');
   final userDirectory = showRunnerUserDirectory(portable: portable);
   await ShowRunnerLogger.instance.initialize(
@@ -50,6 +57,7 @@ Future<void> main(List<String> args) async {
     );
     return;
   }
+  progress('instance lock ready; configuring window');
   try {
     await configureShowRunnerWindow(
       stateFile: File('${userDirectory.path}/state/window.json'),
@@ -58,6 +66,7 @@ Future<void> main(List<String> args) async {
     await instanceLock.release();
     rethrow;
   }
+  progress('window ready; launching application');
   final smokeArgument = args.cast<String?>().firstWhere(
     (argument) => argument?.startsWith('--showrunner-smoke=') == true,
     orElse: () => null,

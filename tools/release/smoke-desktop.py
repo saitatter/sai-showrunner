@@ -1,10 +1,8 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Exercise installed and extracted release packages on ephemeral CI hosts."""
-import argparse
 import os
 from pathlib import Path
 import platform
-import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -14,22 +12,39 @@ ROOT = Path(__file__).resolve().parents[2]
 def run(*args):
     subprocess.run([str(arg) for arg in args], check=True)
 
+def launch(binary, scenario, data, *, portable_default=False):
+    env = dict(os.environ)
+    if portable_default:
+        env.pop('SHOWRUNNER_USER_DIR', None)
+    else:
+        env['SHOWRUNNER_USER_DIR'] = str(data)
+    command = [str(binary), '--showrunner-smoke=' + scenario]
+    log_directory = ROOT / '.tmp/desktop-proof-logs'
+    log_directory.mkdir(parents=True, exist_ok=True)
+    name = data.parent.name + '-' + data.name + '-' + scenario
+    try:
+        result = subprocess.run(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=150)
+        output = result.stdout
+    except subprocess.TimeoutExpired as error:
+        output = error.stdout or ''
+        if isinstance(output, bytes): output = output.decode('utf-8', errors='replace')
+        for path in (data / 'logs').glob('showrunner.jsonl*'):
+            output += '\nApplication log: ' + path.name + '\n' + path.read_text(encoding='utf-8', errors='replace')[-32000:]
+        (log_directory / (name + '.log')).write_text(output, encoding='utf-8')
+        print(output, flush=True)
+        raise
+    (log_directory / (name + '.log')).write_text(output, encoding='utf-8')
+    if result.returncode != 0 or 'Flutter smoke passed: ' + scenario not in output:
+        print(output, flush=True)
+        raise RuntimeError('Packaged smoke failed: ' + scenario)
+    print('Packaged smoke passed: ' + scenario, flush=True)
+    return result
+
 def smoke(binary, directory):
     for scenario in ('startup', 'first-run', 'automation', 'workflow', 'profile', 'integrations', 'overlays'):
-        data = directory / scenario
-        env = dict(os.environ, SHOWRUNNER_USER_DIR=str(data))
-        result = subprocess.run([str(binary), '--showrunner-smoke=' + scenario], env=env,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=150)
-        if result.returncode != 0 or 'Flutter smoke passed: ' + scenario not in result.stdout:
-            print(result.stdout)
-            raise RuntimeError('Packaged smoke failed: ' + scenario)
-        print('Packaged smoke passed: ' + scenario)
+        launch(binary, scenario, directory / scenario)
     # The second run must decrypt the first process's platform-bound secrets.
-    result = subprocess.run([str(binary), '--showrunner-smoke=startup'], env=dict(os.environ, SHOWRUNNER_USER_DIR=str(directory / 'startup')),
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=150)
-    if result.returncode != 0 or 'Flutter smoke passed: startup' not in result.stdout:
-        print(result.stdout)
-        raise RuntimeError('Packaged encrypted-settings restart failed')
+    launch(binary, 'startup', directory / 'startup')
 
 def main():
     if os.environ.get('GITHUB_ACTIONS') != 'true':
@@ -45,9 +60,7 @@ def main():
             portable = work / 'portable'
             smoke(portable / 'ShowRunner Portable.command', work / 'portable-data')
             # Prove the launcher itself chooses a writable directory beside the app.
-            env = dict(os.environ)
-            env.pop('SHOWRUNNER_USER_DIR', None)
-            result = subprocess.run([str(portable / 'ShowRunner Portable.command'), '--showrunner-smoke=startup'], env=env, timeout=150)
+            result = launch(portable / 'ShowRunner Portable.command', 'startup', portable / 'user', portable_default=True)
         else:
             installer = next((ROOT / 'release').glob('*-installer.deb'))
             archive = next((ROOT / 'release').glob('*-portable.tar.gz'))
@@ -57,9 +70,7 @@ def main():
                 bundle.extractall(work, filter='data')
             portable = work / 'ShowRunner'
             smoke(portable / 'ShowRunner Portable.sh', work / 'portable-data')
-            env = dict(os.environ)
-            env.pop('SHOWRUNNER_USER_DIR', None)
-            result = subprocess.run([str(portable / 'ShowRunner Portable.sh'), '--showrunner-smoke=startup'], env=env, timeout=150)
+            result = launch(portable / 'ShowRunner Portable.sh', 'startup', portable / 'user', portable_default=True)
         if result.returncode != 0 or not (portable / 'user/settings').is_dir():
             raise RuntimeError('Portable launcher did not retain its own user data directory')
         print('Installed, portable, encrypted-settings restart and portable data-location proofs passed')

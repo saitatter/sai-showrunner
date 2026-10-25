@@ -180,8 +180,14 @@ describe("Native desktop package publication", () => {
         // GitHub's hyphenated job identifiers use its expression member grammar.
         const condition = publish.if.replaceAll('needs.package-windows', "needs['package-windows']").replaceAll('needs.package-desktop', "needs['package-desktop']")
         const evaluate = new Function('needs', 'inputs', 'always', `return (${condition})`)
-        expect(evaluate(needs, {dry_run:false}, () => true)).toBe(windows === 'success' && desktop === 'success')
+        expect(evaluate(needs, {dry_run:false,backfill_version:''}, () => true)).toBe(windows === 'success' && desktop === 'success')
       }
     }
+    const condition = publish.if.replaceAll('needs.package-windows', "needs['package-windows']").replaceAll('needs.package-desktop', "needs['package-desktop']")
+    const evaluate = new Function('needs', 'inputs', 'always', `return (${condition})`)
+    const oldTag = {plan:{result:'success',outputs:{native_desktop:'false'}},prepare:{result:'success'},'package-windows':{result:'success'},'package-desktop':{result:'skipped'}}
+    expect(evaluate(oldTag, {dry_run:false,backfill_version:'2.0.0'}, () => true)).toBe(true)
+    expect(evaluate(oldTag, {dry_run:false,backfill_version:''}, () => true)).toBe(false)
+    expect(evaluate(oldTag, {dry_run:true,backfill_version:'2.0.0'}, () => true)).toBe(false)
   })
 })
