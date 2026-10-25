@@ -10,6 +10,8 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  GtkWindow* window;
+  FlEngine* engine;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -24,6 +26,7 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  self->window = GTK_WINDOW(g_object_ref(window));
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu
@@ -59,6 +62,7 @@ static void my_application_activate(GApplication* application) {
       project, self->dart_entrypoint_arguments);
 
   FlView* view = fl_view_new(project);
+  self->engine = FL_ENGINE(g_object_ref(fl_view_get_engine(view)));
   GdkRGBA background_color;
   // Background defaults to black, override it here if necessary, e.g. #00000000
   // for transparent.
@@ -110,9 +114,20 @@ static void my_application_startup(GApplication* application) {
 
 // Implements GApplication::shutdown.
 static void my_application_shutdown(GApplication* application) {
-  // MyApplication* self = MY_APPLICATION(object);
+  MyApplication* self = MY_APPLICATION(application);
 
-  // Perform any actions required at application shutdown.
+  // Flutter application exit detaches its windows before quitting GApplication.
+  // Release the view while the engine still has an explicit owner, then finish
+  // queued GTK/GTask cleanup outside the platform method dispatch. Stop the
+  // engine before process exit destroys Mesa/LLVM's global resources.
+  if (self->window != nullptr) {
+    gtk_widget_destroy(GTK_WIDGET(self->window));
+    g_clear_object(&self->window);
+  }
+  while (g_main_context_pending(nullptr)) {
+    g_main_context_iteration(nullptr, FALSE);
+  }
+  g_clear_object(&self->engine);
 
   G_APPLICATION_CLASS(my_application_parent_class)->shutdown(application);
 }
