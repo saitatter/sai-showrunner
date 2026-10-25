@@ -2,13 +2,52 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show AppExitResponse, AppExitType;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/app/app_foundations.dart';
 import 'package:showrunner_flutter/app/window_configuration.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  for (final response in ['exit', 'cancel']) {
+    test(
+      'Linux application exit awaits the host response: $response',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+        final host = Completer<AppExitResponse>();
+        final entered = Completer<void>();
+        addTearDown(() {
+          debugDefaultTargetPlatformOverride = null;
+        });
+        var completed = false;
+        final closing =
+            closeShowRunnerWindow(
+              requestExit: (type) {
+                expect(type, AppExitType.required);
+                entered.complete();
+                return host.future;
+              },
+            ).then<Object?>(
+              (_) {
+                completed = true;
+                return null;
+              },
+              onError: (Object error) {
+                completed = true;
+                return error;
+              },
+            );
+        await entered.future;
+        expect(completed, isFalse);
+        host.complete(
+          response == 'exit' ? AppExitResponse.exit : AppExitResponse.cancel,
+        );
+        expect(await closing, response == 'exit' ? isNull : isA<StateError>());
+      },
+    );
+  }
   for (final fails in [false, true]) {
     test(
       'window configuration owns pending focus and its failure: $fails',
