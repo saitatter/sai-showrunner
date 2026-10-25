@@ -1,4 +1,4 @@
-﻿name: Desktop packages
+name: Desktop packages
 on:
   pull_request:
     branches: [main]
@@ -39,4 +39,13 @@ jobs:
           name: desktop-proof-${{ matrix.target }}
           path: release/*
           if-no-files-found: error
+          retention-days: 7
+
+      - name: Preserve package smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-diagnostics-${{ matrix.target }}
+          path: .tmp/desktop-proof-logs/*.log
+          if-no-files-found: ignore
           retention-days: 7

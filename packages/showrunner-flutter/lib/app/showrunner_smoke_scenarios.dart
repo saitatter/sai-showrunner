@@ -3,11 +3,15 @@ part of 'showrunner_page.dart';
 extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
   Future<void> _runSmokeScenario() async {
     try {
+      stdout.writeln(
+        'Flutter smoke bootstrap: awaiting runtime initialization',
+      );
       await Future.wait([
         _healthFuture,
         _pluginRegistryFuture,
         _profileRuntimeFuture,
       ]);
+      stdout.writeln('Flutter smoke bootstrap: runtime ready');
       final scenario = widget.smokeScenario;
       if (scenario == 'first-run') {
         final appSettings = await widget.dataService.loadPluginSettings(
@@ -46,7 +50,11 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       await Future<void>.delayed(const Duration(milliseconds: 250));
       // Smoke runs are already isolated and must not open the interactive
       // hide-to-tray/close dialog introduced for normal desktop shutdown.
-      await _handleWindowClose(forceClose: true);
+      if (!await _handleWindowClose(forceClose: true)) {
+        throw StateError(
+          'Packaged application did not accept orderly shutdown.',
+        );
+      }
     } catch (error, stackTrace) {
       stderr.writeln('Flutter smoke failed: $error');
       stderr.writeln(stackTrace);

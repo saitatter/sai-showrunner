@@ -95,7 +95,9 @@ Desktop release packaging now covers:
 portable data-directory proofs on isolated PR/push runners. Publishing stays
 manual: the Release workflow keeps the release draft until Windows and every
 macOS/Linux package job pass. A failing platform cannot publish an incomplete
-release. Each native platform supplies a SHA-256 manifest. Backfill retains the
+release. Each native platform supplies a SHA-256 manifest. Native packaging uses Python
+3.12+ and the supported Flutter/Node/Yarn versions; the checked-in package tool
+can build locally, while installer smoke deliberately requires disposable CI. Backfill retains the
 existing release state; historical tags only build targets present in that tag.
 
 macOS packages use ad-hoc application signing and an unsigned installer, without

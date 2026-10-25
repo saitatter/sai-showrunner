@@ -251,7 +251,7 @@ jobs:
 
   publish:
     needs: [plan, prepare, package-windows, package-desktop]
-    if: always() && needs.plan.result == 'success' && needs.prepare.result == 'success' && needs.package-windows.result == 'success' && (needs.package-desktop.result == 'success' || (needs.plan.outputs.native_desktop == 'false' && needs.package-desktop.result == 'skipped')) && !inputs.dry_run
+    if: always() && needs.plan.result == 'success' && needs.prepare.result == 'success' && needs.package-windows.result == 'success' && (needs.package-desktop.result == 'success' || (needs.plan.outputs.native_desktop == 'false' && inputs.backfill_version != '' && needs.package-desktop.result == 'skipped')) && !inputs.dry_run
     runs-on: ubuntu-latest
     environment: release
     permissions:
