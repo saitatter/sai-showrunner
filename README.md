@@ -32,10 +32,11 @@ source helper. Overlay capabilities are independent of the chat dock token.
 The automation and shader editors use [sai_nodes](https://github.com/saitatter/sai_nodes).
 
 Desktop packaging includes macOS Intel/Apple Silicon (`.pkg` and portable ZIP)
-and Linux x64 (`.deb` and portable `tar.gz`), validated on native CI hosts before
+and Linux x64 (`.deb` and portable `tar.gz`), checked on Linux/macOS CI hosts before
 release publication. See [platform requirements and release policy](docs/versioning-policy.md)
 for system dependencies, unsigned macOS distribution, portable credential limits
-and features that currently remain Windows-only.
+and features that currently remain Windows-only. macOS x64 package scenarios run
+through Rosetta on Apple Silicon; physical Intel graphics remain a hardware test boundary.
 
 The Flutter desktop shipped in **v2.0.0**. New development features remain under
 **Unreleased** until publication. Supported features,
