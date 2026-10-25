@@ -273,10 +273,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
         await _application.prepareShutdown();
         await ShowRunnerLogger.instance.flush();
       },
-      closeWindow: () async {
-        await windowManager.setPreventClose(false);
-        await windowManager.close();
-      },
+      closeWindow: closeShowRunnerWindow,
     );
     _observeBackground(_initializeApplication(), 'Application startup failed');
     if (widget.smokeScenario != null) unawaited(_runSmokeScenario());

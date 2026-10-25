@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Features
-- Add macOS Intel/Apple Silicon installers and portable ZIPs, plus Linux x64 DEB installers and portable archives, with secure OS-keyring credentials and accelerated Skia/OpenGL rendering on Linux, platform data directories and native window/browser lifecycles with awaited window setup; preserve stored secrets when OS keys or key metadata are missing, and report Windows-only global input as unavailable without aborting desktop startup.
+- Add macOS Intel/Apple Silicon installers and portable ZIPs, plus Linux x64 DEB installers and portable archives, with secure OS-keyring credentials, platform data directories and native window/browser lifecycles with awaited window setup and application-level Linux exit after runtime shutdown; preserve stored secrets when OS keys or key metadata are missing, and report Windows-only global input as unavailable without aborting desktop startup.
 - Add shader graph node search with Ctrl+F and a snap-to-grid toggle using the shared immutable canvas controls.
 - Keep overlay canvas/save actions usable in compact desktop layouts, with a keyboard-toggleable inspector/layers panel that retains draft and focus state across resizing.
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.

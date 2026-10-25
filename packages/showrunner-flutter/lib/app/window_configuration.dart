@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:ui' show AppExitResponse, AppExitType;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../persistence/filesystem/atomic_file.dart';
@@ -108,6 +110,25 @@ Future<void> configureShowRunnerWindow({File? stateFile}) async {
   await windowManager.show();
   await windowManager.focus();
   if (saved?.maximized == true) await windowManager.maximize();
+}
+
+/// Called only after document confirmation and owned runtime shutdown.
+Future<void> closeShowRunnerWindow({
+  Future<AppExitResponse> Function(AppExitType)? requestExit,
+}) async {
+  if (defaultTargetPlatform == TargetPlatform.linux) {
+    // Flutter's Linux host quits the GtkApplication. Destroying its implicit
+    // FlView through window_manager instead reenters engine teardown while a
+    // platform method response is still being dispatched.
+    final exit = requestExit ?? ServicesBinding.instance.exitApplication;
+    final response = await exit(AppExitType.required);
+    if (response != AppExitResponse.exit) {
+      throw StateError('The native application rejected shutdown.');
+    }
+    return;
+  }
+  await windowManager.setPreventClose(false);
+  await windowManager.close();
 }
 
 double? _finiteNumber(Object? value) {

@@ -10,6 +10,9 @@ extension _ShowRunnerSmokeScenarios on _ShowRunnerPageState {
       // Individual construction futures may already have completed when a later
       // startup failure triggers rollback and disposes their runtime services.
       await _application.start();
+      stdout.writeln(
+        'Flutter smoke bootstrap: runtime ready; awaiting first rasterized frame',
+      );
       await WidgetsBinding.instance.waitUntilFirstFrameRasterized;
       await WidgetsBinding.instance.endOfFrame;
       stdout.writeln('Flutter smoke bootstrap: runtime and first frame ready');
