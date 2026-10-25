@@ -37,6 +37,7 @@ jobs:
       build: ${{ steps.plan.outputs.build }}
       publish: ${{ steps.plan.outputs.publish }}
       ci_reuse: ${{ steps.ci.outputs.reuse }}
+      native_desktop: ${{ steps.platforms.outputs.native_desktop }}
     steps:
       - name: Require trusted main
         env:
@@ -60,6 +61,17 @@ jobs:
           if [ -n "$REQUESTED_VERSION" ]; then args+=(--version "$REQUESTED_VERSION"); fi
           if [ -n "$BACKFILL_VERSION" ]; then args+=(--backfill "$BACKFILL_VERSION"); fi
           node tools/release/prepare.mjs "${args[@]}"
+      - name: Inspect native desktop targets in the immutable snapshot
+        id: platforms
+        if: steps.plan.outputs.publish == 'true'
+        env:
+          PLANNED_COMMIT: ${{ steps.plan.outputs.commit }}
+        run: |
+          if git cat-file -e "$PLANNED_COMMIT:.github/actions/package-desktop/action.yml" 2>/dev/null; then
+            echo 'native_desktop=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'native_desktop=false' >> "$GITHUB_OUTPUT"
+          fi
       - name: Look for successful CI on the exact main commit
         id: ci
         if: steps.plan.outputs.publish == 'true' && !inputs.dry_run
@@ -194,18 +206,76 @@ jobs:
           $archive = Get-Item -LiteralPath ".\release\ShowRunner-Flutter-windows-$env:RELEASE_VERSION.zip"
           gh release upload $env:RELEASE_TAG $archive.FullName --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Release asset upload failed.' }
-          if ($env:BACKFILL_VERSION -eq '') {
-            $releaseArgs = @('release', 'edit', $env:RELEASE_TAG, '--draft=false')
-            if ($env:RELEASE_VERSION.Contains('-')) {
-              $releaseArgs += @('--prerelease', '--latest=false')
-            } else {
-              $releaseArgs += '--latest'
-            }
-            & gh @releaseArgs
-            if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
-          }
+
         env:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.plan.outputs.tag }}
           RELEASE_VERSION: ${{ needs.plan.outputs.version }}
           BACKFILL_VERSION: ${{ inputs.backfill_version }}
+
+  package-desktop:
+    needs: [plan, prepare]
+    if: always() && needs.plan.result == 'success' && needs.prepare.result == 'success' && needs.plan.outputs.publish == 'true' && !inputs.dry_run && needs.plan.outputs.native_desktop == 'true'
+    environment: release
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: linux-x64
+          - runner: macos-15
+            target: macos-arm64
+          - runner: macos-15-intel
+            target: macos-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+      - uses: ./.github/actions/package-desktop
+        with:
+          version: ${{ needs.plan.outputs.version }}
+          build: ${{ needs.plan.outputs.build }}
+          require-client: 'true'
+          youtube-client-id: ${{ vars.SHOWRUNNER_YOUTUBE_CLIENT_ID }}
+          youtube-client-secret: ${{ secrets.SHOWRUNNER_YOUTUBE_CLIENT_SECRET }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.target }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [plan, prepare, package-windows, package-desktop]
+    if: always() && needs.plan.result == 'success' && needs.prepare.result == 'success' && needs.package-windows.result == 'success' && (needs.package-desktop.result == 'success' || (needs.plan.outputs.native_desktop == 'false' && needs.package-desktop.result == 'skipped')) && !inputs.dry_run
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        if: needs.plan.outputs.native_desktop == 'true'
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+      - name: Upload desktop assets and publish the complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          BACKFILL_VERSION: ${{ inputs.backfill_version }}
+          NATIVE_DESKTOP: ${{ needs.plan.outputs.native_desktop }}
+        shell: bash
+        run: |
+          if [ "$NATIVE_DESKTOP" = true ]; then gh release upload "$RELEASE_TAG" release/* --clobber; fi
+          if [ -z "$BACKFILL_VERSION" ]; then
+            args=(--draft=false)
+            if [[ "$RELEASE_VERSION" == *-* ]]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
+            gh release edit "$RELEASE_TAG" "${args[@]}"
+          fi

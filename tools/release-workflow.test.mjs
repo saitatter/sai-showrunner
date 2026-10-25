@@ -129,10 +129,14 @@ describe("Manual release policy", () => {
     expect(workflow.jobs.prepare.permissions.contents).toBe("write")
     expect(recovery.env.RELEASE_TAG).toBe("${{ needs.plan.outputs.tag }}")
     expect(recovery.env.GH_REPO).toBe("${{ github.repository }}")
-    const upload = packaging.steps.find(step => step.name === "Upload Windows package")
-    expect(upload.run).toContain("if ($env:BACKFILL_VERSION -eq '')")
-    expect(upload.run).toContain("'--prerelease', '--latest=false'")
-    expect(upload.run.indexOf("gh release upload")).toBeLessThan(upload.run.indexOf("'release', 'edit'"))
+    const upload = workflow.jobs.publish.steps.find(step => step.name === "Upload desktop assets and publish the complete release")
+    expect(upload.run).toContain('if [ -z "$BACKFILL_VERSION" ]')
+    expect(upload.run).toContain('--prerelease --latest=false')
+    expect(upload.run.indexOf("gh release upload")).toBeLessThan(upload.run.indexOf("gh release edit"))
+    expect(packaging.steps.find(step => step.name === "Upload Windows package").run).not.toContain("'release', 'edit'")
+    expect(workflow.jobs.publish.needs).toEqual(['plan', 'prepare', 'package-windows', 'package-desktop'])
+    expect(workflow.jobs.publish.if).toContain("needs.package-windows.result == 'success'")
+    expect(workflow.jobs.publish.if).toContain("needs.package-desktop.result == 'success'")
     for (const job of Object.values(workflow.jobs)) {
       for (const step of job.steps ?? []) expect(step.run ?? "").not.toMatch(/\$\{\{\s*inputs\./)
     }
@@ -150,6 +154,34 @@ describe("Manual release policy", () => {
         }
       }
       expect(source).not.toContain("semantic-release")
+    }
+  })
+})
+
+describe("Native desktop package publication", () => {
+  it("covers Linux and both Mac architectures, with all package smoke gates before publication", async () => {
+    const release = parse(await readFile(workflowPath, "utf8"))
+    const proof = parse(await readFile(resolve(repositoryRoot, '.github/workflows/desktop-packages.yml'), 'utf8'))
+    expect(proof.permissions.contents).toBe('read')
+    expect(proof.jobs.packages.strategy['fail-fast']).toBe(false)
+    const packages = release.jobs['package-desktop']
+    expect(packages.environment).toBe('release')
+    expect(packages.strategy.matrix.include.map(row => row.target).sort()).toEqual(['linux-x64', 'macos-arm64', 'macos-x64'])
+    expect(proof.jobs.packages.strategy.matrix).toEqual(packages.strategy.matrix)
+    expect(packages.steps.find(step => step.uses === './.github/actions/package-desktop').with['require-client']).toBe('true')
+    expect(JSON.stringify(proof)).not.toContain('secrets.')
+    const action = parse(await readFile(resolve(repositoryRoot, '.github/actions/package-desktop/action.yml'), 'utf8'))
+    expect(action.runs.steps.filter(step => step.name?.startsWith('Verify installed and portable'))).toHaveLength(2)
+    expect(action.runs.steps.find(step => step.uses?.startsWith('subosito/flutter-action')).with['flutter-version']).toBe('3.47.7')
+    const publish = release.jobs.publish
+    for (const windows of ['success', 'failure', 'cancelled', 'skipped']) {
+      for (const desktop of ['success', 'failure', 'cancelled', 'skipped']) {
+        const needs = {plan:{result:'success',outputs:{native_desktop:'true'}},prepare:{result:'success'},'package-windows':{result:windows},'package-desktop':{result:desktop}}
+        // GitHub's hyphenated job identifiers use its expression member grammar.
+        const condition = publish.if.replaceAll('needs.package-windows', "needs['package-windows']").replaceAll('needs.package-desktop', "needs['package-desktop']")
+        const evaluate = new Function('needs', 'inputs', 'always', `return (${condition})`)
+        expect(evaluate(needs, {dry_run:false}, () => true)).toBe(windows === 'success' && desktop === 'success')
+      }
     }
   })
 })
