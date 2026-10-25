@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Features
-- Add macOS Intel/Apple Silicon installers and portable ZIPs, plus Linux x64 DEB installers and portable archives, with secure OS-keyring credentials, platform data directories and native window/browser lifecycles; preserve stored secrets when OS keys or key metadata are missing.
+- Add macOS Intel/Apple Silicon installers and portable ZIPs, plus Linux x64 DEB installers and portable archives, with secure OS-keyring credentials, platform data directories and native window/browser lifecycles; preserve stored secrets when OS keys or key metadata are missing, and report Windows-only global input as unavailable without aborting desktop startup.
 - Add shader graph node search with Ctrl+F and a snap-to-grid toggle using the shared immutable canvas controls.
 - Keep overlay canvas/save actions usable in compact desktop layouts, with a keyboard-toggleable inspector/layers panel that retains draft and focus state across resizing.
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
@@ -82,7 +82,7 @@
 - Document typed storage ownership, journal recovery and stale-write policy, provider editor/codec boundaries, secret handling and measured Phase 04 validation limits.
 
 ### CI & Build
-- Build and smoke-test macOS/Linux installer and portable artifacts in isolated CI; publish releases only after every platform package passes, retain timeout diagnostics and verify unlocked CI keyrings before application startup.
+- Build and smoke-test macOS/Linux installer and portable artifacts in isolated CI; publish releases only after every platform package passes, retain timeout diagnostics, verify unlocked CI keyrings and wait for complete application startup before running scenarios.
 - Run a real Dart/Chromium authenticated overlay transport smoke in full local checks and Windows CI, alongside DOM/WebGL verification.
 - Verify generated overlay and Remote/Satellite protocol codecs alongside widget contracts so runtime wire-schema drift fails CI; derive Dart formatter language from the package SDK constraint so clean checkouts and configured workspaces produce identical output.
 - Verify workspace/dialog replacement, scoped chat and health rebuilds, layer-menu identity and desktop size/DPI behavior; await active document identity, accepted resource operations and sequential native Save All writes before checking persisted results.
