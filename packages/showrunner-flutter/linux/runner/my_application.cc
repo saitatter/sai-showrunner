@@ -112,15 +112,29 @@ static void my_application_startup(GApplication* application) {
   G_APPLICATION_CLASS(my_application_parent_class)->startup(application);
 }
 
+static void retain_widget_tree(GtkWidget* widget, gpointer retained_widgets) {
+  g_ptr_array_add(static_cast<GPtrArray*>(retained_widgets), g_object_ref(widget));
+  if (GTK_IS_CONTAINER(widget)) {
+    gtk_container_forall(GTK_CONTAINER(widget), retain_widget_tree,
+                         retained_widgets);
+  }
+}
+
 // Implements GApplication::shutdown.
 static void my_application_shutdown(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
+  g_autoptr(GPtrArray) retained_widgets =
+      g_ptr_array_new_with_free_func(g_object_unref);
 
   // Flutter application exit detaches its windows before quitting GApplication.
-  // Release the view while the engine still has an explicit owner, then finish
-  // queued GTK/GTask cleanup outside the platform method dispatch. Stop the
-  // engine before process exit destroys Mesa/LLVM's global resources.
+  // GTK destroy disposes child widgets even while the FlView has references.
+  // Retain the whole widget tree so the renderer's finalizer cannot free its
+  // compositor while the raster thread is presenting a frame. Dispose widgets,
+  // stop the engine, then release the retained tree after the raster thread ends.
+  // Related upstream lifetime issue: flutter/flutter#188659 (its fix is in 3.47.7).
   if (self->window != nullptr) {
+    gtk_container_forall(GTK_CONTAINER(self->window), retain_widget_tree,
+                         retained_widgets);
     gtk_widget_destroy(GTK_WIDGET(self->window));
     g_clear_object(&self->window);
   }
@@ -128,6 +142,9 @@ static void my_application_shutdown(GApplication* application) {
     g_main_context_iteration(nullptr, FALSE);
   }
   g_clear_object(&self->engine);
+  while (g_main_context_pending(nullptr)) {
+    g_main_context_iteration(nullptr, FALSE);
+  }
 
   G_APPLICATION_CLASS(my_application_parent_class)->shutdown(application);
 }
