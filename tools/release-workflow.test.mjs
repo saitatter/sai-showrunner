@@ -163,6 +163,9 @@ describe("Native desktop package publication", () => {
     const release = parse(await readFile(workflowPath, "utf8"))
     const proof = parse(await readFile(resolve(repositoryRoot, '.github/workflows/desktop-packages.yml'), 'utf8'))
     expect(proof.permissions.contents).toBe('read')
+    expect(proof.concurrency).toBeUndefined()
+    expect(proof.jobs.packages.concurrency.group).toContain('matrix.target')
+    expect(proof.jobs.packages.concurrency['cancel-in-progress']).toBe(true)
     expect(proof.jobs.packages.strategy['fail-fast']).toBe(false)
     const packages = release.jobs['package-desktop']
     expect(packages.environment).toBe('release')
