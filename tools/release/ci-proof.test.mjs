@@ -4,7 +4,7 @@ import { findMainCi, verifiedMainCi } from './ci-proof.mjs';
 const commit = 'a'.repeat(40);
 const repository = 'owner/showrunner';
 const run = { id: 12, status: 'completed', conclusion: 'success', event: 'push', head_branch: 'main', head_sha: commit, path: '.github/workflows/ci.yml', repository: { full_name: repository }, head_repository: { full_name: repository } };
-const jobs = ['test-windows', 'windows-build', 'windows-integration', 'scripts-ubuntu', 'release-dry-run'].map(name => ({ name, status: 'completed', conclusion: 'success' }));
+const jobs = ['test-windows', 'flutter-verify', 'windows-build', 'windows-integration', 'scripts-ubuntu', 'release-dry-run'].map(name => ({ name, status: 'completed', conclusion: 'success' }));
 
 describe('trusted main CI proof', () => {
   it('reuses only the exact successful main commit with all gates passed', () => {
