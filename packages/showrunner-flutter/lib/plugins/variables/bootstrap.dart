@@ -33,7 +33,10 @@ void registerConfiguredVariables(
   );
   registry.registerUi(
     'variables',
-    createVariablesPluginUi(variableRuntime: configuredVariableRuntime),
+    createVariablesPluginUi(
+      variableRuntime: configuredVariableRuntime,
+      viewerDataRepository: variablesRepository,
+    ),
   );
 }
 
@@ -48,5 +51,8 @@ void registerDefaultVariables(
       eventHub: eventHub,
     ),
   );
-  registry.registerUi('variables', createVariablesPluginUi());
+  registry.registerUi(
+    'variables',
+    createVariablesPluginUi(viewerDataRepository: variablesRepository),
+  );
 }

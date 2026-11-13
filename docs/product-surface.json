@@ -149,6 +149,10 @@
         {
           "path": "packages/showrunner-flutter/lib/plugins/variables/ui/plugin_ui.dart",
           "marker": "VariablesWorkspace"
+        },
+        {
+          "path": "packages/showrunner-flutter/lib/persistence/sqlite_viewer_data_repository.dart",
+          "marker": "SqliteViewerDataRepository"
         }
       ]
     },
@@ -584,8 +588,7 @@
       "MediaLibraryWatcher",
       "MediaIndexStore",
       "media_scan_benchmark.dart",
-      "desktop_drop",
-      "package:sqlite3"
+      "desktop_drop"
     ],
     "forbiddenFlutterFileExtensions": [
       "vue",

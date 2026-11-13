@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Store Viewer Data in indexed SQLite tables with transactional updates, provider-qualified identities, safe one-time import of existing files, consistent online backups and portable import/export. Keep viewer values out of SQL profiling traces in development builds.
 - Add macOS Intel/Apple Silicon installers and portable ZIPs, plus Linux x64 DEB installers and portable archives, with secure OS-keyring credentials, platform data directories and native window/browser lifecycles with awaited window setup and Linux renderer lifetime retained through engine shutdown; preserve stored secrets when OS keys or key metadata are missing, and report Windows-only global input as unavailable without aborting desktop startup.
 - Add shader graph node search with Ctrl+F and a snap-to-grid toggle using the shared immutable canvas controls.
 - Keep overlay canvas/save actions usable in compact desktop layouts, with a keyboard-toggleable inspector/layers panel that retains draft and focus state across resizing.
@@ -76,6 +77,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
+- Document Viewer Data's SQLite ownership, source-preserving migration, backup/interchange commands and measured query costs at 1K, 10K and 100K viewers.
 - Align contributor rules, repository ownership and release-note guidance with the shared Collectarr model, including editorial summaries, banner history and parallel CI gates.
 - Document desktop package formats, proof hosts and Rosetta coverage limits, OS-keyring behavior, portable data locations, default SDK rendering, confirmed upstream Linux lifetime issues and the criteria for removing the application workaround.
 - Document overlay/Remote transport ownership, public projection limits, authentication and measured browser/native/visual proof boundaries.

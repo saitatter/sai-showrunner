@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { databaseImportViolations } from './import-ownership.mjs';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const manifestPath = join(root, 'docs', 'product-surface.json');
@@ -92,6 +93,9 @@ collectDartFiles(join(packageRoot, 'lib'));
 collectDartFiles(join(packageRoot, 'test'));
 collectDartFiles(join(packageRoot, 'tool'));
 collectDartFiles(join(packageRoot, 'windows'));
+for (const path of sourceFiles) {
+  errors.push(...databaseImportViolations(relative(packageRoot, path), readFileSync(path, 'utf8')));
+}
 const source = sourceFiles
   .map((path) => readFileSync(path, 'utf8'))
   .join('\n');

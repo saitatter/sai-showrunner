@@ -1,3 +1,4 @@
+import '../../persistence/sqlite_viewer_data_repository.dart';
 import '../../runtime/automation_invocation_service.dart';
 import '../../runtime/graph_invocation.dart';
 import '../../plugins/stream_plans/manifest.dart';
@@ -8,7 +9,6 @@ import '../execution/profile_activation_workflow.dart';
 import '../../plugins/registry/plugin_host_context.dart';
 import '../../services/structured_logger.dart';
 import '../../app/startup_health.dart';
-import '../../persistence/viewer_data_repository.dart';
 import '../../persistence/viewer_data_sync.dart';
 import '../../plugins/registry/plugin_bootstrap.dart';
 import '../../plugins/registry/plugin_registry.dart';
@@ -316,6 +316,11 @@ final class ShowRunnerServices {
       resources: [
         ApplicationRuntimeResource(name: 'event-hub', stop: eventHub.dispose),
         ApplicationRuntimeResource(
+          name: 'viewer-data-store',
+          start: viewerDataRepository.initialize,
+          stop: viewerDataRepository.close,
+        ),
+        ApplicationRuntimeResource(
           name: 'startup-health',
           start: () async {
             await healthFuture;
@@ -425,7 +430,7 @@ final class ShowRunnerServices {
   final Future<DartProfileRuntime> profileRuntimeFuture;
   final DartPluginEventHub eventHub;
   final ProviderEventRuntime providerEvents;
-  final FileViewerDataRepository viewerDataRepository;
+  final SqliteViewerDataRepository viewerDataRepository;
   final ViewerDataSynchronizer viewerDataSynchronizer;
   final DartVariableRuntime variableRuntime;
   final Future<StartupHealthSnapshot> healthFuture;

@@ -356,6 +356,7 @@ class _ShowRunnerPageState extends State<ShowRunnerPage> with WindowListener {
       engine: _services.graphExecutionEngine,
       child: ShowRunnerShell(
         runtime: RuntimeStatusSources(
+          viewerDataRepository: _services.viewerDataRepository,
           dataService: widget.dataService,
           actionQueue: _actionQueue,
           queueManager: _automationQueueManager,

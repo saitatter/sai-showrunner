@@ -1,19 +1,19 @@
+import 'package:showrunner_flutter/persistence/sqlite_viewer_data_repository.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
 import 'package:showrunner_flutter/schema/viewer_data.dart';
 
 void main() {
   late Directory directory;
-  late FileViewerDataRepository repository;
+  late SqliteViewerDataRepository repository;
   const viewer = ViewerIdentity(id: '123/with spaces', displayName: 'Viewer');
 
   setUp(() async {
     directory = await Directory.systemTemp.createTemp(
       'showrunner-viewer-data-',
     );
-    repository = FileViewerDataRepository(directory);
+    repository = SqliteViewerDataRepository(directory);
     await repository.saveDefinitions([
       const ViewerVariableDefinition(
         name: 'points',
@@ -29,7 +29,10 @@ void main() {
     ]);
   });
 
-  tearDown(() => directory.delete(recursive: true));
+  tearDown(() async {
+    await repository.close();
+    await directory.delete(recursive: true);
+  });
 
   test('round trips definitions and preserves primitive defaults', () async {
     final definitions = await repository.loadDefinitions();

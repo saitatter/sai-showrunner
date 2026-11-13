@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 import '../../features/chat/command_manager.dart';
 import '../../graph/runtime/graph_execution_engine.dart';
 import '../../persistence/viewer_data_repository.dart';
+import '../../persistence/sqlite_viewer_data_repository.dart';
 import '../../runtime/automation_queue_manager.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
@@ -67,10 +67,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   void Function(OverlayPresenceReader reader)? onOverlayPresenceReaderCreated,
 }) async {
   final variablesRepository =
-      viewerDataRepository ??
-      FileViewerDataRepository(
-        Directory('${dataService.userDirectory.path}/viewer-data'),
-      );
+      viewerDataRepository ?? dataService.storage.viewerData;
   final interfaceSettings = await dataService.loadPluginSettings(
     'showrunner-flutter',
   );
@@ -84,6 +81,10 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
     portOverride: httpPortOverride,
   );
   final registry = createFirstPartyPluginRegistry();
+  if (viewerDataRepository == null &&
+      variablesRepository is SqliteViewerDataRepository) {
+    registry.addCloseCallback(variablesRepository.close);
+  }
   final activeStreamPlans = streamPlans ?? DartStreamPlanRuntime();
   try {
     registerConfiguredChatCommands(

@@ -18,7 +18,7 @@ A production workspace for streamers and live creators, built with Flutter for W
   with Twitch/YouTube, cooldowns, role checks and a local OBS chat dock.
 - Organize broadcasts with profiles and segmented Stream Plans.
 - Design OBS browser overlays with editable widgets and visual Shader Graph effects.
-- Route sound and TTS, use viewer data, and control remote dashboards.
+- Route sound and TTS, use [Viewer Data](docs/viewer-data.md), and control remote dashboards.
 - Connect Bluetooth heart-rate sensors and supported lighting/device integrations.
 
 ![Overlay editor and widget inspector](docs/ui-comparison/flutter-overlay-inspector-label.png)

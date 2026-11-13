@@ -4,6 +4,7 @@ These are living documents. Update the relevant topic rather than adding dated
 migration plans or test-session reports. Historical versions remain in Git.
 
 - [Architecture](architecture.md): runtime boundaries and strict graph persistence.
+- [Viewer Data](viewer-data.md): SQLite ownership, one-time import, backup and query measurements.
 - [Product status](product-parity.md): supported surfaces, deliberate exclusions and open work.
 - [Testing](testing.md): local/CI checks, native fixtures, screenshots and benchmarks.
 - [Live service testing](testing/live-services.md): demonstrated coverage, limits and isolation.

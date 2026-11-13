@@ -5,9 +5,14 @@ import 'secret_settings_store.dart';
 /// These describe stored bytes, not runtime/plugin instances or secret values.
 enum PersistenceAuthority { authoring, durableRuntime, encryptedSecrets }
 
-enum PersistenceFormat { json, yaml, jsonOrYaml, dpapiYaml }
+enum PersistenceFormat { json, yaml, jsonOrYaml, dpapiYaml, sqlite }
 
-enum PersistenceWriteScope { singleFile, resourceGroup, settingsGroup }
+enum PersistenceWriteScope {
+  singleFile,
+  resourceGroup,
+  settingsGroup,
+  databaseTransaction,
+}
 
 enum PersistenceCodec {
   automationV1,
@@ -16,8 +21,7 @@ enum PersistenceCodec {
   profile,
   queueConfig,
   queueState,
-  viewerDefinitions,
-  viewerRow,
+  viewerDatabaseV1,
   settings,
   chatV1,
   windowState,
@@ -177,17 +181,19 @@ final List<PersistedDocumentContract> persistedDocumentContracts =
       const PersistedDocumentContract(
         id: 'viewer-definitions',
         owner: PluginId('ShowRunner'),
-        pathPattern: 'viewer-data/variables.yaml',
-        format: PersistenceFormat.yaml,
-        codec: PersistenceCodec.viewerDefinitions,
+        pathPattern: 'viewer-data/viewers.sqlite',
+        format: PersistenceFormat.sqlite,
+        codec: PersistenceCodec.viewerDatabaseV1,
+        writeScope: PersistenceWriteScope.databaseTransaction,
         authority: PersistenceAuthority.authoring,
       ),
       const PersistedDocumentContract(
         id: 'viewer-rows',
         owner: PluginId('ShowRunner'),
-        pathPattern: 'viewer-data/{provider}/{base64url(id)}.json',
-        format: PersistenceFormat.json,
-        codec: PersistenceCodec.viewerRow,
+        pathPattern: 'viewer-data/viewers.sqlite',
+        format: PersistenceFormat.sqlite,
+        codec: PersistenceCodec.viewerDatabaseV1,
+        writeScope: PersistenceWriteScope.databaseTransaction,
         authority: PersistenceAuthority.durableRuntime,
       ),
       const PersistedDocumentContract(

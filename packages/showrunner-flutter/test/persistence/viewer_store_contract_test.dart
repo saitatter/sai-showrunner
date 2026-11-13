@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/persistence/sqlite_viewer_data_repository.dart';
 import 'package:showrunner_flutter/persistence/document_revision.dart';
 import 'package:showrunner_flutter/persistence/filesystem/file_transaction.dart';
 import 'dart:convert';
@@ -18,22 +19,34 @@ const definitions = [
 const viewer = ViewerIdentity(id: 'unicode/cont ñ', displayName: 'Viewer');
 
 void main() {
-  for (final adapter in ['file', 'memory']) {
+  for (final adapter in ['sqlite', 'memory']) {
     group(adapter, () {
       late Directory root;
       late ViewerDataRepository repository;
-      ViewerDataRepository owner() =>
-          adapter == 'file' ? FileViewerDataRepository(root) : repository;
+      final owners = <SqliteViewerDataRepository>[];
+      ViewerDataRepository owner() {
+        if (adapter == 'memory') return repository;
+        final result = SqliteViewerDataRepository(root);
+        owners.add(result);
+        return result;
+      }
+
       setUp(() async {
         root = await Directory.systemTemp.createTemp(
           'showrunner-viewer-contract-',
         );
-        repository = adapter == 'file'
-            ? FileViewerDataRepository(root)
+        repository = adapter == 'sqlite'
+            ? owner()
             : InMemoryViewerDataRepository();
         await repository.saveDefinitions(definitions);
       });
-      tearDown(() => root.delete(recursive: true));
+      tearDown(() async {
+        for (final owner in owners) {
+          await owner.close();
+        }
+        owners.clear();
+        await root.delete(recursive: true);
+      });
 
       test(
         'stale schema edits cannot replace a newer definition set',
@@ -223,7 +236,8 @@ void main() {
         const source =
             '- name: private-marker\n  type: future-unsupported-type\n';
         await file.writeAsString(source);
-        final repository = FileViewerDataRepository(root);
+        final repository = SqliteViewerDataRepository(root);
+        addTearDown(repository.close);
         await expectLater(repository.loadDefinitions(), throwsFormatException);
         await expectLater(
           repository.saveDefinitions(definitions),
@@ -235,8 +249,8 @@ void main() {
     test(
       'corrupt rows are visible and parser diagnostics omit source values',
       () async {
-        final repository = FileViewerDataRepository(root);
-        await repository.saveDefinitions(definitions);
+        final repository = SqliteViewerDataRepository(root);
+        addTearDown(repository.close);
         final directory = await Directory('${root.path}/twitch').create();
         final name = base64Url
             .encode(utf8.encode(viewer.id))
@@ -260,14 +274,13 @@ void main() {
     test(
       'row identity mismatch is reported instead of entering another viewer scope',
       () async {
-        final repository = FileViewerDataRepository(root);
-        await repository.saveDefinitions(definitions);
-        await repository.syncViewerIdentity('twitch', viewer);
-        final file =
-            (await Directory(
-                  '${root.path}/twitch',
-                ).list().where((e) => e is File).toList()).single
-                as File;
+        final repository = SqliteViewerDataRepository(root);
+        addTearDown(repository.close);
+        final directory = await Directory('${root.path}/twitch').create();
+        final name = base64Url
+            .encode(utf8.encode(viewer.id))
+            .replaceAll('=', '');
+        final file = File('${directory.path}/$name.json');
         await file.writeAsString(
           jsonEncode(
             ViewerDataRow(
