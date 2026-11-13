@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
+<rect width="1200" height="600" rx="26" fill="#111118"/>
+<rect x="2" y="2" width="1196" height="596" rx="25" fill="none" stroke="#8A5CFF" stroke-width="4"/>
+<g font-family="system-ui, sans-serif" fill="#F4F0FF">
+<text x="54" y="83" font-size="38" font-weight="700">ShowRunner</text>
+<text x="54" y="123" font-size="20" fill="#B8B1CC">AUTOMATION · CHAT · OVERLAYS</text>
+<rect x="912" y="44" width="232" height="58" rx="14" fill="#302045"/>
+<text x="1028" y="82" text-anchor="middle" font-size="25" font-weight="700">v2.1.0</text>
+<path d="M54 159 H1145" stroke="#343044"/>
+<circle cx="65" cy="216" r="5" fill="#20D6B5"/><text x="88" y="223" font-size="18">Manage Twitch and YouTube chat commands with aliases, permissions, cooldowns and persistent counters.</text>
+<circle cx="65" cy="263" r="5" fill="#20D6B5"/><text x="88" y="270" font-size="18">Read and moderate Twitch/YouTube conversations in unified chat and an authenticated OBS dock.</text>
+<circle cx="65" cy="310" r="5" fill="#20D6B5"/><text x="88" y="317" font-size="18">Display richer emotes and provider events with configurable highlights, filters and automation actions.</text>
+<circle cx="65" cy="357" r="5" fill="#20D6B5"/><text x="88" y="364" font-size="18">Inspect execution traces with bounded history and explicit truncation indicators.</text>
+<path d="M54 520 H1145" stroke="#343044"/>
+<text x="54" y="562" font-size="18" fill="#B8B1CC">2026-10-21 · 72 commits · 2 contributors</text>
+</g></svg>
