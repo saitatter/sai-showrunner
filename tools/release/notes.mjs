@@ -72,8 +72,28 @@ export function changeLines(repository, commits, pulls = {}) {
   return lines;
 }
 
-export function contributorCredits(generated) {
-  return /(?:^|\n)## New Contributors\n([\s\S]*?)(?=\n## |\n\*\*Full Changelog|$)/.exec(generated.replaceAll('\r\n','\n'))?.[0].trim() || '';
+export function isBotIdentity(identity) {
+  if (typeof identity === 'string') identity = {login:identity.replace(/^@/, '')};
+  if (identity?.type?.toLowerCase() === 'bot') return true;
+  const candidates = identity?.login ? [identity.login] : [identity?.name, identity?.email?.split('@')[0]?.replace(/^\d+\+/, '')];
+  return candidates.some(value => value && (/\[bot\]$/i.test(value.trim()) || /^(?:github-actions|dependabot(?:-preview)?|renovate(?:-bot)?|greenkeeper(?:-bot)?|codecov(?:-io)?|snyk-bot)$/i.test(value.trim().replace(/\s+/g, '-'))));
+}
+
+export function humanContributorNames(commits) {
+  const names = new Set();
+  for (const commit of commits) {
+    if (commit.parents.length > 1 || isBotIdentity({...commit.commit.author, ...commit.author})) continue;
+    names.add(commit.author?.login ? `@${commit.author.login}` : commit.commit.author?.name || 'Unknown contributor');
+  }
+  return [...names].sort();
+}
+
+export function contributorCredits(generated, botLogins = []) {
+  const section = /(?:^|\n)## New Contributors\n([\s\S]*?)(?=\n## |\n\*\*Full Changelog|$)/.exec(generated.replaceAll('\r\n','\n'))?.[1] || '';
+  const knownBots = new Set(botLogins.map(login => login.toLowerCase()));
+  const lines = section.split('\n').filter(line => ![...line.matchAll(/@([\w-]+(?:\[bot\])?)/g)].some(match => knownBots.has(match[1].toLowerCase()) || isBotIdentity(match[1])));
+  const text = lines.join('\n').trim();
+  return /^\s*[-*] /m.test(text) ? `## New Contributors\n${text}` : '';
 }
 
 export function composeNotes({repository, tag, previousTag, summary, bannerUrl, changes, credits = '', limit = bodyLimit}) {
@@ -94,19 +114,37 @@ export function composeNotes({repository, tag, previousTag, summary, bannerUrl, 
 }
 
 const studioImage = readFileSync(new URL('../../docs/branding/release-banner/studio.jpg', import.meta.url)).toString('base64');
+const applicationIcon = readFileSync(new URL('../../packages/showrunner-flutter/assets/app_icon.png', import.meta.url)).toString('base64');
+const emojiRules = [
+  [/shader|biome|terrain|raymarch/i, 'palette'], [/graph|subgraph|node|wire|conversion/i, 'puzzle'],
+  [/command/i, 'robot'], [/emote|highlight|provider event/i, 'sparkles'],
+  [/chat/i, 'chat'], [/moderation|permission/i, 'shield'],
+  [/queue|trace|counter/i, 'chart'], [/audio|sound/i, 'headphones'],
+  [/remote|twitch|youtube|integration|provider|obs/i, 'satellite'], [/documentation|release.note/i, 'memo'],
+  [/dependency|configuration|compatibility|reset|settings|preferences/i, 'wrench'],
+  [/flutter|workspace|desktop/i, 'desktop'], [/update|release/i, 'rocket'], [/starter|automation|keyboard/i, 'bolt'],
+];
+const emojiImages = Object.fromEntries([...new Set([...emojiRules.map(([,name]) => name), 'clapper'])].map(name => [name,
+  readFileSync(new URL(`../../docs/branding/release-banner/emoji/${name}.png`, import.meta.url)).toString('base64')]));
+export const bannerEmoji = label => emojiRules.find(([pattern]) => pattern.test(label))?.[1] || 'clapper';
 const plainText = value => value.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[`*_]/g, '');
 const shorten = (value, length) => value.length > length ? value.slice(0, length - 3) + '...' : value;
 
-export function renderBanner({tag, date, summary, highlights, commits, contributors, contributorNames = [], mergedPulls = 0, previousTag}) {
+export function renderBanner({tag, date, summary, highlights, commits, contributorNames = [], mergedPulls = 0, previousTag}) {
+  const humans = [...new Set(contributorNames.filter(name => !isBotIdentity(name)))];
+  const contributors = humans.length;
   const rows = (highlights || summary).slice(0, 6).map((line, index) => {
     const y = 259 + index * 36;
-    return `<circle cx="520" cy="${y - 7}" r="6" fill="#27DBC5"/><text x="542" y="${y}" font-size="21">${xml(shorten(plainText(line), 48))}</text>`;
+    const emoji = bannerEmoji(plainText(line));
+    return `<image data-emoji="${emoji}" href="data:image/png;base64,${emojiImages[emoji]}" x="504" y="${y - 25}" width="30" height="30"/><text x="548" y="${y}" font-size="21">${xml(shorten(plainText(line), 48))}</text>`;
   }).join('\n');
-  const people = contributorNames.slice(0, 4).map((name, index) => `<text x="1164" y="${691 + index * 32}" font-size="${name.length > 18 ? 18 : 22}">${xml(shorten(name, 26))}</text>`).join('\n');
+  const people = humans.slice(0, 4).map((name, index) => `<text x="1164" y="${691 + index * 32}" font-size="${name.length > 18 ? 18 : 22}">${xml(shorten(name, 26))}</text>`).join('\n');
   const month = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][Number(date.slice(5,7)) - 1];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="941" viewBox="0 0 1672 941" role="img" aria-label="ShowRunner ${xml(tag)} release highlights">
 <title>ShowRunner ${xml(tag)} ? ${xml(date)}</title>
 <image href="data:image/jpeg;base64,${studioImage}" width="1672" height="941"/>
+<rect x="36" y="8" width="144" height="130" rx="22" fill="#111118"/>
+<image data-brand="application-icon" href="data:image/png;base64,${applicationIcon}" x="44" y="12" width="124" height="124"/>
 <g font-family="monospace" fill="#EEEDE6">
 <text x="511" y="211" font-size="43" fill="#A2EA80">${xml(tag)}</text>
 <text x="1160" y="204" text-anchor="end" font-size="17" fill="#62D5CF">RELEASE NOTES</text>
@@ -209,9 +247,9 @@ export function formatRelease({repository, release, previousTag, summaries, cwd,
   let bannerUrl = /^!\[[^\]]*\]\((https:\/\/\S+)\)/.exec(release.body || '')?.[1];
   if (!bannerUrl || refreshBanner) {
     const uniqueCommits = [...new Map(commits.filter(commit => commit.parents.length < 2).map(commit => [commit.sha, commit])).values()];
-    const contributorNames = [...new Set(uniqueCommits.map(commit => commit.author?.login ? `@${commit.author.login}` : commit.commit.author?.name || 'Unknown contributor'))].sort();
+    const contributorNames = humanContributorNames(uniqueCommits);
     const svg = renderBanner({tag, date:(release.published_at || release.created_at).slice(0,10), summary,
-      highlights:entry?.highlights, previousTag, commits:changes.length, contributors:contributorNames.length,
+      highlights:entry?.highlights, previousTag, commits:changes.length,
       contributorNames, mergedPulls:new Set(Object.values(pulls).map(pull => pull.id || pull.number)).size});
     if (write) bannerUrl = publishBanner(repository, tag, svg, api);
     else {
@@ -219,7 +257,8 @@ export function formatRelease({repository, release, previousTag, summaries, cwd,
       const file = resolve(directory,`${tag}.svg`); writeFileSync(file,svg); bannerUrl = pathToFileURL(file).href;
     }
   }
-  const body = composeNotes({repository, tag, previousTag, summary, bannerUrl, changes, credits:contributorCredits(generated.body)});
+  const botLogins = commits.filter(commit => isBotIdentity({...commit.commit.author, ...commit.author})).map(commit => commit.author?.login).filter(Boolean);
+  const body = composeNotes({repository, tag, previousTag, summary, bannerUrl, changes, credits:contributorCredits(generated.body, botLogins)});
   if (write && body.trim() !== (release.body || '').replaceAll('\r\n','\n').trim()) api(`repos/${repository}/releases/${release.id}`, {method:'PATCH', body:{body}});
   return body;
 }

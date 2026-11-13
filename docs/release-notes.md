@@ -45,6 +45,14 @@ used for visual direction, not copied into the asset. Regeneration needs no AI,
 browser, Pillow or image service: the SVG embeds the committed JPEG and overlays
 the tag, original publication date, six highlights, previous tag, commit count,
 distinct merged PR count and contributor identities from the actual commit range.
+The brand badge embeds the exact `packages/showrunner-flutter/assets/app_icon.png`
+used by the application over the illustration's placeholder. Highlight rows use
+locally bundled Noto Color Emoji selected from their subject, rather than bullets;
+their [license and pinned source](branding/release-banner/emoji/NOTICE.txt) are committed.
+Contributor lists and counts exclude GitHub Bot accounts, bot-suffixed identities
+and known automation accounts, including when only a Git author name/email remains.
+The New Contributors section applies the same filtering and disappears when empty.
+Automated commits retain their original author attribution in the complete history.
 The first release includes inherited upstream history; merge commits are excluded.
 Issue metadata is queried once per unique PR, keeping large historical ranges
 within practical API budgets. At most four identities appear on the card, with
