@@ -2,10 +2,11 @@ import {appendFileSync, readFileSync, writeFileSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {freezeSummary, summariesFile} from './notes.mjs';
 
 export const root = resolve(import.meta.dirname, '../..');
 export const releaseFiles = ['package.json', 'packages/showrunner-flutter/pubspec.yaml',
-  'packages/showrunner-flutter/lib/services/update_check_service.dart', 'CHANGELOG.md'];
+  'packages/showrunner-flutter/lib/services/update_check_service.dart', 'CHANGELOG.md', summariesFile];
 const read = (file, cwd) => readFileSync(resolve(cwd, file), 'utf8');
 const git = (args, cwd) => execFileSync('git', args, {cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trim();
 
@@ -110,6 +111,7 @@ export function planRelease({cwd = root, version, backfill, date = new Date().to
       [releaseFiles[1]]: pubspec.replace(/^version:.*$/m, `version: ${version}+${build}`),
       [releaseFiles[2]]: updater.replace(/(SHOWRUNNER_VERSION'[\s\S]*?defaultValue:\s*')[^']+(')/, (_, prefix, suffix) => prefix + version + suffix),
       [releaseFiles[3]]: cut.changelog,
+      [summariesFile]: freezeSummary(read(summariesFile, cwd), `v${version}`, cut.entries, previousTag),
     }};
 }
 

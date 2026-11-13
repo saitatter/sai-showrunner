@@ -159,6 +159,24 @@ describe("Manual release policy", () => {
 })
 
 describe("Native desktop package publication", () => {
+  it("formats complete notes after asset uploads and before publishing a fresh release", async () => {
+    const workflow = parse(await readFile(workflowPath, 'utf8'));
+    const publish = workflow.jobs.publish;
+    expect(publish.permissions['pull-requests']).toBe('read');
+    expect(publish.permissions.issues).toBe('read');
+    const checkout = publish.steps.find(step => step.uses?.startsWith('actions/checkout'));
+    expect(checkout.with.ref).toBe('${{ needs.plan.outputs.tag }}');
+    const command = publish.steps.find(step => step.run?.includes('gh release edit')).run;
+    expect(command.indexOf('node tools/release/notes.mjs')).toBeGreaterThan(command.indexOf('gh release upload'));
+    expect(command.indexOf('node tools/release/notes.mjs')).toBeLessThan(command.indexOf('gh release edit'));
+    expect(command.indexOf('node tools/release/notes.mjs')).toBeGreaterThan(command.indexOf('if [ -z "$BACKFILL_VERSION" ]'));
+    expect(command).toContain('--include-draft --write');
+    const manual = parse(await readFile(resolve(repositoryRoot,'.github/workflows/release-notes.yml'),'utf8'));
+    expect(Object.keys(manual.on)).toEqual(['workflow_dispatch']);
+    expect(manual.jobs.format.if).toBe("github.ref == 'refs/heads/main'");
+    expect(JSON.stringify(manual)).not.toContain('--include-draft');
+    expect(manual.on.workflow_dispatch.inputs.write.default).toBe(false);
+  });
   it("covers Linux and both Mac architectures, with all package smoke gates before publication", async () => {
     const release = parse(await readFile(workflowPath, "utf8"))
     const proof = parse(await readFile(resolve(repositoryRoot, '.github/workflows/desktop-packages.yml'), 'utf8'))

@@ -20,6 +20,7 @@
     "flutter:smoke-windows": "pwsh -NoProfile -File ./scripts/smoke-flutter-windows.ps1",
     "flutter:package-windows": "pwsh -NoProfile -File ./scripts/package-flutter-windows.ps1",
     "release:dry-run": "node tools/release/prepare.mjs --check",
+    "release:notes": "node tools/release/notes.mjs",
     "visual:regression": "node ./tools/visual_parity/check-regression.mjs",
     "overlay:browser-smoke": "node tools/overlay_registry/browser-smoke.mjs",
     "release:prepare": "node tools/release/prepare.mjs",

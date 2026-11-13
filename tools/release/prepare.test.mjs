@@ -15,6 +15,7 @@ function fixture() {
     [releaseFiles[1]]: 'name: app\nversion: 1.4.0+7\n',
     [releaseFiles[2]]: "const version = String.fromEnvironment('SHOWRUNNER_VERSION', defaultValue: '1.4.0');\n",
     'CHANGELOG.md': '# Changelog\n\n## Unreleased\n\n### Features\n- Visual automation editing.\n\n## 1.4.0 - 2026-01-01\n\n- Previous release.\n',
+    [releaseFiles[4]]: '{"Unreleased":{"summary":["Create visual automations."]}}\n',
   };
   for (const [file, value] of Object.entries(files)) { mkdirSync(dirname(join(cwd, file)), {recursive: true}); writeFileSync(join(cwd, file), value); }
   git(cwd, 'init', '--initial-branch=main'); git(cwd, 'config', 'core.autocrlf', 'false'); git(cwd, 'config', 'user.name', 'Release test');
@@ -50,6 +51,9 @@ describe('release planning', () => {
     expect(JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')).version).toBe('1.5.0');
     expect(readFileSync(join(cwd, releaseFiles[1]), 'utf8')).toContain('1.5.0+8');
     expect(readFileSync(join(cwd, releaseFiles[2]), 'utf8')).toContain("defaultValue: '1.5.0'");
+    expect(JSON.parse(readFileSync(join(cwd, releaseFiles[4]), 'utf8'))).toEqual({
+      Unreleased:{summary:[]}, 'v1.5.0':{summary:['Create visual automations.'],previousTag:'v1.4.0'},
+    });
     expect(readFileSync(notes, 'utf8')).toContain('compare/v1.4.0...v1.5.0');
     expect(readFileSync(notes, 'utf8')).not.toContain('Previous release.');
     expect(readFileSync(join(cwd, 'CHANGELOG.md'), 'utf8')).toContain('Previous release.');

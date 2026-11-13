@@ -131,7 +131,7 @@ jobs:
           node tools/release/prepare.mjs --version "$RELEASE_VERSION" --notes "$RUNNER_TEMP/release-notes.md"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add CHANGELOG.md package.json packages/showrunner-flutter/pubspec.yaml packages/showrunner-flutter/lib/services/update_check_service.dart
+          git add CHANGELOG.md docs/release-summaries.json package.json packages/showrunner-flutter/pubspec.yaml packages/showrunner-flutter/lib/services/update_check_service.dart
           git commit -m "chore(release): $RELEASE_VERSION"
           git tag -a "v$RELEASE_VERSION" -m "v$RELEASE_VERSION"
           git push --atomic origin HEAD:refs/heads/main "refs/tags/v$RELEASE_VERSION"
@@ -260,7 +260,18 @@ jobs:
     environment: release
     permissions:
       contents: write
+      pull-requests: read
+      issues: read
     steps:
+      - uses: actions/checkout@v7
+        if: inputs.backfill_version == ''
+        with:
+          ref: ${{ needs.plan.outputs.tag }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        if: inputs.backfill_version == ''
+        with:
+          node-version: 22
       - uses: actions/download-artifact@v8
         if: needs.plan.outputs.native_desktop == 'true'
         with:
@@ -279,6 +290,8 @@ jobs:
         run: |
           if [ "$NATIVE_DESKTOP" = true ]; then gh release upload "$RELEASE_TAG" release/* --clobber; fi
           if [ -z "$BACKFILL_VERSION" ]; then
+            node tools/release/notes.mjs --repo "$GH_REPO" --tag "$RELEASE_TAG" --include-draft --write > "$RUNNER_TEMP/release-notes.md"
+            cat "$RUNNER_TEMP/release-notes.md" >> "$GITHUB_STEP_SUMMARY"
             args=(--draft=false)
             if [[ "$RELEASE_VERSION" == *-* ]]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
             gh release edit "$RELEASE_TAG" "${args[@]}"

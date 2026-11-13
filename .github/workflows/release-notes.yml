@@ -1,0 +1,64 @@
+name: Release notes
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published tag to format (newest published release when empty)
+        type: string
+        required: false
+      all:
+        description: Format every published release
+        type: boolean
+        default: false
+      write:
+        description: Apply notes and missing banners (otherwise preview only)
+        type: boolean
+        default: false
+      refresh_banner:
+        description: Regenerate the selected release artwork
+        type: boolean
+        default: false
+permissions:
+  contents: write
+  pull-requests: read
+  issues: read
+concurrency:
+  group: release-notes
+  cancel-in-progress: false
+jobs:
+  format:
+    if: github.ref == 'refs/heads/main'
+    environment: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Preview or format published notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          FORMAT_ALL: ${{ inputs.all }}
+          WRITE_NOTES: ${{ inputs.write }}
+          REFRESH_BANNER: ${{ inputs.refresh_banner }}
+        shell: bash
+        run: |
+          args=(--repo "$RELEASE_REPOSITORY")
+          if [ "$FORMAT_ALL" = true ]; then args+=(--all); elif [ -n "$RELEASE_TAG" ]; then args+=(--tag "$RELEASE_TAG"); fi
+          if [ "$WRITE_NOTES" = true ]; then args+=(--write); fi
+          if [ "$REFRESH_BANNER" = true ]; then args+=(--refresh-banner); fi
+          node tools/release/notes.mjs "${args[@]}" > "$RUNNER_TEMP/formatted-notes.md"
+          cat "$RUNNER_TEMP/formatted-notes.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-notes-preview
+          path: |
+            ${{ runner.temp }}/formatted-notes.md
+            .tmp/release-notes/*.svg
+          if-no-files-found: error
+          retention-days: 7
