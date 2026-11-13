@@ -113,6 +113,11 @@ void main() {
         'user:write:chat',
         'channel:moderate',
         'bits:read',
+        'channel:manage:vips',
+        'channel:manage:moderators',
+        'moderator:manage:warnings',
+        'moderator:manage:automod',
+        'moderator:manage:automod_settings',
       ]),
     );
     expect(

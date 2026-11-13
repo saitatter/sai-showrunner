@@ -445,6 +445,86 @@ scenarios:
     plugin: "youtube"
     action: "removeBan"
     config: {"banId":""}
+  - name: "Twitch: Get Polls"
+    enabled: false
+    plugin: "twitch"
+    action: "getPolls"
+    config: {"ids":[]}
+  - name: "Twitch: Get Predictions"
+    enabled: false
+    plugin: "twitch"
+    action: "getPredictions"
+    config: {"ids":[]}
+  - name: "Twitch: Terminate Poll"
+    enabled: false
+    plugin: "twitch"
+    action: "terminatePoll"
+    config: {"id":""}
+  - name: "Twitch: Archive Poll"
+    enabled: false
+    plugin: "twitch"
+    action: "archivePoll"
+    config: {"id":""}
+  - name: "Twitch: Lock Prediction"
+    enabled: false
+    plugin: "twitch"
+    action: "lockPrediction"
+    config: {"id":""}
+  - name: "Twitch: Resolve Prediction"
+    enabled: false
+    plugin: "twitch"
+    action: "resolvePrediction"
+    config: {"id":"","winningOutcomeId":""}
+  - name: "Twitch: Cancel Prediction"
+    enabled: false
+    plugin: "twitch"
+    action: "cancelPrediction"
+    config: {"id":""}
+  - name: "Twitch: Pin Chat Message"
+    enabled: false
+    plugin: "twitch"
+    action: "pinMessage"
+    config: {"messageId":""}
+  - name: "Twitch: Unpin Chat Message"
+    enabled: false
+    plugin: "twitch"
+    action: "unpinMessage"
+    config: {"messageId":""}
+  - name: "Twitch: Add VIP"
+    enabled: false
+    plugin: "twitch"
+    action: "addVip"
+    config: {"viewerId":""}
+  - name: "Twitch: Remove VIP"
+    enabled: false
+    plugin: "twitch"
+    action: "removeVip"
+    config: {"viewerId":""}
+  - name: "Twitch: Add Moderator"
+    enabled: false
+    plugin: "twitch"
+    action: "addModerator"
+    config: {"viewerId":""}
+  - name: "Twitch: Remove Moderator"
+    enabled: false
+    plugin: "twitch"
+    action: "removeModerator"
+    config: {"viewerId":""}
+  - name: "Twitch: Warn Viewer"
+    enabled: false
+    plugin: "twitch"
+    action: "warnUser"
+    config: {"viewerId":"","reason":""}
+  - name: "Twitch: Allow AutoMod Message"
+    enabled: false
+    plugin: "twitch"
+    action: "allowAutoModMessage"
+    config: {"messageId":""}
+  - name: "Twitch: Deny AutoMod Message"
+    enabled: false
+    plugin: "twitch"
+    action: "denyAutoModMessage"
+    config: {"messageId":""}
   - name: "Twitch: Create Clip"
     enabled: false
     plugin: "twitch"

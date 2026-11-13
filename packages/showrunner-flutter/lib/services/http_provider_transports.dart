@@ -74,7 +74,14 @@ final class JsonHttpTransport {
         .resolve(path)
         .replace(
           queryParameters: {
-            ...query.map((key, value) => MapEntry(key, '$value')),
+            ...query.map(
+              (key, value) => MapEntry(
+                key,
+                value is Iterable
+                    ? value.map((item) => '$item').toList()
+                    : '$value',
+              ),
+            ),
           },
         );
     final httpClient = client ?? (HttpClient()..connectionTimeout = timeout);

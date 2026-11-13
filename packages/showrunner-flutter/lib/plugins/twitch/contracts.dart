@@ -668,33 +668,74 @@ final class TwitchRedemptionEvent extends TwitchViewerEvent {
 }
 
 final class TwitchPredictionEvent {
-  const TwitchPredictionEvent({this.predictionId, this.title, this.status});
-
+  const TwitchPredictionEvent({
+    this.predictionId,
+    this.title,
+    this.status,
+    this.winningOutcomeId,
+    this.outcomes = const [],
+    this.startedAt,
+    this.locksAt,
+    this.endedAt,
+  });
   factory TwitchPredictionEvent.fromRuntime(RuntimeMap value) =>
       TwitchPredictionEvent(
         predictionId: _string(value['predictionId']),
         title: _string(value['title']),
         status: _string(value['status']),
+        winningOutcomeId: _string(value['winningOutcomeId']),
+        outcomes: _eventItems(value['outcomes']),
+        startedAt: _string(value['startedAt']),
+        locksAt: _string(value['locksAt']),
+        endedAt: _string(value['endedAt']),
       );
-
   final String? predictionId;
   final String? title;
   final String? status;
+  final String? winningOutcomeId;
+  final List<RuntimeMap> outcomes;
+  final String? startedAt;
+  final String? locksAt;
+  final String? endedAt;
 }
 
 final class TwitchPollEvent {
-  const TwitchPollEvent({this.pollId, this.title, this.status});
-
+  const TwitchPollEvent({
+    this.pollId,
+    this.title,
+    this.status,
+    this.choices = const [],
+    this.startedAt,
+    this.endsAt,
+    this.endedAt,
+  });
   factory TwitchPollEvent.fromRuntime(RuntimeMap value) => TwitchPollEvent(
     pollId: _string(value['pollId']),
     title: _string(value['title']),
     status: _string(value['status']),
+    choices: _eventItems(value['choices']),
+    startedAt: _string(value['startedAt']),
+    endsAt: _string(value['endsAt']),
+    endedAt: _string(value['endedAt']),
   );
-
   final String? pollId;
   final String? title;
   final String? status;
+  final List<RuntimeMap> choices;
+  final String? startedAt;
+  final String? endsAt;
+  final String? endedAt;
 }
+
+List<RuntimeMap> _eventItems(Object? value) => value is List
+    ? List.unmodifiable(
+        value.whereType<Map>().map(
+          (item) => Map<String, dynamic>.unmodifiable(
+            Map<String, dynamic>.from(item),
+          ),
+        ),
+      )
+    : const [];
 
 final class TwitchRaidEvent {
   const TwitchRaidEvent({

@@ -8,6 +8,31 @@ import 'package:showrunner_flutter/services/http_policy.dart';
 
 void main() {
   test(
+    'repeated query IDs are encoded separately and escaped losslessly',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      final received = Completer<Uri>();
+      server.listen((request) async {
+        received.complete(request.uri);
+        request.response.write('{"data":[]}');
+        await request.response.close();
+      });
+      final transport = JsonHttpTransport(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+      );
+      await transport.request('GET', '/helix/polls', {
+        'id': ['first&second', 'unicode-ș'],
+        'first': 2,
+        'after': 'a+b=c',
+      }, {});
+      final uri = await received.future;
+      expect(uri.queryParametersAll['id'], ['first&second', 'unicode-ș']);
+      expect(uri.queryParameters['first'], '2');
+      expect(uri.queryParameters['after'], 'a+b=c');
+    },
+  );
+  test(
     'GET and HEAD discard placeholder bodies while keeping query parameters',
     () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

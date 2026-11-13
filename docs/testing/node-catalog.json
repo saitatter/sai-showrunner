@@ -2059,6 +2059,624 @@
       "name": "Twitch",
       "actions": [
         {
+          "id": "getPolls",
+          "name": "Get Polls",
+          "config": {
+            "key": null,
+            "label": "Get Polls",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "ids",
+                "label": "IDs (optional, up to 20)",
+                "type": "array"
+              },
+              {
+                "key": "first",
+                "label": "Page size (1–20)",
+                "type": "number"
+              },
+              {
+                "key": "after",
+                "label": "Next page cursor",
+                "type": "text"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getPredictions",
+          "name": "Get Predictions",
+          "config": {
+            "key": null,
+            "label": "Get Predictions",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "ids",
+                "label": "IDs (optional, up to 20)",
+                "type": "array"
+              },
+              {
+                "key": "first",
+                "label": "Page size (1–20)",
+                "type": "number"
+              },
+              {
+                "key": "after",
+                "label": "Next page cursor",
+                "type": "text"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "terminatePoll",
+          "name": "Terminate Poll",
+          "config": {
+            "key": null,
+            "label": "Terminate Poll",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "id",
+                "label": "Poll / prediction ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "archivePoll",
+          "name": "Archive Poll",
+          "config": {
+            "key": null,
+            "label": "Archive Poll",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "id",
+                "label": "Poll / prediction ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "lockPrediction",
+          "name": "Lock Prediction",
+          "config": {
+            "key": null,
+            "label": "Lock Prediction",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "id",
+                "label": "Poll / prediction ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "resolvePrediction",
+          "name": "Resolve Prediction",
+          "config": {
+            "key": null,
+            "label": "Resolve Prediction",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "id",
+                "label": "Poll / prediction ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "winningOutcomeId",
+                "label": "Winning outcome ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "cancelPrediction",
+          "name": "Cancel Prediction",
+          "config": {
+            "key": null,
+            "label": "Cancel Prediction",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "id",
+                "label": "Poll / prediction ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "pinMessage",
+          "name": "Pin Chat Message",
+          "config": {
+            "key": null,
+            "label": "Pin Chat Message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "duration",
+                "label": "Duration (30–1800 seconds, empty until stream ends)",
+                "type": "number"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "unpinMessage",
+          "name": "Unpin Chat Message",
+          "config": {
+            "key": null,
+            "label": "Unpin Chat Message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "addVip",
+          "name": "Add VIP",
+          "config": {
+            "key": null,
+            "label": "Add VIP",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "removeVip",
+          "name": "Remove VIP",
+          "config": {
+            "key": null,
+            "label": "Remove VIP",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "addModerator",
+          "name": "Add Moderator",
+          "config": {
+            "key": null,
+            "label": "Add Moderator",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "removeModerator",
+          "name": "Remove Moderator",
+          "config": {
+            "key": null,
+            "label": "Remove Moderator",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "warnUser",
+          "name": "Warn Viewer",
+          "config": {
+            "key": null,
+            "label": "Warn viewer",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "viewerId",
+                "label": "Viewer ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "reason",
+                "label": "Reason (up to 500 characters)",
+                "type": "multilineText",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "allowAutoModMessage",
+          "name": "Allow AutoMod Message",
+          "config": {
+            "key": null,
+            "label": "AutoMod message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "messageId",
+                "label": "Held message ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "denyAutoModMessage",
+          "name": "Deny AutoMod Message",
+          "config": {
+            "key": null,
+            "label": "AutoMod message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "messageId",
+                "label": "Held message ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
           "id": "createClip",
           "name": "Create Clip",
           "config": {
@@ -2962,6 +3580,12 @@
           "liveStatus": "pending"
         },
         {
+          "id": "predictionProgress",
+          "name": "predictionProgress",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
           "id": "predictionLocked",
           "name": "predictionLocked",
           "config": null,
@@ -2976,6 +3600,48 @@
         {
           "id": "pollStarted",
           "name": "pollStarted",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "pollProgress",
+          "name": "pollProgress",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "warningSent",
+          "name": "warningSent",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "warningAcknowledged",
+          "name": "warningAcknowledged",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "autoModMessageHeld",
+          "name": "autoModMessageHeld",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "autoModMessageUpdated",
+          "name": "autoModMessageUpdated",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "autoModSettingsUpdated",
+          "name": "autoModSettingsUpdated",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "autoModTermsUpdated",
+          "name": "autoModTermsUpdated",
           "config": null,
           "liveStatus": "pending"
         },
@@ -6147,10 +6813,10 @@
             "name": "QA resource",
             "activationAutomation": {
               "schemaVersion": 1,
-              "id": "17fc6c41914c7201aa46141c9d313805",
+              "id": "803083f9f21a68f379143dde3edb4669",
               "graph": {
                 "schemaVersion": 1,
-                "id": "17fc6c41914c7201aa46141c9d313805",
+                "id": "803083f9f21a68f379143dde3edb4669",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -6171,10 +6837,10 @@
             },
             "deactivationAutomation": {
               "schemaVersion": 1,
-              "id": "9dbcfb9b991aee6382ffda54b8b53959",
+              "id": "10af2e01b9ebe595f89dac8646e19880",
               "graph": {
                 "schemaVersion": 1,
-                "id": "9dbcfb9b991aee6382ffda54b8b53959",
+                "id": "10af2e01b9ebe595f89dac8646e19880",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -6201,8 +6867,8 @@
   ],
   "counts": {
     "plugins": 34,
-    "actions": 174,
-    "triggers": 60
+    "actions": 190,
+    "triggers": 68
   },
   "note": "Insertion and serialization passed; live execution requires enabled scenarios and connections."
 }

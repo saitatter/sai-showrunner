@@ -153,6 +153,33 @@ Regex failures are visible; affected messages stay hidden and the explicit block
 policy controls dispatch. Unsupported saved preferences are preserved and editing
 is refused until the file is repaired. Preferences live in `settings/chat.yaml`.
 
+## Twitch lifecycle and moderation nodes
+
+Polls expose Get Polls (IDs or cursor pagination), Terminate Poll and Archive Poll.
+Predictions expose Get Predictions, Lock, Resolve and Cancel. Transition nodes
+require the exact poll/prediction ID; Resolve additionally requires the winning
+outcome ID. Get results keep Helix data and pagination; lifecycle triggers
+include option IDs, votes/points and timestamps. Progress is a separate trigger.
+
+Pin/Unpin Chat Message use a message ID. Pin duration is optional (until stream
+ends), or 30?1800 seconds. Adding/removing VIPs and moderators uses viewer IDs;
+these actions never silently demote another role. Warn Viewer requires a reason
+(up to 500 characters). Allow/Deny AutoMod Message acts on a held message ID.
+Warning sent/acknowledged and AutoMod held/updated/settings/terms triggers expose
+moderator IDs and details on dedicated automation events. Held text is private
+moderation data; it does not become public chat history or dock content.
+
+Reauthorize the channel account to grant `channel:manage:vips`,
+`channel:manage:moderators`, `moderator:manage:warnings`,
+`moderator:manage:automod` and `moderator:manage:automod_settings`.
+Polls/predictions use their existing manage scopes and Twitch account eligibility.
+Pins use `moderator:manage:chat_messages`. A scope alone does not grant channel
+roles. Provider refusals propagate without retrying lifecycle or role mutations.
+See the official [poll](https://dev.twitch.tv/docs/api/reference/polls/),
+[prediction](https://dev.twitch.tv/docs/api/reference/predictions/),
+[chat](https://dev.twitch.tv/docs/api/reference/chat/) and
+[moderation](https://dev.twitch.tv/docs/api/reference/moderation/) contracts.
+
 ## Accounts and validation boundary
 
 Use the existing Twitch and YouTube settings; no new API key is needed for the

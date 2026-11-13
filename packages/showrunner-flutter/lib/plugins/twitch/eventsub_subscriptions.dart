@@ -57,9 +57,11 @@ List<TwitchEventSubSubscription> defaultTwitchEventSubSubscriptions(
     'channel.hype_train.end',
     'channel.poll.begin',
     'channel.poll.end',
+    'channel.poll.progress',
     'channel.prediction.begin',
     'channel.prediction.lock',
     'channel.prediction.end',
+    'channel.prediction.progress',
     'channel.subscribe',
     'channel.subscription.gift',
   ])
@@ -67,6 +69,22 @@ List<TwitchEventSubSubscription> defaultTwitchEventSubSubscriptions(
       type: type,
       version: type.startsWith('channel.hype_train') ? '2' : '1',
       condition: {'broadcaster_user_id': broadcasterId},
+    ),
+  for (final type in const [
+    'automod.message.hold',
+    'automod.message.update',
+    'automod.settings.update',
+    'automod.terms.update',
+    'channel.warning.send',
+    'channel.warning.acknowledge',
+  ])
+    TwitchEventSubSubscription(
+      type: type,
+      version: type.startsWith('automod.message.') ? '2' : '1',
+      condition: {
+        'broadcaster_user_id': broadcasterId,
+        'moderator_user_id': broadcasterId,
+      },
     ),
   TwitchEventSubSubscription(
     type: 'channel.follow',

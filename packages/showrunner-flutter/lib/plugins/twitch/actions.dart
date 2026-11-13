@@ -7,6 +7,7 @@ import 'resources.dart';
 import '../registry/plugin_contract.dart';
 import 'channel_points.dart';
 import 'contracts.dart';
+import 'operation_contracts.dart';
 import '../../features/chat/chat_trigger_filter.dart';
 
 part 'actions/chat.dart';
@@ -14,6 +15,7 @@ part 'actions/moderation.dart';
 part 'actions/stream.dart';
 part 'actions/rewards.dart';
 part 'actions/ads.dart';
+part 'actions/lifecycle.dart';
 
 typedef TwitchRequest =
     Future<RuntimeMap> Function(
@@ -31,13 +33,18 @@ final class TwitchTransport {
     String? broadcasterId,
     String? moderatorId,
   }) {
-    RuntimeMap resolve(RuntimeMap fields, {bool marker = false}) => {
+    RuntimeMap resolve(
+      RuntimeMap fields, {
+      bool marker = false,
+      bool autoMod = false,
+    }) => {
       for (final entry in fields.entries)
         entry.key: entry.value == null || '${entry.value}'.trim().isEmpty
             ? (switch (entry.key) {
                     'broadcaster_id' || 'from_broadcaster_id' => broadcasterId,
                     'moderator_id' || 'sender_id' => moderatorId,
                     'user_id' when marker => broadcasterId,
+                    'user_id' when autoMod => moderatorId,
                     _ => null,
                   }) ??
                   entry.value
@@ -48,7 +55,11 @@ final class TwitchTransport {
         method,
         path,
         resolve(query),
-        resolve(body, marker: path == '/helix/streams/markers'),
+        resolve(
+          body,
+          marker: path == '/helix/streams/markers',
+          autoMod: path == '/helix/moderation/automod/message',
+        ),
       ),
     );
   }
@@ -213,12 +224,31 @@ final _predictionEventSchema = _twitchObject('Twitch prediction event', [
   _twitchText('Prediction ID', 'predictionId'),
   _twitchText('Title', 'title'),
   _twitchText('Status', 'status'),
+  _twitchText('winningOutcomeId', 'winningOutcomeId'),
+  _twitchText('startedAt', 'startedAt'),
+  _twitchText('locksAt', 'locksAt'),
+  _twitchText('endedAt', 'endedAt'),
+  DartDataInputSchema(
+    label: 'outcomes',
+    key: 'outcomes',
+    kind: DartDataInputKind.array,
+    itemKind: DartDataInputKind.object,
+  ),
 ]);
 
 final _pollEventSchema = _twitchObject('Twitch poll event', [
   _twitchText('Poll ID', 'pollId'),
   _twitchText('Title', 'title'),
   _twitchText('Status', 'status'),
+  _twitchText('startedAt', 'startedAt'),
+  _twitchText('endsAt', 'endsAt'),
+  _twitchText('endedAt', 'endedAt'),
+  DartDataInputSchema(
+    label: 'choices',
+    key: 'choices',
+    kind: DartDataInputKind.array,
+    itemKind: DartDataInputKind.object,
+  ),
 ]);
 
 final _raidEventSchema = _twitchObject('Twitch raid event', [
@@ -247,9 +277,11 @@ final _twitchEventSchemas = <String, DartDataInputSchema>{
   'follow': _viewerEventSchema,
   'redemption': _redemptionEventSchema,
   'predictionStarted': _predictionEventSchema,
+  'predictionProgress': _predictionEventSchema,
   'predictionLocked': _predictionEventSchema,
   'predictionSettled': _predictionEventSchema,
   'pollStarted': _pollEventSchema,
+  'pollProgress': _pollEventSchema,
   'pollEnded': _pollEventSchema,
   'raid': _raidEventSchema,
   'raidOut': _raidEventSchema,
@@ -541,6 +573,7 @@ DartPluginManifest createTwitchPlugin(
       ),
     ],
     actions: [
+      ..._twitchLifecycleActions(transport),
       _twitchAction(adActions, 'createClip'),
       _twitchAction(streamActions, 'streamMarker'),
       _twitchAction(adActions, 'runAd'),
@@ -576,9 +609,17 @@ DartPluginManifest createTwitchPlugin(
         'adEnded',
         'adSchedule',
         'predictionStarted',
+        'predictionProgress',
         'predictionLocked',
         'predictionSettled',
         'pollStarted',
+        'pollProgress',
+        'warningSent',
+        'warningAcknowledged',
+        'autoModMessageHeld',
+        'autoModMessageUpdated',
+        'autoModSettingsUpdated',
+        'autoModTermsUpdated',
         'pollEnded',
         'subscription',
         'giftedSub',
@@ -719,6 +760,19 @@ DartTriggerContract _twitchTrigger(
         _viewerEventSchema,
         TwitchViewerEvent.fromRuntime,
       );
+    case 'warningSent':
+    case 'warningAcknowledged':
+    case 'autoModMessageHeld':
+    case 'autoModMessageUpdated':
+    case 'autoModSettingsUpdated':
+    case 'autoModTermsUpdated':
+      return _emptyTwitchTrigger(
+        eventId,
+        eventId,
+        eventHub,
+        _moderationEventSchema,
+        TwitchModerationEvent.fromRuntime,
+      );
     case 'redemption':
       return TriggerSpec<TwitchRedemptionTriggerConfig, TwitchRedemptionEvent>(
         pluginId: PluginId('twitch'),
@@ -736,6 +790,7 @@ DartTriggerContract _twitchTrigger(
         configCodec: twitchRedemptionTriggerConfigCodec,
         matches: _matchesRedemption,
       );
+    case 'predictionProgress':
     case 'predictionStarted':
     case 'predictionLocked':
     case 'predictionSettled':
@@ -746,6 +801,7 @@ DartTriggerContract _twitchTrigger(
         _predictionEventSchema,
         TwitchPredictionEvent.fromRuntime,
       );
+    case 'pollProgress':
     case 'pollStarted':
     case 'pollEnded':
       return _emptyTwitchTrigger(
@@ -851,13 +907,24 @@ RuntimeMap _encodeTwitchEvent(Object? event) => switch (event) {
     'viewerId': value.viewerId,
     if (value.viewerName != null) 'viewerName': value.viewerName,
   },
+  TwitchModerationEvent value => value.toRuntime(),
   TwitchPredictionEvent value => {
     if (value.predictionId != null) 'predictionId': value.predictionId,
+    if (value.winningOutcomeId != null)
+      'winningOutcomeId': value.winningOutcomeId,
+    'outcomes': value.outcomes,
+    if (value.startedAt != null) 'startedAt': value.startedAt,
+    if (value.locksAt != null) 'locksAt': value.locksAt,
+    if (value.endedAt != null) 'endedAt': value.endedAt,
     if (value.title != null) 'title': value.title,
     if (value.status != null) 'status': value.status,
   },
   TwitchPollEvent value => {
     if (value.pollId != null) 'pollId': value.pollId,
+    'choices': value.choices,
+    if (value.startedAt != null) 'startedAt': value.startedAt,
+    if (value.endsAt != null) 'endsAt': value.endsAt,
+    if (value.endedAt != null) 'endedAt': value.endedAt,
     if (value.title != null) 'title': value.title,
     if (value.status != null) 'status': value.status,
   },
