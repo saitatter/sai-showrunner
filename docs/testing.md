@@ -25,13 +25,23 @@ graphics path after repeated verification-stage timeouts; GitHub also tracks
 The missing Intel job logs do not establish that upstream issue as our exact
 cause. Rosetta proof does not establish physical Intel graphics-driver coverage.
 
-Linux shutdown retains the GTK renderer widget tree until the owned Flutter engine
-has stopped, so child compositor finalization cannot race an in-flight raster call.
-[Flutter #188659](https://github.com/flutter/flutter/issues/188659) describes a
-related lifetime failure; [its upstream fix](https://github.com/flutter/flutter/pull/188702)
-is already included in 3.47.7. That issue does not establish our remaining crash
-as the identical defect. The packaged proof requires both the scenario marker and
-a zero process exit; a native abort after a successful scenario still fails CI.
+Linux shutdown temporarily retains the GTK renderer widget tree until the owned
+Flutter engine has stopped. The remaining view/renderer lifetime gap is reproduced
+by the [upstream regression test](https://github.com/flutter/flutter/pull/193533#issuecomment-6860001587)
+on current Flutter, despite the earlier [#188659](https://github.com/flutter/flutter/issues/188659)
+fix already being in 3.47.7. Track [PR #193533](https://github.com/flutter/flutter/pull/193533)
+for FlView/OpenGL/Subsurface lifetime and [issue #196545](https://github.com/flutter/flutter/issues/196545)
+with [PR #196546](https://github.com/flutter/flutter/pull/196546) for the complementary
+software-renderer defect. The software regression crashes before its fix, passes
+100 repetitions afterward, and passes with all 862 Linux engine unit tests.
+
+Remove only the extra renderer retention (`retain_widget_tree` and
+`retained_widgets`) after the supported SDK's compiled engine contains the relevant
+upstream fixes. Then rerun installed/portable shutdown, encrypted-settings restart
+and portable-location proof with both OpenGL and software rendering, without that
+retention. Keep normal owned engine/window shutdown. An upstream issue being closed
+alone is insufficient. The packaged proof requires the scenario marker and a zero
+process exit; a native abort after a successful scenario still fails CI.
 
 Cipher fixtures inject a temporary keyring and verify concurrent owners share
 one OS key, ciphertext authentication, relocation with the same keyring and
