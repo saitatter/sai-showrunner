@@ -41,6 +41,13 @@ final class DartPluginRegistry extends ChangeNotifier {
   Future<void>? _initializeFuture;
   Future<void>? _startFuture;
   Future<void>? _closeFuture;
+  final List<Future<void> Function()> _closeCallbacks = [];
+
+  /// Host-owned resources are drained after all provider modules have stopped.
+  void addCloseCallback(Future<void> Function() callback) {
+    if (_closeFuture != null) throw StateError('Plugin registry is closing.');
+    _closeCallbacks.add(callback);
+  }
 
   void register(
     DartPluginManifest plugin, {
@@ -607,6 +614,15 @@ final class DartPluginRegistry extends ChangeNotifier {
         firstStackTrace ??= stackTrace;
       }
     }
+    for (final callback in _closeCallbacks.reversed) {
+      try {
+        await callback();
+      } catch (error, stackTrace) {
+        firstError ??= error;
+        firstStackTrace ??= stackTrace;
+      }
+    }
+    _closeCallbacks.clear();
     try {
       super.dispose();
     } finally {

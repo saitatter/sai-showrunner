@@ -1,7 +1,7 @@
+import 'package:showrunner_flutter/persistence/sqlite_viewer_data_repository.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'package:showrunner_flutter/persistence/filesystem/atomic_file.dart';
+import 'package:sqlite_async/sqlite_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
 import 'package:showrunner_flutter/persistence/viewer_data_sync.dart';
@@ -13,16 +13,21 @@ void main() {
     'stop awaits a blocked viewer write before the event hub can close',
     () async {
       final root = await Directory.systemTemp.createTemp('viewer-sync-drain-');
-      final repository = FileViewerDataRepository(root);
+      final repository = SqliteViewerDataRepository(root);
       final hub = DartPluginEventHub();
       final synchronizer = ViewerDataSynchronizer(
         repository: repository,
         eventHub: hub,
       );
       final entered = Completer<void>(), release = Completer<void>();
-      final file =
-          '${root.path}/twitch/${base64UrlEncode(utf8.encode('42')).replaceAll('=', '')}.json';
-      final blocker = withFileLock(file, () async {
+      await repository.initialize();
+      final blockingDatabase = SqliteDatabase(
+        path: '${root.path}/viewers.sqlite',
+      );
+      final blocker = blockingDatabase.writeTransaction((tx) async {
+        await tx.execute(
+          'UPDATE viewer_store_metadata SET imported = imported WHERE id = 1',
+        );
         entered.complete();
         await release.future;
       });
@@ -45,6 +50,8 @@ void main() {
         await stopping;
         expect((await added)['id'], '42');
         await hub.dispose();
+        await repository.close();
+        await blockingDatabase.close();
         await root.delete(recursive: true);
       }
     },

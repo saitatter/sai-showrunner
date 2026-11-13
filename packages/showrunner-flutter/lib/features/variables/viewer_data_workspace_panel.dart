@@ -1,3 +1,4 @@
+import '../../persistence/sqlite_viewer_data_repository.dart';
 import 'variable_values.dart';
 import '../../persistence/document_revision.dart';
 import 'dart:async';
@@ -66,8 +67,8 @@ class _ViewerDataWorkspacePanelState extends State<ViewerDataWorkspacePanel> {
 
   bool _sameRepository(ViewerDataRepository a, ViewerDataRepository b) =>
       identical(a, b) ||
-      (a is FileViewerDataRepository &&
-          b is FileViewerDataRepository &&
+      (a is SqliteViewerDataRepository &&
+          b is SqliteViewerDataRepository &&
           a.directory.absolute.path == b.directory.absolute.path);
   @override
   void didUpdateWidget(ViewerDataWorkspacePanel oldWidget) {

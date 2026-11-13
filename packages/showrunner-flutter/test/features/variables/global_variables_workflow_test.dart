@@ -1,3 +1,4 @@
+import 'package:showrunner_flutter/persistence/viewer_data_repository.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +43,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: VariablesWorkspace(
+            viewerDataRepository: InMemoryViewerDataRepository(),
             dataService: ShowRunnerDataService(root),
             variableRuntime: runtime,
           ),

@@ -183,7 +183,8 @@ void main() {
     'a process crash releases its lock and a fresh owner recovers the full generation',
     () async {
       final result = await Process.run('dart', [
-        'run',
+        '--disable-dart-dev',
+        '--packages=.dart_tool/package_config.json',
         'test/support/transaction_process_fixture.dart',
         root.path,
         'crash',
@@ -200,7 +201,8 @@ void main() {
     'an independent process cannot acquire a held repository lock',
     () async {
       final hold = await Process.start('dart', [
-        'run',
+        '--disable-dart-dev',
+        '--packages=.dart_tool/package_config.json',
         'test/support/transaction_process_fixture.dart',
         root.path,
         'hold',
@@ -219,7 +221,8 @@ void main() {
         'locked',
       );
       final probe = await Process.run('dart', [
-        'run',
+        '--disable-dart-dev',
+        '--packages=.dart_tool/package_config.json',
         'test/support/transaction_process_fixture.dart',
         root.path,
         'probe',
@@ -230,7 +233,8 @@ void main() {
       await hold.stdin.flush();
       expect(await hold.exitCode, 0);
       final released = await Process.run('dart', [
-        'run',
+        '--disable-dart-dev',
+        '--packages=.dart_tool/package_config.json',
         'test/support/transaction_process_fixture.dart',
         root.path,
         'probe',

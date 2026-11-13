@@ -27,6 +27,8 @@ dependencies:
   universal_ble: 2.3.0
   flutter_secure_storage: ^11.2.0
   cryptography: ^2.9.0
+  sqlite_async: 0.14.8
+  sqlite3: 3.5.2
 
 dev_dependencies:
   flutter_test:

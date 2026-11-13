@@ -8,6 +8,34 @@ const _id = PluginId('sample');
 
 void main() {
   test(
+    'host resources drain after modules even when earlier teardown fails',
+    () async {
+      final events = <String>[];
+      final registry = DartPluginRegistry()
+        ..register(
+          const DartPluginManifest(id: _id, name: 'Sample'),
+          onStop: () async {
+            events.add('module');
+            throw StateError('module stop failed');
+          },
+        )
+        ..addCloseCallback(() async {
+          events.add('first resource');
+        })
+        ..addCloseCallback(() async {
+          events.add('second resource');
+          throw StateError('resource close failed');
+        });
+      await registry.initialize();
+      await registry.start();
+      await expectLater(registry.close(), throwsStateError);
+      expect(events, ['module', 'second resource', 'first resource']);
+      expect(() => registry.addCloseCallback(() async {}), throwsStateError);
+      await expectLater(registry.close(), throwsStateError);
+      expect(events, hasLength(3));
+    },
+  );
+  test(
     'enabling a skipped module starts once; disabling preserves shared connections',
     () async {
       var starts = 0, stops = 0;

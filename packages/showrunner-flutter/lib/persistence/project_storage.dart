@@ -1,5 +1,5 @@
+import 'sqlite_viewer_data_repository.dart';
 import '../schema/resource_codec.dart';
-import 'viewer_data_repository.dart';
 import 'dart:io';
 import '../plugins/registry/builtin_resource_specs.dart';
 import '../plugins/registry/plugin_contract.dart';
@@ -57,9 +57,9 @@ final class ProjectStorage {
     );
   }
 
-  FileViewerDataRepository get viewerData {
+  SqliteViewerDataRepository get viewerData {
     final owned = location('viewer-data');
-    return FileViewerDataRepository(owned.directory, location: owned);
+    return SqliteViewerDataRepository(owned.directory, location: owned);
   }
 
   QueueConfigRepository get queueConfigs =>

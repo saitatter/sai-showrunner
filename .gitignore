@@ -1,6 +1,8 @@
 # Local runtime data and scratch files
 /user/
 .tmp/
+viewers.sqlite
+viewers.sqlite-*
 /release/
 
 # Flutter generated files

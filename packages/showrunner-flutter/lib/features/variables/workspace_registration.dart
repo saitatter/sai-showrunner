@@ -8,6 +8,7 @@ Widget buildVariablesWorkspace(
   BuildContext context,
   WorkspaceHostContext host,
 ) => VariablesWorkspace(
+  viewerDataRepository: host.runtime.viewerDataRepository,
   dataService: host.runtime.dataService,
   eventHub: host.runtime.providerEvents.eventHub,
   variableRuntime: host.runtime.variableRuntime,
@@ -17,6 +18,7 @@ Widget buildViewerVariablesWorkspace(
   BuildContext context,
   WorkspaceHostContext host,
 ) => VariablesWorkspace(
+  viewerDataRepository: host.runtime.viewerDataRepository,
   dataService: host.runtime.dataService,
   eventHub: host.runtime.providerEvents.eventHub,
   variableRuntime: host.runtime.variableRuntime,

@@ -1,3 +1,4 @@
+import '../persistence/viewer_data_repository.dart';
 import '../graph/domain/automation_document.dart';
 import 'dart:async';
 import '../features/chat/unified_chat_runtime.dart';
@@ -46,6 +47,7 @@ final class RuntimeStatusSources {
     required this.profileRuntimeFuture,
     this.streamPlanRuntime,
     this.variableRuntime,
+    this.viewerDataRepository,
   });
   final ShowRunnerDataService dataService;
   final DartActionQueue actionQueue;
@@ -60,6 +62,7 @@ final class RuntimeStatusSources {
   final Future<DartProfileRuntime> profileRuntimeFuture;
   final DartStreamPlanRuntime? streamPlanRuntime;
   final DartVariableRuntime? variableRuntime;
+  final ViewerDataRepository? viewerDataRepository;
 }
 
 @immutable
