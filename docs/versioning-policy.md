@@ -27,14 +27,16 @@ node tools/release/prepare.mjs --check --version 2.0.0-beta.1
 ```
 
 The workflow previews first and checks for completed successful push CI on main
-for the exact planned SHA in this repository. It requires all five CI jobs,
-including both Windows jobs and their required aggregate. PR/fork runs, other
+for the exact planned SHA in this repository. It requires all six CI jobs,
+including Flutter verification, both native Windows jobs and their required aggregate. PR/fork runs, other
 commits, skipped or missing gates and API failures never qualify. If that proof
 is absent, it runs the same reusable CI gates on the frozen commit. It then
 prepares and atomically pushes a version/changelog commit and annotated tag.
-It updates package.json, Flutter pubspec, updater fallback and CHANGELOG.md together.
+It updates package.json, Flutter pubspec, updater fallback, CHANGELOG.md and
+docs/release-summaries.json together, freezing the editorial summary under the chosen tag.
 If main advanced during validation, publication stops rather than releasing an
-untested new snapshot. The notes come from Unreleased, with a full comparison link.
+untested new snapshot. The [release description](release-notes.md) combines that
+summary with complete commit credits, a banner and a full comparison link before publication.
 
 The GitHub release starts as a **draft**. Windows packaging checks the bundled
 YouTube client, builds the browser overlay, validates the unsigned bundle, and runs
@@ -75,7 +77,7 @@ use that test certificate.
 Keep concise user-facing entries under Features, Fixes, Refactors, Docs or CI & Build
 in CHANGELOG.md's Unreleased section. Keep published sections intact. Conventional
 commits select the version; curated changelog entries describe the user impact.
-Use Fixes for bugs in functionality that existed before the current feature work.
+Use Fixes and Refactors for functionality that existed before the current feature work.
 Corrections made while implementing a new unreleased feature stay in its Features
 entry; do not publish implementation iterations as separate release fixes.
 Prefer rebase-and-merge for independent commits, or a meaningful conventional

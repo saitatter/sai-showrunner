@@ -5,7 +5,7 @@
   Keep each commit focused; split documentation, release tooling and independent fixes.
 - Add or update a short user-facing entry in the matching section of `CHANGELOG.md` under
   Unreleased in the same commit. Keep released entries intact.
-- Reserve `Fixes` for problems in functionality that existed before the current
+- Reserve `Fixes` and `Refactors` for functionality that existed before the current
   feature work. Corrections made while implementing a new unreleased feature
   belong in that feature's `Features` entry, not in separate `Fixes` notes.
   Update the existing feature entry when needed instead of listing implementation
@@ -13,6 +13,8 @@
 - Release only by manually running Release on main. Do not bump versions, create
   release tags, publish a release or bypass reviews unless the session authorizes it.
   Follow [the release policy](docs/versioning-policy.md). A PR merge must not publish.
+  Maintain editorial summaries and immutable banner history according to
+  [release notes](docs/release-notes.md); formatting notes must not publish drafts.
 - For a PR with several independent commits, prefer rebase-and-merge so conventional
   commit intent reaches main; squash a single logical change. Preserve published history.
 - Run `scripts/ci-check.ps1` before pushing. Add `-Integration` for native app/editor
@@ -22,6 +24,9 @@
   Use committed lockfiles. Keep CI, release, nightly and contributor instructions aligned.
 - Flutter/Dart owns the desktop product. TypeScript/DOM/WebGL owns the OBS browser
   overlay. Keep browser-only rendering in that boundary and preserve its protocol.
+- Keep provider rules in `lib/plugins/<provider>` and presentation in
+  `lib/features/<feature>` inside the Flutter package. Share transport, storage and
+  lifecycle mechanics without moving provider-specific behavior into generic helpers.
 - Use sai_nodes immutable documents, commands/history and shared scene geometry.
   Keep runtime state/traces outside authoring documents; definitions describe types,
   ports and fields, not execution callbacks.
@@ -38,6 +43,9 @@
 - Inspect visual differences before updating baselines. Record SDK, capture contract,
   intended changes and comparison results in the testing docs. Do not replace frozen
   Electron references or raise thresholds as a substitute for correcting regressions.
+- Link native SDK workarounds to upstream issues/PRs and document removal criteria.
+  Remove them only after the pinned SDK includes the fix and affected package proofs
+  pass without the workaround; do not infer that an issue being closed is sufficient.
 - External plugins must follow ADR-003's isolated, versioned protocol direction.
   Do not load arbitrary third-party code into the desktop process.
 - Search with rg before reading. Keep output focused, run targeted checks first, and

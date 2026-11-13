@@ -76,6 +76,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
+- Align contributor rules, repository ownership and release-note guidance with the shared Collectarr model, including editorial summaries, banner history and parallel CI gates.
 - Document desktop package formats, proof hosts and Rosetta coverage limits, OS-keyring behavior, portable data locations, default SDK rendering, confirmed upstream Linux lifetime issues and the criteria for removing the application workaround.
 - Document overlay/Remote transport ownership, public projection limits, authentication and measured browser/native/visual proof boundaries.
 - Document completed workspace view-state boundaries, editor/dialog ownership, responsive input contracts and measured Flutter/native/visual checks, including active-document identity and owned Save All completion, with explicit live-provider/device limitations.
