@@ -2,7 +2,7 @@ import {afterEach, describe, expect, it} from 'vitest';
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {resolve, join, sep} from 'node:path';
 import {associatedPulls, changeLines, closingIssues, composeNotes, contributorCredits, freezeSummary,
-  parseSummaries, publishBanner, rangeCommits, renderBanner, runNotes} from './notes.mjs';
+  parseSummaries, publishBanner, rangeCommits, renderBanner, runNotes, humanContributorNames, isBotIdentity, bannerEmoji} from './notes.mjs';
 
 const scratch = resolve(import.meta.dirname, '../../.tmp');
 const directories = [];
@@ -41,6 +41,18 @@ function fixture() {
 }
 
 describe('release summaries and full history', () => {
+  it('excludes bot accounts, bot handles and automation fallback identities from contributor counts and credits', () => {
+    const typedBot = {...commit('b','chore: automated','release-service'),author:{login:'release-service',type:'Bot'}};
+    const fallbackBot = {...commit('c','chore: automated',null),commit:{message:'chore: automated',author:{name:'GitHub Actions',email:'41898282+github-actions[bot]@users.noreply.github.com'}}};
+    const human = commit('a','feat: outcome','alice');
+    expect(humanContributorNames([human,human,typedBot,fallbackBot,commit('d','chore: dep','dependabot[bot]'),commit('e','chore: dep','renovate-bot')])).toEqual(['@alice']);
+    expect(isBotIdentity('robotics-fan')).toBe(false);
+    expect(isBotIdentity({name:'Service',email:'123+builder[bot]@users.noreply.github.com'})).toBe(true);
+    const generated='## New Contributors\n* @github-actions[bot] joined\n* @release-service joined\n* @alice joined\n\n**Full Changelog:** old';
+    expect(contributorCredits(generated,['release-service'])).toBe('## New Contributors\n* @alice joined');
+    expect(contributorCredits('## New Contributors\n* @dependabot[bot] joined\n')).toBe('');
+    expect(changeLines('o/r',[typedBot])[0]).toContain('@release-service');
+  });
   it('freezes editorial text under the chosen tag without rewriting older entries', () => {
     const old = {summary:['Old release.'],previousTag:null};
     const frozen = JSON.parse(freezeSummary(JSON.stringify({'v1.0.0':old,Unreleased:{summary:['New feature.']}}),'v1.1.0','### Features\n- Fallback.','v1.0.0'));
@@ -110,9 +122,18 @@ describe('release banner and publication boundaries', () => {
     expect(svg).not.toContain('<script>'); expect(svg).toBe(renderBanner(options));
     expect(svg).toContain('data:image/jpeg;base64,');
     expect(svg).not.toMatch(/<image[^>]+href="https?:/);
-    const historical = renderBanner({...options,previousTag:'v1.0.0',highlights:['Compact label'],contributorNames:['@alice','<script>'],contributors:6,mergedPulls:3});
+    const historical = renderBanner({...options,previousTag:'v1.0.0',highlights:['Compact label'],contributorNames:['@alice','<script>','@bob','@carol','@dave','@eve','@github-actions[bot]'],mergedPulls:3});
     expect(historical).toContain('Compact label'); expect(historical).toContain('v1.0.0');
     expect(historical).toContain('+ 2 more in history'); expect(historical).toContain('&lt;script&gt;');
+    expect(historical).not.toContain('github-actions');
+    const officialIcon = readFileSync(new URL('../../packages/showrunner-flutter/assets/app_icon.png', import.meta.url)).toString('base64');
+    expect(svg).toContain(`data-brand="application-icon" href="data:image/png;base64,${officialIcon}"`);
+    expect(svg).not.toContain('<circle');
+    expect(svg).toContain('data-emoji="clapper"');
+    expect(bannerEmoji('Shader graph tools')).toBe('palette');
+    expect(bannerEmoji('Managed Twitch commands')).toBe('robot');
+    expect(bannerEmoji('Emotes and provider events')).toBe('sparkles');
+    expect(bannerEmoji('Graph execution')).toBe('puzzle');
   });
   it('creates an orphan banner history and updates it without force or main writes', () => {
     for (const existing of [false,true]) {

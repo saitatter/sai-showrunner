@@ -12,6 +12,8 @@ Any publication of these packages should resolve that inherited discrepancy
 against contributor records first. No standalone package publication is added here.
 
 Font notices remain under `packages/showrunner-flutter/assets/fonts/`.
+Release banners embed unchanged Noto Color Emoji artwork under Apache-2.0,
+with [license and pinned source](branding/release-banner/emoji/NOTICE.txt) beside the assets.
 The `sai_nodes` dependency remains a separately licensed upstream dependency.
 The browser overlay, parity reference fixtures and interpreter oracle remain
 because they serve active runtime and verification purposes.
