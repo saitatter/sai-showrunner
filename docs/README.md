@@ -9,6 +9,7 @@ migration plans or test-session reports. Historical versions remain in Git.
 - [Live service testing](testing/live-services.md): demonstrated coverage, limits and isolation.
 - [Connection setup and node testing](testing/live-nodes.md): local YAML and provider requirements.
 - [Release and versioning policy](versioning-policy.md): manual preview, publish and asset rebuilds.
+- [Release notes](release-notes.md): editorial summaries, commit credits and immutable banners.
 - [Release checklist](release-checklist.md): operator checks before publication.
 - [Streamer.bot comparison](streamerbot-comparison.md): current capability gaps and priorities.
 - [Chat and commands](chat-and-commands.md): managed command behavior, unified chat and OBS dock setup.

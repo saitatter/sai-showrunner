@@ -518,11 +518,13 @@ run directly, and the standalone capture command uses a smaller grouped entrypoi
 CI also builds Windows Debug/Release, tests signing helpers with isolated fixtures,
 runs startup smokes, and exercises the production overlay in Chromium.
 
-GitHub runs windows-build (production Debug/Release, startup and signing-helper
-proofs) alongside windows-integration (analysis/unit tests, contracts, one native
-suite, captured visual comparisons and Chromium). The required test-windows check
-is an aggregate that runs even after a dependency failure and accepts only success
-from both Windows jobs. The other required names remain scripts-ubuntu and
+GitHub runs flutter-verify (analysis and unit tests), windows-build (production
+Debug/Release, startup and signing-helper proofs) and windows-integration
+(contracts, one native suite, captured visual comparisons and Chromium) in parallel.
+Flutter verification uses the same local `-Stage Flutter` command and uploads its
+raw `.tmp/ci/flutter-tests.jsonl` report, including after test failures.
+The required test-windows check is an aggregate that runs even after a dependency
+failure and accepts only success from all three jobs. The other required names remain scripts-ubuntu and
 release-dry-run. No fixture, assertion, screenshot region or tolerance is dropped.
 Native persistence fixtures wait for the editor saved state before reading disk:
 fixed animation pumps cannot establish completion of sequential Save All writes.

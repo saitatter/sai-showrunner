@@ -2,7 +2,7 @@
 
 ## Runtime boundaries
 
-The Windows desktop is a Flutter/Dart application. The production browser overlay
+The Windows, macOS and Linux desktop is a Flutter/Dart application. The production browser overlay
 is TypeScript/DOM/WebGL; OBS loads it as a Browser Source. Removing this package
 would remove overlay functionality, not complete a desktop migration.
 

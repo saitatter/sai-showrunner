@@ -4,7 +4,7 @@
 
 <h1 align="center">ShowRunner</h1>
 
-A production workspace for streamers and live creators, built with Flutter for Windows.
+A production workspace for streamers and live creators, built with Flutter for Windows, macOS and Linux.
 
 [Download releases](https://github.com/saitatter/sai-showrunner/releases) ?
 [Changelog](CHANGELOG.md) ? [Documentation](docs/README.md)
@@ -14,7 +14,7 @@ A production workspace for streamers and live creators, built with Flutter for W
 - Build visual automations with typed connections, conditions, variables,
   reusable subgraphs, queues and execution feedback.
 - Connect Twitch, YouTube and OBS; manage chat, events, scenes and production tools.
-- On the development branch, use [managed commands and unified chat](docs/chat-and-commands.md)
+- Use [managed commands and unified chat](docs/chat-and-commands.md)
   with Twitch/YouTube, cooldowns, role checks and a local OBS chat dock.
 - Organize broadcasts with profiles and segmented Stream Plans.
 - Design OBS browser overlays with editable widgets and visual Shader Graph effects.
@@ -71,8 +71,9 @@ See [AGENTS.md](AGENTS.md), [architecture](docs/architecture.md),
 [testing](docs/testing.md) and [release policy](docs/versioning-policy.md).
 For integrations, follow the [first-party plugin layout](packages/showrunner-flutter/lib/plugins/README.md)
 and its module lifecycle, connection ownership and event-delivery contracts.
-Releases are manual from main, with a preview, curated changelog notes and unsigned
-Windows ZIP packages. No signing certificate is required. Merging a PR does not
+Releases are manual from main, with a preview, [editorial summaries, complete commit credits
+and versioned banners](docs/release-notes.md). Windows ZIP packages are unsigned.
+No signing certificate is required. Merging a PR does not
 publish or change the version.
 
 ## Repository layout
@@ -84,6 +85,7 @@ publish or change the version.
 | `libs/showrunner-schema`, `libs/showrunner-overlay-*` | Browser contracts, widget loading and rendering/build support |
 | `plugins/*/overlay`, `plugins/*/shared` | Maintained browser widgets and shared protocol types |
 | `scripts`, `tools` | Verification, packaging and release tooling |
+| `docs` | Living documentation, release summaries, decisions and protocol inventories |
 | `test/reference` | Frozen comparison fixtures and Flutter regression baselines |
 
 Licensed under [AGPL-3.0](LICENSE.md). See [dependency provenance](docs/dependency-provenance.md)
