@@ -13,6 +13,8 @@ final class _ViewerOpenFactory extends NativeSqliteOpenFactory {
         sqliteOptions: const SqliteOptions(
           journalMode: null,
           maxReaders: 2,
+          // The upstream debug default records bound viewer values in DevTools.
+          profileQueries: false,
           synchronous: SqliteSynchronous.full,
           lockTimeout: Duration(seconds: 15),
         ),

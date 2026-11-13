@@ -15,6 +15,10 @@ identity and version, and uses FULL synchronous durability. Application shutdown
 stops provider/event workers before draining and closing the database. Embedded
 plugin hosts and standalone variable workspaces close the handles they own.
 
+SQL query profiling is explicitly disabled, including in debug/profile builds,
+so bound viewer values are not copied into DevTools timeline events. Benchmarks
+use explicit Stopwatch timing.
+
 Schema version 1 uses `PRAGMA user_version` and application ID `SVWD`:
 
 - `viewers`: provider-qualified ID, display name and normalized sort keys.
@@ -107,9 +111,9 @@ and `sqlite3` 3.5.2, warm cache, two declared fields:
 
 | Viewers | Archive import | First 100 median / p95 | Last 100 median / p95 | ID lookup median | Increment median |
 | --- | --- | --- | --- | --- | --- |
-| 1,000 | 529 ms | 3.40 / 5.58 ms | 2.85 / 5.58 ms | 0.92 ms | 2.36 ms |
-| 10,000 | 2,070 ms | 3.02 / 3.96 ms | 3.03 / 3.73 ms | 0.86 ms | 3.05 ms |
-| 100,000 | 20,608 ms | 3.05 / 4.48 ms | 8.78 / 10.24 ms | 0.92 ms | 3.07 ms |
+| 1,000 | 496 ms | 3.44 / 5.71 ms | 3.02 / 5.18 ms | 0.83 ms | 1.68 ms |
+| 10,000 | 2,022 ms | 3.52 / 4.49 ms | 3.44 / 4.17 ms | 1.26 ms | 1.77 ms |
+| 100,000 | 22,191 ms | 3.25 / 4.30 ms | 9.26 / 10.57 ms | 1.10 ms | 2.56 ms |
 
 These are local measurements, not CI thresholds or a JSON comparison. Initial
 JSON file migration additionally pays filesystem enumeration/read costs and is

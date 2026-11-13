@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Features
-- Store Viewer Data in indexed SQLite tables with transactional updates, provider-qualified identities, safe one-time import of existing files, consistent online backups and portable import/export.
+- Store Viewer Data in indexed SQLite tables with transactional updates, provider-qualified identities, safe one-time import of existing files, consistent online backups and portable import/export. Keep viewer values out of SQL profiling traces in development builds.
 - Add macOS Intel/Apple Silicon installers and portable ZIPs, plus Linux x64 DEB installers and portable archives, with secure OS-keyring credentials, platform data directories and native window/browser lifecycles with awaited window setup and Linux renderer lifetime retained through engine shutdown; preserve stored secrets when OS keys or key metadata are missing, and report Windows-only global input as unavailable without aborting desktop startup.
 - Add shader graph node search with Ctrl+F and a snap-to-grid toggle using the shared immutable canvas controls.
 - Keep overlay canvas/save actions usable in compact desktop layouts, with a keyboard-toggleable inspector/layers panel that retains draft and focus state across resizing.
