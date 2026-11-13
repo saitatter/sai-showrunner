@@ -1,7 +1,8 @@
 # Release notes
 
 ShowRunner follows the editorial structure used by
-[Collectarr](https://github.com/saitatter/collectarr-app): a banner and short summary,
+[Collectarr](https://github.com/saitatter/collectarr-app) and
+[PyLrcGet](https://github.com/saitatter/pylrcget): a banner and short summary,
 then complete commit credits, new contributors and a comparison link. The artwork
 and implementation belong to ShowRunner; no external rendering service is required.
 The [release policy](versioning-policy.md) owns version selection and publication.
@@ -18,6 +19,9 @@ records `previousTag`, and clears Unreleased in the same commit as version files
 and the changelog. Existing per-tag summaries remain intact. If a summary is
 missing, the formatter takes up to ten entries from the first changelog group.
 For an older release, add an explicit per-tag summary before regenerating notes.
+Optional `highlights` contains up to six single-line labels of at most 48 characters
+for the monitor in the banner. Release preparation freezes these alongside the
+full summary; the Markdown retains the full editorial statements.
 
 ## Description layout
 
@@ -33,8 +37,18 @@ would exceed the description budget, a visible comparison link replaces only the
 overflow; the summary and contributor credits remain. GitHub's comparison remains
 the authoritative complete history.
 
-The banner is an original deterministic SVG generated with Node's standard library.
-It shows up to six summary lines; the text below it retains every editorial bullet.
+The banner combines an original streaming-studio illustration with deterministic
+SVG text generated using Node's standard library. The built-in image generation
+tool produced [the reusable JPEG background](branding/release-banner/studio.jpg)
+from [this prompt](branding/release-banner/prompt.txt); the reference artwork was
+used for visual direction, not copied into the asset. Regeneration needs no AI,
+browser, Pillow or image service: the SVG embeds the committed JPEG and overlays
+the tag, original publication date, six highlights, previous tag, commit count,
+distinct merged PR count and contributor identities from the actual commit range.
+The first release includes inherited upstream history; merge commits are excluded.
+Issue metadata is queried once per unique PR, keeping large historical ranges
+within practical API budgets. At most four identities appear on the card, with
+an explicit remainder count; the Markdown credits the full history.
 Published banners live on the separate `release-banners` branch. Image URLs pin the
 banner commit SHA, so later updates do not change older descriptions. Never force
 push or delete this history. Banner writes do not commit to main.
