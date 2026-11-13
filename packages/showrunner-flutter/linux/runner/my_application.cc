@@ -131,7 +131,12 @@ static void my_application_shutdown(GApplication* application) {
   // Retain the whole widget tree so the renderer's finalizer cannot free its
   // compositor while the raster thread is presenting a frame. Dispose widgets,
   // stop the engine, then release the retained tree after the raster thread ends.
-  // Related upstream lifetime issue: flutter/flutter#188659 (its fix is in 3.47.7).
+  // Temporary renderer-retention workaround. Track FlView/OpenGL fixes at
+  // https://github.com/flutter/flutter/pull/193533 and software frame lifetime at
+  // https://github.com/flutter/flutter/issues/196545 (fix: pull/196546).
+  // Remove retain_widget_tree and retained_widgets only after the supported SDK
+  // contains the relevant fixes and installed/portable shutdown and restart
+  // proofs pass without retention in both OpenGL and software rendering modes.
   if (self->window != nullptr) {
     gtk_container_forall(GTK_CONTAINER(self->window), retain_widget_tree,
                          retained_widgets);
