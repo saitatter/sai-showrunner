@@ -1,0 +1,18 @@
+{
+  "v2.1.0": {
+    "summary": [
+      "Manage Twitch and YouTube chat commands with aliases, permissions, cooldowns and persistent counters.",
+      "Read and moderate Twitch/YouTube conversations in unified chat and an authenticated OBS dock.",
+      "Display richer emotes and provider events with configurable highlights, filters and automation actions.",
+      "Inspect execution traces with bounded history and explicit truncation indicators."
+    ],
+    "previousTag": "v2.0.0"
+  },
+  "Unreleased": {
+    "summary": [
+      "Install ShowRunner on macOS or Linux, or run a portable copy with its own application data.",
+      "Use native macOS and Linux credential storage, with checks that preserve existing encrypted settings.",
+      "Work with automation, overlay and shader editors backed by stricter persistence and transport contracts."
+    ]
+  }
+}
