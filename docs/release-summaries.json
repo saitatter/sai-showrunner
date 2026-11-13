@@ -6,7 +6,13 @@
       "Display richer emotes and provider events with configurable highlights, filters and automation actions.",
       "Inspect execution traces with bounded history and explicit truncation indicators."
     ],
-    "previousTag": "v2.0.0"
+    "previousTag": "v2.0.0",
+    "highlights": [
+      "Managed Twitch and YouTube commands",
+      "Unified chat and authenticated OBS dock",
+      "Emotes, highlights and provider events",
+      "Bounded execution traces and counters"
+    ]
   },
   "Unreleased": {
     "summary": [
@@ -14,5 +20,112 @@
       "Use native macOS and Linux credential storage, with checks that preserve existing encrypted settings.",
       "Work with automation, overlay and shader editors backed by stricter persistence and transport contracts."
     ]
+  },
+  "v1.0.0": {
+    "summary": [
+      "Build streaming automations in the first node-based ShowRunner editor.",
+      "Connect Twitch and YouTube, configure moderation workflows and publish OBS overlays.",
+      "Create shader effects, paid-event alerts and chat-driven widgets."
+    ],
+    "highlights": [
+      "Node-based streaming automations",
+      "Twitch and YouTube foundations",
+      "Moderation and queue workflows",
+      "OBS overlays and shader effects"
+    ],
+    "previousTag": null
+  },
+  "v1.0.1": {
+    "summary": [
+      "Refresh project documentation and align release-note formatting after the initial release."
+    ],
+    "highlights": [
+      "Updated project documentation",
+      "Aligned release-note formatting"
+    ],
+    "previousTag": "v1.0.0"
+  },
+  "v1.0.2": {
+    "summary": [
+      "Pin send MIME compatibility to prevent type and package resolution problems."
+    ],
+    "highlights": [
+      "MIME dependency compatibility"
+    ],
+    "previousTag": "v1.0.1"
+  },
+  "v1.1.0": {
+    "summary": [
+      "Replace SequenceRunner with the graph execution engine; existing automation data is normalized where supported.",
+      "Author graphs with data wires, subgraphs, a minimap, clipboard tools and runtime feedback.",
+      "Execute queue graphs and use expanded YouTube moderation and HTTP request controls.",
+      "Build shader effects with the first visual shader graph editor and live preview."
+    ],
+    "highlights": [
+      "Graph execution replaces SequenceRunner",
+      "Data wires, subgraphs and graph tools",
+      "Queues and YouTube moderation",
+      "Visual shader graphs and live preview"
+    ],
+    "previousTag": "v1.0.2"
+  },
+  "v1.2.0": {
+    "summary": [
+      "Improve subgraph editing and allow trigger data wires in graph automations.",
+      "Reduce noisy flow-edge rendering and repair reactive graph configuration."
+    ],
+    "highlights": [
+      "Improved subgraph editing",
+      "Trigger data wires",
+      "Cleaner edges and reactive configuration"
+    ],
+    "previousTag": "v1.1.0"
+  },
+  "v1.3.0": {
+    "summary": [
+      "Organize graphs with colored annotation blocks, explicit trigger nodes and data-only conversions.",
+      "Manage integrations through grouped categories, plugin toggles and detail tabs.",
+      "Read available updates and release notes inside the application.",
+      "Persist shader graphs with compile validation, toolbar controls and a tabbed editor."
+    ],
+    "highlights": [
+      "Graph annotations and explicit triggers",
+      "Data-only conversion nodes",
+      "Integration management and details",
+      "In-app updates and release notes",
+      "Shader graph persistence and validation"
+    ],
+    "previousTag": "v1.2.0"
+  },
+  "v1.4.0": {
+    "summary": [
+      "Expand shader authoring with live preview uniforms, procedural primitives, terrain sampling, biome colors and camera raymarch nodes.",
+      "Configure plugin visibility, integration details and interface sidebar preferences.",
+      "Create automations from onboarding starters and navigate node menus with the keyboard."
+    ],
+    "highlights": [
+      "Expanded shader tools and live uniforms",
+      "Terrain, biome and raymarch shader nodes",
+      "Plugin visibility and integration details",
+      "Sidebar preferences and settings reset",
+      "Automation starters and keyboard navigation"
+    ],
+    "previousTag": "v1.3.0"
+  },
+  "v2.0.0": {
+    "summary": [
+      "Move the desktop product to the Flutter production workspace with immutable automation and shader graphs.",
+      "Work with overlays, profiles, queues, Stream Plans and integrated Twitch/YouTube workspaces.",
+      "Use remote dashboards, viewer data, local audio and Bluetooth heart-rate workflows.",
+      "Preserve graph editing history and reject unsupported documents without overwriting them."
+    ],
+    "highlights": [
+      "Flutter production desktop workspace",
+      "Immutable automation and shader graphs",
+      "Overlays, profiles, queues and Stream Plans",
+      "Integrated Twitch and YouTube workspaces",
+      "Remote dashboards, audio and heart rate"
+    ],
+    "previousTag": "v1.4.0"
   }
 }

@@ -49,6 +49,9 @@ describe('release summaries and full history', () => {
     expect(frozen.Unreleased.summary).toEqual([]);
     expect(JSON.parse(freezeSummary('{}','v1.0.0','### Features\n- First.'))['v1.0.0'].summary).toEqual(['First.']);
     expect(() => parseSummaries('{"Unreleased":{"summary":["two\\nlines"]}}')).toThrow(/one-line/);
+    const illustrated = JSON.parse(freezeSummary(JSON.stringify({Unreleased:{summary:['Detailed outcome.'], highlights:['Short screen label']}}),'v1.0.0',''));
+    expect(illustrated['v1.0.0'].highlights).toEqual(['Short screen label']);
+    expect(() => parseSummaries(JSON.stringify({Unreleased:{summary:['Outcome'],highlights:['x'.repeat(49)]}}))).toThrow(/short banner/);
   });
   it('keeps paginated commits oldest first, excludes merges and lists each commit once', () => {
     const a = commit('a','feat: a\n\nFixes #12'), b = commit('b','fix: b'), merge = commit('c','Merge PR title','alice',[{},{}]);
@@ -70,6 +73,21 @@ describe('release summaries and full history', () => {
     expect(calls).toHaveLength(2);
     expect(() => associatedPulls('o/r',[commits[0]],() => ({errors:[{message:'Denied'}]}))).toThrow(/attribution/);
   });
+  it('fetches issue credits once for repeated PRs instead of nesting issue connections per commit', () => {
+    const calls = [];
+    const api = (_route, options) => {
+      calls.push(options.body.query);
+      if (options.body.query.includes('associatedPullRequests')) return {data:{repository:Object.fromEntries([0,1].map(i => [`c${i}`,{associatedPullRequests:{nodes:[{id:'PR_same',number:7,merged:true,baseRefName:'main'}]}}]))}};
+      return {data:{nodes:[{id:'PR_same',closingIssuesReferences:{nodes:[{url:'https://github.com/o/r/issues/2'}],pageInfo:{hasNextPage:false}}}]}};
+    };
+    const commits = [commit('a','feat: a'),commit('b','feat: b')];
+    const pulls = associatedPulls('o/r',commits,api);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).not.toContain('closingIssuesReferences');
+    expect(calls[1]).toContain('nodes(ids: ["PR_same"])');
+    expect(changeLines('o/r',commits,pulls).filter(line => line.includes('closes'))).toHaveLength(1);
+    expect(() => associatedPulls('o/r',commits,(_route,options) => options.body.query.includes('associatedPullRequests') ? api(_route,options) : {data:{nodes:[{id:'PR_same',closingIssuesReferences:{nodes:[],pageInfo:{hasNextPage:true}}}]}})).toThrow(/Incomplete/);
+  });
   it('preserves credits and comparison when a complete history exceeds the description limit', () => {
     const credits = contributorCredits("## What's Changed\r\n* generated pull title\r\n\r\n## New Contributors\r\n* @bob joined\r\n\r\n**Full Changelog:** old");
     const options = {repository:'o/r',tag:'v1.1.0',previousTag:'v1.0.0',summary:['User outcome.'],bannerUrl:'https://example.invalid/banner.svg',credits};
@@ -90,6 +108,11 @@ describe('release banner and publication boundaries', () => {
     const svg = renderBanner(options);
     expect(svg).toContain('ShowRunner'); expect(svg).toContain('&lt;script&gt; &amp; &quot;title&quot;');
     expect(svg).not.toContain('<script>'); expect(svg).toBe(renderBanner(options));
+    expect(svg).toContain('data:image/jpeg;base64,');
+    expect(svg).not.toMatch(/<image[^>]+href="https?:/);
+    const historical = renderBanner({...options,previousTag:'v1.0.0',highlights:['Compact label'],contributorNames:['@alice','<script>'],contributors:6,mergedPulls:3});
+    expect(historical).toContain('Compact label'); expect(historical).toContain('v1.0.0');
+    expect(historical).toContain('+ 2 more in history'); expect(historical).toContain('&lt;script&gt;');
   });
   it('creates an orphan banner history and updates it without force or main writes', () => {
     for (const existing of [false,true]) {

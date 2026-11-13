@@ -21,6 +21,7 @@ export function parseSummaries(source) {
       throw new Error(`Expected one-line summary entries for ${tag}.`);
     }
     if (entry.previousTag != null && !tagPattern.test(entry.previousTag)) throw new Error(`Invalid previous tag for ${tag}.`);
+    if (entry.highlights !== undefined && (!Array.isArray(entry.highlights) || entry.highlights.length > 6 || entry.highlights.some(line => typeof line !== 'string' || !line.trim() || /[\r\n]/.test(line) || line.length > 48))) throw new Error(`Expected up to six short banner highlights for ${tag}.`);
   }
   return data;
 }
@@ -35,9 +36,9 @@ export function fallbackSummary(changelog) {
 
 export function freezeSummary(source, tag, changelog, previousTag) {
   const data = parseSummaries(source);
-  const summary = data[tag]?.summary.length ? data[tag].summary
-    : data.Unreleased?.summary.length ? data.Unreleased.summary : fallbackSummary(changelog);
-  data[tag] = {summary, previousTag: previousTag ?? null};
+  const editorial = data[tag]?.summary.length ? data[tag] : data.Unreleased?.summary.length ? data.Unreleased : undefined;
+  const summary = editorial?.summary || fallbackSummary(changelog);
+  data[tag] = {summary, ...(editorial?.highlights ? {highlights:editorial.highlights} : {}), previousTag: previousTag ?? null};
   data.Unreleased = {summary: []};
   return JSON.stringify(data, null, 2) + '\n';
 }
@@ -58,8 +59,8 @@ export function changeLines(repository, commits, pulls = {}) {
     const message = commit.commit.message;
     const issues = closingIssues(message, repository);
     const pull = pulls[commit.sha];
-    if (pull && !creditedPulls.has(pull.number)) {
-      creditedPulls.add(pull.number);
+    if (pull && !creditedPulls.has(pull.id || pull.number)) {
+      creditedPulls.add(pull.id || pull.number);
       issues.push(...pull.closingIssuesReferences.nodes.map(issue => issue.url));
     }
     const closed = [...new Set(issues)];
@@ -92,24 +93,36 @@ export function composeNotes({repository, tag, previousTag, summary, bannerUrl, 
   return header + selected.join('\n') + '\n' + (selected.length < changes.length ? omitted : '') + footer;
 }
 
-export function renderBanner({tag, date, summary, commits, contributors}) {
-  const rows = summary.slice(0, 6).map((line, index) => {
-    const plain = line.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[`*_]/g, '');
-    const text = plain.length > 112 ? plain.slice(0, 109) + '...' : plain;
-    return `<circle cx="65" cy="${216 + index * 47}" r="5" fill="#20D6B5"/><text x="88" y="${223 + index * 47}" font-size="18">${xml(text)}</text>`;
+const studioImage = readFileSync(new URL('../../docs/branding/release-banner/studio.jpg', import.meta.url)).toString('base64');
+const plainText = value => value.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[`*_]/g, '');
+const shorten = (value, length) => value.length > length ? value.slice(0, length - 3) + '...' : value;
+
+export function renderBanner({tag, date, summary, highlights, commits, contributors, contributorNames = [], mergedPulls = 0, previousTag}) {
+  const rows = (highlights || summary).slice(0, 6).map((line, index) => {
+    const y = 259 + index * 36;
+    return `<circle cx="520" cy="${y - 7}" r="6" fill="#27DBC5"/><text x="542" y="${y}" font-size="21">${xml(shorten(plainText(line), 48))}</text>`;
   }).join('\n');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
-<rect width="1200" height="600" rx="26" fill="#111118"/>
-<rect x="2" y="2" width="1196" height="596" rx="25" fill="none" stroke="#8A5CFF" stroke-width="4"/>
-<g font-family="system-ui, sans-serif" fill="#F4F0FF">
-<text x="54" y="83" font-size="38" font-weight="700">ShowRunner</text>
-<text x="54" y="123" font-size="20" fill="#B8B1CC">AUTOMATION · CHAT · OVERLAYS</text>
-<rect x="912" y="44" width="232" height="58" rx="14" fill="#302045"/>
-<text x="1028" y="82" text-anchor="middle" font-size="25" font-weight="700">${xml(tag)}</text>
-<path d="M54 159 H1145" stroke="#343044"/>
+  const people = contributorNames.slice(0, 4).map((name, index) => `<text x="1164" y="${691 + index * 32}" font-size="${name.length > 18 ? 18 : 22}">${xml(shorten(name, 26))}</text>`).join('\n');
+  const month = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][Number(date.slice(5,7)) - 1];
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="941" viewBox="0 0 1672 941" role="img" aria-label="ShowRunner ${xml(tag)} release highlights">
+<title>ShowRunner ${xml(tag)} ? ${xml(date)}</title>
+<image href="data:image/jpeg;base64,${studioImage}" width="1672" height="941"/>
+<g font-family="monospace" fill="#EEEDE6">
+<text x="511" y="211" font-size="43" fill="#A2EA80">${xml(tag)}</text>
+<text x="1160" y="204" text-anchor="end" font-size="17" fill="#62D5CF">RELEASE NOTES</text>
 ${rows}
-<path d="M54 520 H1145" stroke="#343044"/>
-<text x="54" y="562" font-size="18" fill="#B8B1CC">${xml(date)} · ${commits} commits · ${contributors} contributors</text>
+<text x="412" y="669" text-anchor="middle" font-size="14" fill="#E7D471">VERSION HISTORY</text>
+<text x="412" y="704" text-anchor="middle" font-size="20">${xml(previousTag || 'FIRST RELEASE')}</text>
+<text x="412" y="739" text-anchor="middle" font-size="21" fill="#A2EA80">${xml(tag)}</text>
+</g>
+<g font-family="sans-serif" fill="#222332">
+<text x="1321" y="169" text-anchor="middle" font-size="24">${xml(date.slice(8,10))} ${month}</text>
+<text x="1321" y="207" text-anchor="middle" font-size="26">${xml(date.slice(0,4))}</text>
+<text x="618" y="685" font-size="24" font-weight="600">Commits</text><text x="1046" y="685" text-anchor="end" font-size="26">${commits}</text>
+<text x="618" y="733" font-size="24" font-weight="600">Merged PRs</text><text x="1046" y="733" text-anchor="end" font-size="26">${mergedPulls}</text>
+<text x="618" y="781" font-size="24" font-weight="600">Contributors</text><text x="1046" y="781" text-anchor="end" font-size="26">${contributors}</text>
+${people}
+${contributors > 4 ? `<text x="1164" y="819" font-size="18">+ ${contributors - 4} more in history</text>` : ''}
 </g></svg>\n`;
 }
 
@@ -141,15 +154,31 @@ export function associatedPulls(repository, commits, api = githubApi) {
   for (let offset = 0; offset < shas.length; offset += 50) {
     const chunk = shas.slice(offset, offset + 50);
     if (chunk.some(sha => !/^[a-f0-9]{40}$/i.test(sha))) throw new Error('Expected full commit identifiers.');
-    const fields = chunk.map((sha, i) => `c${i}: object(oid: "${sha}") { ... on Commit { associatedPullRequests(first: 5) { nodes { number merged baseRefName closingIssuesReferences(first: 100) { nodes { url } pageInfo { hasNextPage endCursor } } } } } }`).join(' ');
+    const fields = chunk.map((sha, i) => `c${i}: object(oid: "${sha}") { ... on Commit { associatedPullRequests(first: 5) { nodes { id number merged baseRefName } } } }`).join(' ');
     const response = api('graphql', {method:'POST', body:{query:`query { repository(owner: "${owner}", name: "${name}") { ${fields} } }`}});
     if (response.errors || !response.data?.repository) throw new Error('Unable to read pull request attribution.');
     chunk.forEach((sha, i) => {
       const pulls = response.data.repository[`c${i}`]?.associatedPullRequests.nodes || [];
       const merged = pulls.filter(pull => pull.merged).sort((a,b) => Number(b.baseRefName === 'main') - Number(a.baseRefName === 'main'));
-      if (merged[0]?.closingIssuesReferences.pageInfo?.hasNextPage) throw new Error('A pull request closes more than 100 issues; paginate its credits before publishing.');
       if (merged[0]) result[sha] = merged[0];
     });
+  }
+  // Fetch issue connections once per unique PR, rather than for every commit/PR
+  // combination. Initial releases can contain thousands of inherited commits.
+  const ids = [...new Set(Object.values(result).map(pull => pull.id))];
+  const metadata = new Map();
+  for (let offset = 0; offset < ids.length; offset += 50) {
+    const group = ids.slice(offset, offset + 50);
+    const response = api('graphql', {method:'POST', body:{query:`query { nodes(ids: ${JSON.stringify(group)}) { ... on PullRequest { id closingIssuesReferences(first: 100) { nodes { url } pageInfo { hasNextPage } } } } }`}});
+    if (response.errors || response.data?.nodes?.length !== group.length) throw new Error('Unable to read pull request issue credits.');
+    for (const node of response.data.nodes) {
+      if (!node?.id || !node.closingIssuesReferences || node.closingIssuesReferences.pageInfo?.hasNextPage) throw new Error('Incomplete pull request issue credits; paginate before publishing.');
+      metadata.set(node.id, node.closingIssuesReferences);
+    }
+  }
+  for (const pull of Object.values(result)) {
+    if (!metadata.has(pull.id)) throw new Error('Missing pull request issue credits.');
+    pull.closingIssuesReferences = metadata.get(pull.id);
   }
   return result;
 }
@@ -174,12 +203,16 @@ export function formatRelease({repository, release, previousTag, summaries, cwd,
   const summary = entry?.summary.length ? entry.summary : fallbackSummary(section);
   if (entry && Object.hasOwn(entry, 'previousTag')) previousTag = entry.previousTag;
   const commits = rangeCommits(repository, previousTag, tag, api);
-  const changes = changeLines(repository, commits, associatedPulls(repository, commits, api));
+  const pulls = associatedPulls(repository, commits, api);
+  const changes = changeLines(repository, commits, pulls);
   const generated = api(`repos/${repository}/releases/generate-notes`, {method:'POST', body:{tag_name:tag, ...(previousTag ? {previous_tag_name:previousTag} : {})}});
   let bannerUrl = /^!\[[^\]]*\]\((https:\/\/\S+)\)/.exec(release.body || '')?.[1];
   if (!bannerUrl || refreshBanner) {
+    const uniqueCommits = [...new Map(commits.filter(commit => commit.parents.length < 2).map(commit => [commit.sha, commit])).values()];
+    const contributorNames = [...new Set(uniqueCommits.map(commit => commit.author?.login ? `@${commit.author.login}` : commit.commit.author?.name || 'Unknown contributor'))].sort();
     const svg = renderBanner({tag, date:(release.published_at || release.created_at).slice(0,10), summary,
-      commits:changes.length, contributors:new Set(commits.filter(commit => commit.parents.length < 2).map(commit => commit.author?.login || commit.commit.author?.name)).size});
+      highlights:entry?.highlights, previousTag, commits:changes.length, contributors:contributorNames.length,
+      contributorNames, mergedPulls:new Set(Object.values(pulls).map(pull => pull.id || pull.number)).size});
     if (write) bannerUrl = publishBanner(repository, tag, svg, api);
     else {
       const directory = resolve(cwd,'.tmp/release-notes'); mkdirSync(directory,{recursive:true});
