@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export function verifiedMainCi(run, jobs, commit, repository) {
-  const required = ['test-windows', 'windows-build', 'windows-integration', 'scripts-ubuntu', 'release-dry-run'];
+  const required = ['test-windows', 'flutter-verify', 'windows-build', 'windows-integration', 'scripts-ubuntu', 'release-dry-run'];
   return run.status === 'completed' && run.conclusion === 'success' &&
     run.event === 'push' && run.head_branch === 'main' && run.head_sha === commit &&
     run.path === '.github/workflows/ci.yml' && Number.isSafeInteger(run.id) && run.id > 0 &&

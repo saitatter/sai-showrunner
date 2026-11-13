@@ -92,11 +92,14 @@ describe("Manual release policy", () => {
     const updateSmoke = steps.find(step => step.name === "Smoke Flutter Windows updater classification")
     expect(updateSmoke.run).toContain("-Configuration Release -Scenario updates")
 
-    expect(ci.jobs["test-windows"].needs.sort()).toEqual(["windows-build", "windows-integration"])
+    expect(ci.jobs["test-windows"].needs.sort()).toEqual(["flutter-verify", "windows-build", "windows-integration"])
     expect(ci.jobs["test-windows"].if).toContain("always()")
     const gate = ci.jobs["test-windows"].steps[0]
     expect(gate.env.BUILD_RESULT).toContain("needs.windows-build.result")
     expect(gate.env.INTEGRATION_RESULT).toContain("needs.windows-integration.result")
+    expect(gate.env.FLUTTER_RESULT).toContain("needs.flutter-verify.result")
+    expect(ci.jobs['flutter-verify'].steps.some(step => step.run?.includes('-Stage Flutter'))).toBe(true)
+    expect(ci.jobs['windows-integration'].steps.some(step => step.run?.includes('-Stage Flutter'))).toBe(false)
     expect(gate.run).toContain('test "$BUILD_RESULT" = success && test "$INTEGRATION_RESULT" = success')
     const integrationSteps = ci.jobs["windows-integration"].steps
     expect(integrationSteps.find(step => step.name === "Run Flutter integration gate").run).toContain("-CaptureDirectory")
@@ -143,7 +146,7 @@ describe("Manual release policy", () => {
   })
   it("matches branch-protection checks and pins the same SDK in every workflow", async () => {
     const ci = parse(await readFile(resolve(repositoryRoot, ".github/workflows/ci.yml"), "utf8"))
-    expect(Object.keys(ci.jobs).sort()).toEqual(["release-dry-run", "scripts-ubuntu", "test-windows", "windows-build", "windows-integration"])
+    expect(Object.keys(ci.jobs).sort()).toEqual(["flutter-verify", "release-dry-run", "scripts-ubuntu", "test-windows", "windows-build", "windows-integration"])
     expect(ci.on).toHaveProperty("workflow_call")
     for (const name of ["ci", "nightly", "release", "release-proof"]) {
       const source = await readFile(resolve(repositoryRoot, `.github/workflows/${name}.yml`), "utf8")

@@ -42,7 +42,10 @@ try {
       Invoke-Check flutter @('pub', 'get', '--enforce-lockfile')
       Invoke-Check dart @('format', '--output=none', '--set-exit-if-changed', 'lib', 'test', 'tool', 'integration_test')
       Invoke-Check flutter @('analyze', '--no-pub', '--fatal-infos')
-      Invoke-Check flutter @('test', '--no-pub')
+      $flutterReportDirectory = Join-Path $repoRoot '.tmp/ci'
+      New-Item -ItemType Directory -Force -Path $flutterReportDirectory | Out-Null
+      $flutterReportFile = Join-Path $flutterReportDirectory 'flutter-tests.jsonl'
+      Invoke-Check flutter @('test', '--no-pub', '--file-reporter', "json:$flutterReportFile")
     } finally { Pop-Location }
   }
   if ($Stage -in @('All', 'Parity')) {
