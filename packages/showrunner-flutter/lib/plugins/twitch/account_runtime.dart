@@ -142,6 +142,8 @@ const _channelScopes = <String>[
   'channel:read:ads',
   'channel:manage:ads',
   'clips:edit',
+  'channel:manage:clips',
+  'channel:manage:guest_star',
 ];
 
 const _botScopes = <String>[

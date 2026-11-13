@@ -16,6 +16,7 @@ part 'actions/stream.dart';
 part 'actions/rewards.dart';
 part 'actions/ads.dart';
 part 'actions/lifecycle.dart';
+part 'actions/channel_tools.dart';
 
 typedef TwitchRequest =
     Future<RuntimeMap> Function(
@@ -42,7 +43,7 @@ final class TwitchTransport {
         entry.key: entry.value == null || '${entry.value}'.trim().isEmpty
             ? (switch (entry.key) {
                     'broadcaster_id' || 'from_broadcaster_id' => broadcasterId,
-                    'moderator_id' || 'sender_id' => moderatorId,
+                    'moderator_id' || 'sender_id' || 'editor_id' => moderatorId,
                     'user_id' when marker => broadcasterId,
                     'user_id' when autoMod => moderatorId,
                     _ => null,
@@ -574,6 +575,7 @@ DartPluginManifest createTwitchPlugin(
     ],
     actions: [
       ..._twitchLifecycleActions(transport),
+      ..._twitchChannelToolActions(transport),
       _twitchAction(adActions, 'createClip'),
       _twitchAction(streamActions, 'streamMarker'),
       _twitchAction(adActions, 'runAd'),

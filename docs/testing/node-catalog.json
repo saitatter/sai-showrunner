@@ -2677,6 +2677,431 @@
           "liveStatus": "pending"
         },
         {
+          "id": "getChannelTags",
+          "name": "Get Channel Tags",
+          "config": {
+            "key": null,
+            "label": "Get channel tags",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Channel tags",
+            "type": "object",
+            "fields": [
+              {
+                "key": "tags",
+                "label": "Tags",
+                "type": "array"
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "setChannelTags",
+          "name": "Set Channel Tags",
+          "config": {
+            "key": null,
+            "label": "Replace channel tags (empty list clears)",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "tags",
+                "label": "Tags (up to 10)",
+                "type": "array",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getClipDownloadUrls",
+          "name": "Get Clip Download URLs",
+          "config": {
+            "key": null,
+            "label": "Clip download URLs",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "editorId",
+                "label": "Editor ID (authenticated account)",
+                "type": "text"
+              },
+              {
+                "key": "clipIds",
+                "label": "Clip IDs (1–10)",
+                "type": "array",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getGuestStarSession",
+          "name": "Get Guest Star Session",
+          "config": {
+            "key": null,
+            "label": "Get Guest Star Session",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "createGuestStarSession",
+          "name": "Create Guest Star Session",
+          "config": {
+            "key": null,
+            "label": "Create Guest Star Session",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "endGuestStarSession",
+          "name": "End Guest Star Session",
+          "config": {
+            "key": null,
+            "label": "End Guest Star Session",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "sessionId",
+                "label": "Session ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "getGuestStarInvites",
+          "name": "Get Guest Star Invites",
+          "config": {
+            "key": null,
+            "label": "Get Guest Star Invites",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "sessionId",
+                "label": "Session ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "sendGuestStarInvite",
+          "name": "Send Guest Star Invite",
+          "config": {
+            "key": null,
+            "label": "Send Guest Star Invite",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "sessionId",
+                "label": "Session ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "guestId",
+                "label": "Guest ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "deleteGuestStarInvite",
+          "name": "Delete Guest Star Invite",
+          "config": {
+            "key": null,
+            "label": "Delete Guest Star Invite",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "sessionId",
+                "label": "Session ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "guestId",
+                "label": "Guest ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "assignGuestStarSlot",
+          "name": "Assign Guest Star Slot",
+          "config": {
+            "key": null,
+            "label": "Assign Guest Star Slot",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "sessionId",
+                "label": "Session ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "guestId",
+                "label": "Guest ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "slotId",
+                "label": "Slot ID (1–6)",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "deleteGuestStarSlot",
+          "name": "Delete Guest Star Slot",
+          "config": {
+            "key": null,
+            "label": "Delete Guest Star Slot",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "moderatorId",
+                "label": "Moderator ID",
+                "type": "text"
+              },
+              {
+                "key": "sessionId",
+                "label": "Session ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "guestId",
+                "label": "Guest ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "slotId",
+                "label": "Slot ID (1–6)",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "reinvite",
+                "label": "Reinvite guest",
+                "type": "boolean"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
           "id": "createClip",
           "name": "Create Clip",
           "config": {
@@ -2798,7 +3223,30 @@
               }
             ]
           },
-          "result": null,
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
           "liveStatus": "pending"
         },
         {
@@ -3007,7 +3455,30 @@
               }
             ]
           },
-          "result": null,
+          "result": {
+            "key": null,
+            "label": "Helix result",
+            "type": "object",
+            "fields": [
+              {
+                "key": "data",
+                "label": "Data",
+                "type": "array"
+              },
+              {
+                "key": "pagination",
+                "label": "Pagination",
+                "type": "object",
+                "fields": [
+                  {
+                    "key": "cursor",
+                    "label": "Cursor",
+                    "type": "text"
+                  }
+                ]
+              }
+            ]
+          },
           "liveStatus": "pending"
         },
         {
@@ -6813,10 +7284,10 @@
             "name": "QA resource",
             "activationAutomation": {
               "schemaVersion": 1,
-              "id": "803083f9f21a68f379143dde3edb4669",
+              "id": "bc5e2d6520681b8d58c9ae0233517c1f",
               "graph": {
                 "schemaVersion": 1,
-                "id": "803083f9f21a68f379143dde3edb4669",
+                "id": "bc5e2d6520681b8d58c9ae0233517c1f",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -6837,10 +7308,10 @@
             },
             "deactivationAutomation": {
               "schemaVersion": 1,
-              "id": "10af2e01b9ebe595f89dac8646e19880",
+              "id": "d48010dadc64dd560c402efd5c0ca039",
               "graph": {
                 "schemaVersion": 1,
-                "id": "10af2e01b9ebe595f89dac8646e19880",
+                "id": "d48010dadc64dd560c402efd5c0ca039",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -6867,7 +7338,7 @@
   ],
   "counts": {
     "plugins": 34,
-    "actions": 190,
+    "actions": 201,
     "triggers": 68
   },
   "note": "Insertion and serialization passed; live execution requires enabled scenarios and connections."

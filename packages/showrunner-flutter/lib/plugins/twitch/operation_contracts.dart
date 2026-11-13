@@ -28,6 +28,13 @@ int? _integer(RuntimeMap value, String key, int min, int max) {
   return raw.toInt();
 }
 
+bool _boolean(RuntimeMap value, String key) {
+  final raw = value[key];
+  if (raw == null) return false;
+  if (raw is! bool) throw ArgumentError('$key must be a boolean.');
+  return raw;
+}
+
 List<String> _ids(
   RuntimeMap value,
   String key,
@@ -114,8 +121,9 @@ final class TwitchWarningConfig {
       moderatorId = _text(value, 'moderatorId'),
       viewerId = _text(value, 'viewerId', required: true)!,
       reason = _text(value, 'reason', required: true)! {
-    if (reason.runes.length > 500)
+    if (reason.runes.length > 500) {
       throw ArgumentError('reason exceeds 500 characters.');
+    }
   }
   final String? broadcasterId;
   final String? moderatorId;
@@ -194,3 +202,83 @@ final class TwitchModerationEvent {
     'details': details,
   };
 }
+
+final class TwitchTagsConfig {
+  TwitchTagsConfig.fromRuntime(RuntimeMap value)
+    : broadcasterId = _text(value, 'broadcasterId'),
+      tags = _ids(value, 'tags', 10) {
+    if (value['tags'] == null) {
+      throw ArgumentError('tags is required (use [] to clear).');
+    }
+    final alphanumeric = RegExp(r'^[\p{L}\p{N}]+$', unicode: true);
+    if (tags.any(
+      (tag) => tag.runes.length > 25 || !alphanumeric.hasMatch(tag),
+    )) {
+      throw ArgumentError(
+        'tags must be alphanumeric and at most 25 characters each.',
+      );
+    }
+  }
+  final String? broadcasterId;
+  final List<String> tags;
+  RuntimeMap toRuntime() => {
+    if (broadcasterId != null) 'broadcasterId': broadcasterId,
+    'tags': tags,
+  };
+}
+
+final class TwitchClipDownloadsConfig {
+  TwitchClipDownloadsConfig.fromRuntime(RuntimeMap value)
+    : broadcasterId = _text(value, 'broadcasterId'),
+      editorId = _text(value, 'editorId'),
+      clipIds = _ids(value, 'clipIds', 10, required: true);
+  final String? broadcasterId;
+  final String? editorId;
+  final List<String> clipIds;
+  RuntimeMap toRuntime() => {
+    if (broadcasterId != null) 'broadcasterId': broadcasterId,
+    if (editorId != null) 'editorId': editorId,
+    'clipIds': clipIds,
+  };
+}
+
+final class TwitchGuestStarConfig {
+  TwitchGuestStarConfig.fromRuntime(RuntimeMap value)
+    : broadcasterId = _text(value, 'broadcasterId'),
+      moderatorId = _text(value, 'moderatorId'),
+      sessionId = _text(value, 'sessionId'),
+      guestId = _text(value, 'guestId'),
+      slotId = _text(value, 'slotId'),
+      reinvite = _boolean(value, 'reinvite') {
+    if (slotId != null && !RegExp(r'^[1-6]$').hasMatch(slotId!)) {
+      throw ArgumentError('slotId must be a slot number from 1 to 6.');
+    }
+  }
+  final String? broadcasterId;
+  final String? moderatorId;
+  final String? sessionId;
+  final String? guestId;
+  final String? slotId;
+  final bool reinvite;
+  RuntimeMap toRuntime() => {
+    if (broadcasterId != null) 'broadcasterId': broadcasterId,
+    if (moderatorId != null) 'moderatorId': moderatorId,
+    if (sessionId != null) 'sessionId': sessionId,
+    if (guestId != null) 'guestId': guestId,
+    if (slotId != null) 'slotId': slotId,
+    'reinvite': reinvite,
+  };
+}
+
+final twitchTagsConfigCodec = TwitchConfigCodec(
+  TwitchTagsConfig.fromRuntime,
+  (value) => value.toRuntime(),
+);
+final twitchClipDownloadsConfigCodec = TwitchConfigCodec(
+  TwitchClipDownloadsConfig.fromRuntime,
+  (value) => value.toRuntime(),
+);
+final twitchGuestStarConfigCodec = TwitchConfigCodec(
+  TwitchGuestStarConfig.fromRuntime,
+  (value) => value.toRuntime(),
+);

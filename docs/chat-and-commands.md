@@ -180,6 +180,23 @@ See the official [poll](https://dev.twitch.tv/docs/api/reference/polls/),
 [chat](https://dev.twitch.tv/docs/api/reference/chat/) and
 [moderation](https://dev.twitch.tv/docs/api/reference/moderation/) contracts.
 
+Channel tools include Get/Set Channel Tags (maximum 10 alphanumeric tags,
+25 characters each). Set replaces the list; `[]` clears it. Clip Download URLs
+accepts 1?10 clip IDs and returns Twitch's temporary download links without
+fetching the files. Reauthorize for `channel:manage:clips`; the editor ID must
+identify the authenticated broadcaster/editor. Do not persist signed URLs as
+long-lived media references.
+
+Guest Star (Twitch Stream Together, beta API) exposes get/create/end session,
+get/send/delete invites and assign/delete guest slots. Session/guest/slot IDs
+must be explicit; no automatic selection or silent guest replacement logic is
+added locally. Twitch itself replaces a guest occupying the assigned slot.
+Deleting a slot optionally reinvites the guest. Reauthorize the broadcaster for
+`channel:manage:guest_star`. Creating a session requires the broadcaster present
+in Twitch's call interface; these nodes do not implement a video-call client.
+See [Guest Star](https://dev.twitch.tv/docs/api/reference/guest-star/) and
+[Clips](https://dev.twitch.tv/docs/api/reference/clips/) for eligibility and API limits.
+
 ## Accounts and validation boundary
 
 Use the existing Twitch and YouTube settings; no new API key is needed for the

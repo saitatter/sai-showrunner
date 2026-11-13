@@ -525,6 +525,61 @@ scenarios:
     plugin: "twitch"
     action: "denyAutoModMessage"
     config: {"messageId":""}
+  - name: "Twitch: Get Channel Tags"
+    enabled: false
+    plugin: "twitch"
+    action: "getChannelTags"
+    config: {}
+  - name: "Twitch: Set Channel Tags"
+    enabled: false
+    plugin: "twitch"
+    action: "setChannelTags"
+    config: {"tags":[]}
+  - name: "Twitch: Get Clip Download URLs"
+    enabled: false
+    plugin: "twitch"
+    action: "getClipDownloadUrls"
+    config: {"clipIds":[]}
+  - name: "Twitch: Get Guest Star Session"
+    enabled: false
+    plugin: "twitch"
+    action: "getGuestStarSession"
+    config: {}
+  - name: "Twitch: Create Guest Star Session"
+    enabled: false
+    plugin: "twitch"
+    action: "createGuestStarSession"
+    config: {}
+  - name: "Twitch: End Guest Star Session"
+    enabled: false
+    plugin: "twitch"
+    action: "endGuestStarSession"
+    config: {"sessionId":""}
+  - name: "Twitch: Get Guest Star Invites"
+    enabled: false
+    plugin: "twitch"
+    action: "getGuestStarInvites"
+    config: {"sessionId":""}
+  - name: "Twitch: Send Guest Star Invite"
+    enabled: false
+    plugin: "twitch"
+    action: "sendGuestStarInvite"
+    config: {"sessionId":"","guestId":""}
+  - name: "Twitch: Delete Guest Star Invite"
+    enabled: false
+    plugin: "twitch"
+    action: "deleteGuestStarInvite"
+    config: {"sessionId":"","guestId":""}
+  - name: "Twitch: Assign Guest Star Slot"
+    enabled: false
+    plugin: "twitch"
+    action: "assignGuestStarSlot"
+    config: {"sessionId":"","guestId":"","slotId":""}
+  - name: "Twitch: Delete Guest Star Slot"
+    enabled: false
+    plugin: "twitch"
+    action: "deleteGuestStarSlot"
+    config: {"sessionId":"","guestId":"","slotId":"","reinvite":false}
   - name: "Twitch: Create Clip"
     enabled: false
     plugin: "twitch"
