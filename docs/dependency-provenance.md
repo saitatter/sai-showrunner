@@ -15,6 +15,9 @@ Font notices remain under `packages/showrunner-flutter/assets/fonts/`.
 Release banners embed unchanged Noto Color Emoji artwork under Apache-2.0,
 with [license and pinned source](branding/release-banner/emoji/NOTICE.txt) beside the assets.
 The `sai_nodes` dependency remains a separately licensed upstream dependency.
+Viewer Data uses MIT-licensed `sqlite_async` and `sqlite3` Dart packages. The
+`sqlite3` native-asset build hooks bundle SQLite with the desktop application;
+SQLite itself is public domain. The package lockfile pins the selected releases.
 The browser overlay, parity reference fixtures and interpreter oracle remain
 because they serve active runtime and verification purposes.
 
