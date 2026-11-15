@@ -33,6 +33,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
   ChatPlatform _destination = ChatPlatform.twitch;
   Set<ChatPlatform> _destinations = {ChatPlatform.twitch};
   ChatSendAccount _twitchAccount = ChatSendAccount.broadcaster;
+  ChatSendAccount _kickAccount = ChatSendAccount.broadcaster;
   ChatDeliveryResult? _delivery;
   ChatPlatform? _filter;
   bool _busy = false;
@@ -162,6 +163,8 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
       for (final platform in _destinations)
         platform: platform == ChatPlatform.twitch
             ? _twitchAccount
+            : platform == ChatPlatform.kick
+            ? _kickAccount
             : ChatSendAccount.broadcaster,
     };
     return _run(() async {
@@ -205,352 +208,411 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
     final search = _search.text.toLowerCase();
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ListenableBuilder(
-            listenable: Listenable.merge([runtime, widget.providerEvents]),
-            builder: (context, _) => Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text('Chat', style: Theme.of(context).textTheme.headlineSmall),
-                Chip(
-                  label: Text(
-                    'Twitch: ${widget.providerEvents.twitchState.name}',
-                  ),
-                ),
-                Chip(
-                  label: Text(
-                    'YouTube: ${widget.providerEvents.youtubeState.name}',
-                  ),
-                ),
-                if (widget.providerEvents.botWhispers case final worker?)
-                  Tooltip(
-                    message: worker.lastError == null
-                        ? 'Private command input'
-                        : 'Private command input unavailable. Check authentication.',
-                    child: Chip(
-                      label: Text('Bot whispers: ${worker.state.name}'),
-                    ),
-                  ),
-                TextButton(
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => ChatActionsDialog(runtime: runtime),
-                  ),
-                  child: const Text('Chat actions'),
-                ),
-                IconButton(
-                  tooltip: 'Chat preferences',
-                  icon: const Icon(Icons.tune),
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => ChatPreferencesDialog(runtime: runtime),
-                  ),
-                ),
-                TextButton(
-                  onPressed: runtime.clearHistory,
-                  child: const Text('Clear local history'),
-                ),
-                TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () => _run(() => runtime.loadEmotes(_destination)),
-                  child: Text('Load ${_destination.name} emotes'),
-                ),
-                TextButton.icon(
-                  onPressed: () =>
-                      _pausedIdentities == null ? _pause() : _resume(),
-                  icon: Icon(
-                    _pausedIdentities == null ? Icons.pause : Icons.play_arrow,
-                  ),
-                  label: Text(
-                    _pausedIdentities == null ? 'Pause view' : 'Resume view',
-                  ),
-                ),
-                if (_userIdentity != null)
-                  InputChip(
-                    label: Text('User: $_userIdentity'),
-                    onDeleted: () => setState(() => _userIdentity = null),
-                  ),
-                if (runtime.emoteCatalog.status.isNotEmpty)
-                  Tooltip(
-                    message: runtime.emoteCatalog.status.entries
-                        .map((e) => '${e.key}: ${e.value}')
-                        .join('\n'),
-                    child: Chip(
-                      label: Text(
-                        runtime.emoteCatalog.status.values.any(
-                              (s) => s == 'unavailable',
-                            )
-                            ? 'Emotes: some catalogs unavailable'
-                            : 'Emote catalogs loaded',
-                      ),
-                    ),
-                  ),
-                if (widget.dock != null)
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => _run(() async {
-                            final url = await widget.dock!.start();
-                            await Clipboard.setData(
-                              ClipboardData(text: url.toString()),
-                            );
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Dock URL copied. Add it in OBS → Docks → Custom Browser Docks.',
-                                  ),
-                                ),
-                              );
-                            }
-                          }),
-                    child: const Text('Copy OBS dock URL'),
-                  ),
-                if (widget.dock?.url != null)
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => _run(() => widget.dock!.stop(disable: true)),
-                    child: const Text('Stop OBS dock'),
-                  ),
-              ],
-            ),
-          ),
-          Wrap(
-            spacing: 8,
-            children: [
-              ChoiceChip(
-                label: const Text('All platforms'),
-                selected: _filter == null,
-                onSelected: (_) => setState(() => _filter = null),
+      child: LayoutBuilder(
+        builder: (context, constraints) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: constraints.maxHeight * 0.48,
               ),
-              ChoiceChip(
-                label: const Text('Messages'),
-                selected: !_showEvents,
-                onSelected: (_) => setState(() => _showEvents = false),
-              ),
-              ChoiceChip(
-                label: const Text('Events'),
-                selected: _showEvents,
-                onSelected: (_) => setState(() => _showEvents = true),
-              ),
-              for (final platform in ChatPlatform.values)
-                ChoiceChip(
-                  label: Text(platform.name),
-                  selected: _filter == platform,
-                  onSelected: (_) => setState(() => _filter = platform),
-                ),
-            ],
-          ),
-          TextField(
-            controller: _search,
-            decoration: const InputDecoration(
-              labelText: 'Search messages or users',
-              prefixIcon: Icon(Icons.search),
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          ListenableBuilder(
-            listenable: runtime,
-            builder: (context, _) => _error != null || runtime.error != null
-                ? const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Text(
-                      'Chat operation failed. Check the connection and retry.',
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          ),
-          ListenableBuilder(
-            listenable: runtime,
-            builder: (context, _) =>
-                runtime
-                    .actionsFor(ChatActionScope.global, _destination)
-                    .isNotEmpty
-                ? Wrap(
-                    spacing: 8,
-                    children: [
-                      for (final action in runtime.actionsFor(
-                        ChatActionScope.global,
-                        _destination,
-                      ))
-                        TextButton.icon(
-                          icon: Icon(
-                            chatActionIcon(action.icon),
-                            color: chatActionColor(action.color),
-                          ),
-                          label: Text(action.label),
-                          onPressed: _busy
-                              ? null
-                              : () => _run(
-                                  () => runtime.runConfiguredAction(
-                                    action.id,
-                                    platform: _destination,
-                                  ),
-                                ),
-                        ),
-                    ],
-                  )
-                : const SizedBox.shrink(),
-          ),
-          Expanded(
-            child: ChatTimeline(
-              runtime: runtime,
-              search: search,
-              filter: _filter,
-              userIdentity: _userIdentity,
-              pausedIdentities: _pausedIdentities,
-              pausedEventIds: _pausedEventIds,
-              showEvents: _showEvents,
-              busy: _busy,
-              onRun: _run,
-              onModerate: _moderate,
-              onReply: (message) {
-                setState(() {
-                  _destination = message.platform;
-                  _destinations = {message.platform};
-                  _message.text = '@${message.userName} ';
-                });
-                _composerFocus.requestFocus();
-              },
-              onUser: (identity) => setState(() => _userIdentity = identity),
-            ),
-          ),
-          ListenableBuilder(
-            listenable: Listenable.merge([runtime, runtime.commands]),
-            builder: (context, _) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Send to:'),
-                    for (final platform in ChatPlatform.values)
-                      FilterChip(
-                        label: Text(platform.name),
-                        selected: _destinations.contains(platform),
-                        onSelected: _busy
-                            ? null
-                            : (selected) => setState(() {
-                                _delivery = null;
-                                if (selected) {
-                                  _destinations.add(platform);
-                                  _destination = platform;
-                                } else {
-                                  _destinations.remove(platform);
-                                  if (_destinations.isNotEmpty) {
-                                    _destination = _destinations.first;
-                                  }
-                                }
-                              }),
-                      ),
-                    if (_destinations.contains(ChatPlatform.twitch))
-                      DropdownButton<ChatSendAccount>(
-                        value: _twitchAccount,
-                        hint: const Text('Twitch account'),
-                        onChanged: _busy
-                            ? null
-                            : (value) {
-                                if (value != null) {
-                                  setState(() => _twitchAccount = value);
-                                }
-                              },
-                        items: const [
-                          DropdownMenuItem(
-                            value: ChatSendAccount.broadcaster,
-                            child: Text('Twitch: broadcaster'),
+                    ListenableBuilder(
+                      listenable: Listenable.merge([
+                        runtime,
+                        widget.providerEvents,
+                      ]),
+                      builder: (context, _) => Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'Chat',
+                            style: Theme.of(context).textTheme.headlineSmall,
                           ),
-                          DropdownMenuItem(
-                            value: ChatSendAccount.bot,
-                            child: Text('Twitch: bot'),
+                          Text(
+                            'Twitch: ${widget.providerEvents.twitchState.name}',
                           ),
+                          Text(
+                            'YouTube: ${widget.providerEvents.youtubeState.name}',
+                          ),
+                          Text('Kick: ${widget.providerEvents.kickState.name}'),
+                          if (widget.providerEvents.botWhispers
+                              case final worker?)
+                            Tooltip(
+                              message: worker.lastError == null
+                                  ? 'Private command input'
+                                  : 'Private command input unavailable. Check authentication.',
+                              child: Chip(
+                                label: Text(
+                                  'Bot whispers: ${worker.state.name}',
+                                ),
+                              ),
+                            ),
+                          TextButton(
+                            onPressed: () => showDialog<void>(
+                              context: context,
+                              builder: (_) =>
+                                  ChatActionsDialog(runtime: runtime),
+                            ),
+                            child: const Text('Chat actions'),
+                          ),
+                          IconButton(
+                            tooltip: 'Chat preferences',
+                            icon: const Icon(Icons.tune),
+                            onPressed: () => showDialog<void>(
+                              context: context,
+                              builder: (_) =>
+                                  ChatPreferencesDialog(runtime: runtime),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: runtime.clearHistory,
+                            child: const Text('Clear local history'),
+                          ),
+                          TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () => _run(
+                                    () => runtime.loadEmotes(_destination),
+                                  ),
+                            child: Text('Load ${_destination.name} emotes'),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => _pausedIdentities == null
+                                ? _pause()
+                                : _resume(),
+                            icon: Icon(
+                              _pausedIdentities == null
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                            ),
+                            label: Text(
+                              _pausedIdentities == null
+                                  ? 'Pause view'
+                                  : 'Resume view',
+                            ),
+                          ),
+                          if (_userIdentity != null)
+                            InputChip(
+                              label: Text('User: $_userIdentity'),
+                              onDeleted: () =>
+                                  setState(() => _userIdentity = null),
+                            ),
+                          if (runtime.emoteCatalog.status.isNotEmpty)
+                            Tooltip(
+                              message: runtime.emoteCatalog.status.entries
+                                  .map((e) => '${e.key}: ${e.value}')
+                                  .join('\n'),
+                              child: Chip(
+                                label: Text(
+                                  runtime.emoteCatalog.status.values.any(
+                                        (s) => s == 'unavailable',
+                                      )
+                                      ? 'Emotes: some catalogs unavailable'
+                                      : 'Emote catalogs loaded',
+                                ),
+                              ),
+                            ),
+                          if (widget.dock != null)
+                            TextButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () => _run(() async {
+                                      final url = await widget.dock!.start();
+                                      await Clipboard.setData(
+                                        ClipboardData(text: url.toString()),
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Dock URL copied. Add it in OBS → Docks → Custom Browser Docks.',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }),
+                              child: const Text('Copy OBS dock URL'),
+                            ),
+                          if (widget.dock?.url != null)
+                            TextButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () => _run(
+                                      () => widget.dock!.stop(disable: true),
+                                    ),
+                              child: const Text('Stop OBS dock'),
+                            ),
                         ],
                       ),
-                    if (_delivery case final result?)
-                      for (final entry in result.delivered.entries)
-                        Chip(
-                          avatar: Icon(
-                            entry.value
-                                ? Icons.check_circle_outline
-                                : Icons.error_outline,
-                          ),
-                          label: Text(
-                            '${entry.key.name}: ${entry.value ? 'sent' : 'failed — retry selected'}',
-                          ),
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('All platforms'),
+                          selected: _filter == null,
+                          onSelected: (_) => setState(() => _filter = null),
                         ),
+                        ChoiceChip(
+                          label: const Text('Messages'),
+                          selected: !_showEvents,
+                          onSelected: (_) =>
+                              setState(() => _showEvents = false),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Events'),
+                          selected: _showEvents,
+                          onSelected: (_) => setState(() => _showEvents = true),
+                        ),
+                        for (final platform in ChatPlatform.values)
+                          ChoiceChip(
+                            label: Text(platform.name),
+                            selected: _filter == platform,
+                            onSelected: (_) =>
+                                setState(() => _filter = platform),
+                          ),
+                      ],
+                    ),
+                    TextField(
+                      controller: _search,
+                      decoration: const InputDecoration(
+                        labelText: 'Search messages or users',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    ListenableBuilder(
+                      listenable: runtime,
+                      builder: (context, _) =>
+                          _error != null || runtime.error != null
+                          ? const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Text(
+                                'Chat operation failed. Check the connection and retry.',
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    ListenableBuilder(
+                      listenable: runtime,
+                      builder: (context, _) =>
+                          runtime
+                              .actionsFor(ChatActionScope.global, _destination)
+                              .isNotEmpty
+                          ? Wrap(
+                              spacing: 8,
+                              children: [
+                                for (final action in runtime.actionsFor(
+                                  ChatActionScope.global,
+                                  _destination,
+                                ))
+                                  TextButton.icon(
+                                    icon: Icon(
+                                      chatActionIcon(action.icon),
+                                      color: chatActionColor(action.color),
+                                    ),
+                                    label: Text(action.label),
+                                    onPressed: _busy
+                                        ? null
+                                        : () => _run(
+                                            () => runtime.runConfiguredAction(
+                                              action.id,
+                                              platform: _destination,
+                                            ),
+                                          ),
+                                  ),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                   ],
                 ),
-                if (_suggestions.isNotEmpty)
+              ),
+            ),
+            Expanded(
+              child: ChatTimeline(
+                runtime: runtime,
+                search: search,
+                filter: _filter,
+                userIdentity: _userIdentity,
+                pausedIdentities: _pausedIdentities,
+                pausedEventIds: _pausedEventIds,
+                showEvents: _showEvents,
+                busy: _busy,
+                onRun: _run,
+                onModerate: _moderate,
+                onReply: (message) {
+                  setState(() {
+                    _destination = message.platform;
+                    _destinations = {message.platform};
+                    _message.text = '@${message.userName} ';
+                  });
+                  _composerFocus.requestFocus();
+                },
+                onUser: (identity) => setState(() => _userIdentity = identity),
+              ),
+            ),
+            ListenableBuilder(
+              listenable: Listenable.merge([runtime, runtime.commands]),
+              builder: (context, _) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Wrap(
-                    spacing: 6,
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      for (final (index, suggestion) in _suggestions.indexed)
-                        InputChip(
-                          selected:
-                              index ==
-                              _selectedSuggestion % _suggestions.length,
-                          label: Text(suggestion.label),
-                          onPressed: () => _insertSuggestion(suggestion),
+                      const Text('Send to:'),
+                      for (final platform in ChatPlatform.values)
+                        FilterChip(
+                          label: Text(platform.name),
+                          selected: _destinations.contains(platform),
+                          onSelected: _busy
+                              ? null
+                              : (selected) => setState(() {
+                                  _delivery = null;
+                                  if (selected) {
+                                    _destinations.add(platform);
+                                    _destination = platform;
+                                  } else {
+                                    _destinations.remove(platform);
+                                    if (_destinations.isNotEmpty) {
+                                      _destination = _destinations.first;
+                                    }
+                                  }
+                                }),
                         ),
+                      for (final platform in [
+                        ChatPlatform.twitch,
+                        ChatPlatform.kick,
+                      ])
+                        if (_destinations.contains(platform))
+                          DropdownButton<ChatSendAccount>(
+                            value: platform == ChatPlatform.twitch
+                                ? _twitchAccount
+                                : _kickAccount,
+                            hint: Text('${platform.name} account'),
+                            onChanged: _busy
+                                ? null
+                                : (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        if (platform == ChatPlatform.twitch) {
+                                          _twitchAccount = value;
+                                        } else {
+                                          _kickAccount = value;
+                                        }
+                                      });
+                                    }
+                                  },
+                            items: [
+                              DropdownMenuItem(
+                                value: ChatSendAccount.broadcaster,
+                                child: Text(
+                                  platform == ChatPlatform.twitch
+                                      ? 'Twitch: broadcaster'
+                                      : 'Kick: user',
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: ChatSendAccount.bot,
+                                child: Text(
+                                  platform == ChatPlatform.twitch
+                                      ? 'Twitch: bot'
+                                      : 'Kick: app bot',
+                                ),
+                              ),
+                            ],
+                          ),
+                      if (_delivery case final result?)
+                        for (final entry in result.delivered.entries)
+                          Chip(
+                            avatar: Icon(
+                              entry.value
+                                  ? Icons.check_circle_outline
+                                  : Icons.error_outline,
+                            ),
+                            label: Text(
+                              '${entry.key.name}: ${entry.value ? 'sent' : 'failed — retry selected'}',
+                            ),
+                          ),
                     ],
                   ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: CallbackShortcuts(
-                        bindings: {
-                          if (_suggestions.isNotEmpty) ...{
-                            const SingleActivator(LogicalKeyboardKey.tab): () {
-                              final suggestions = _suggestions;
-                              if (suggestions.isNotEmpty) {
-                                _insertSuggestion(
-                                  suggestions[_selectedSuggestion %
-                                      suggestions.length],
-                                );
-                              }
-                            },
-                            const SingleActivator(
-                              LogicalKeyboardKey.arrowDown,
-                            ): () =>
-                                _stepSuggestion(1),
-                            const SingleActivator(
-                              LogicalKeyboardKey.arrowUp,
-                            ): () =>
-                                _stepSuggestion(-1),
-                          },
-                        },
-                        child: TextField(
-                          controller: _message,
-                          focusNode: _composerFocus,
-                          enabled: !_busy,
-                          decoration: const InputDecoration(
-                            labelText: 'Message',
-                            hintText: 'Send to the selected destinations',
+                  if (_suggestions.isNotEmpty)
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final (index, suggestion) in _suggestions.indexed)
+                          InputChip(
+                            selected:
+                                index ==
+                                _selectedSuggestion % _suggestions.length,
+                            label: Text(suggestion.label),
+                            onPressed: () => _insertSuggestion(suggestion),
                           ),
-                          onSubmitted: (_) => _completeOrSend(),
-                          onChanged: (_) =>
-                              setState(() => _selectedSuggestion = 0),
+                      ],
+                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CallbackShortcuts(
+                          bindings: {
+                            if (_suggestions.isNotEmpty) ...{
+                              const SingleActivator(
+                                LogicalKeyboardKey.tab,
+                              ): () {
+                                final suggestions = _suggestions;
+                                if (suggestions.isNotEmpty) {
+                                  _insertSuggestion(
+                                    suggestions[_selectedSuggestion %
+                                        suggestions.length],
+                                  );
+                                }
+                              },
+                              const SingleActivator(
+                                LogicalKeyboardKey.arrowDown,
+                              ): () =>
+                                  _stepSuggestion(1),
+                              const SingleActivator(
+                                LogicalKeyboardKey.arrowUp,
+                              ): () =>
+                                  _stepSuggestion(-1),
+                            },
+                          },
+                          child: TextField(
+                            controller: _message,
+                            focusNode: _composerFocus,
+                            enabled: !_busy,
+                            decoration: const InputDecoration(
+                              labelText: 'Message',
+                              hintText: 'Send to the selected destinations',
+                            ),
+                            onSubmitted: (_) => _completeOrSend(),
+                            onChanged: (_) =>
+                                setState(() => _selectedSuggestion = 0),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      tooltip: 'Send message',
-                      onPressed: _busy ? null : _send,
-                      icon: const Icon(Icons.send),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 12),
+                      IconButton(
+                        tooltip: 'Send message',
+                        onPressed: _busy ? null : _send,
+                        icon: const Icon(Icons.send),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

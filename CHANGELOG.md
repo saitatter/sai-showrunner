@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Add Kick chat with broadcaster sign-in, signed webhook reception, unified history and commands, user/app-bot sending, moderation shortcuts and OBS dock/Chat Feed support.
 - Add a Unified Chat source for OBS Chat Feed widgets, with platform filters, message limits, expiry, deletion/clear synchronization and overlay-scoped access while retaining automation-driven feeds.
 - Show public chat profiles with provider avatars, graphical badges and session message counts in desktop chat and the OBS dock, with bounded on-demand Twitch lookups and safe image fallbacks.
 - Add Twitch message-menu shortcuts for pins, warnings and VIP/moderator roles in desktop chat and the OBS dock, with required warning reasons and platform-specific choices.
@@ -16,6 +17,7 @@
 - Add semantic overlay edit history with keyboard undo/redo/save, stable layer selection and one undo step per canvas gesture.
 
 ### Fixes
+- Observe OAuth callback cancellation while the browser is opening and release the loopback listener when authorization request construction fails.
 - Reject malformed Remote/Satellite identities, SDP and ICE before creating native peers or applying candidates; require typed share-list identities instead of coercing payload values into account IDs, project only rendered dashboard fields and bound/sanitize remote state subscriptions.
 - Bound shader source, uniform and GPU surface resources, reject non-finite GPU inputs and release renderer resources once while ignoring queued frames after disposal.
 - Remount the browser widget renderer when a saved widget changes type while retaining its ID, instead of updating the previous widget implementation with another type's fields.
@@ -83,6 +85,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
+- Document Kick Developer setup, isolated webhook forwarding, live-account requirements and native/browser verification limits.
 - Document Twitch lifecycle/moderation scopes, multi-send accounts, public profiles, scoped OBS chat setup and their isolated verification limits.
 - Document Viewer Data's SQLite ownership, source-preserving migration, backup/interchange commands and measured query costs at 1K, 10K and 100K viewers.
 - Align contributor rules, repository ownership and release-note guidance with the shared Collectarr model, including editorial summaries, banner history and parallel CI gates.

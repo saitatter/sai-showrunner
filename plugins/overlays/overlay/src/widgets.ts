@@ -51,7 +51,7 @@ interface BarConfig extends OverlayConfigObject {
 
 interface ChatFeedConfig extends OverlayConfigObject {
 	source?: "automation" | "unifiedChat"
-	platform?: "all" | "twitch" | "youtube"
+	platform?: "all" | "twitch" | "youtube" | "kick"
 	fontFamily?: string
 	fontSize?: number
 	backgroundColor?: string
@@ -61,6 +61,7 @@ interface ChatFeedConfig extends OverlayConfigObject {
 	orientation?: "horizontal" | "vertical"
 	twitchColor?: string
 	youtubeColor?: string
+	kickColor?: string
 	showBadges?: boolean
 }
 
@@ -367,17 +368,17 @@ class ChatFeedWidget extends DomWidget<ChatFeedConfig> {
 	protected render(): void {
 		const config = configWithDefaults(this.config, {
 			fontFamily: "Inter, Arial, sans-serif", fontSize: 24, backgroundColor: "#0d1117", backgroundOpacity: 0.72,
-			maxMessages: 8, orientation: "horizontal", twitchColor: "#9146ff", youtubeColor: "#ff0033", showBadges: true,
+			maxMessages: 8, orientation: "horizontal", twitchColor: "#9146ff", youtubeColor: "#ff0033", kickColor: "#53fc18", showBadges: true,
 		})
 		const root = createElement("div", `chat-feed chat-feed--${config.orientation}`)
 		applyStyles(root, { fontFamily: config.fontFamily, fontSize: `${config.fontSize}px` })
 		for (const entry of this.messages.slice(0, Math.max(1, Math.min(200, Number(config.maxMessages) || 8)))) {
 			const article = createElement("article", "chat-feed__message")
 			article.dataset.platform = entry.platform
-			applyStyles(article, { background: toRgba(config.backgroundColor, config.backgroundOpacity), borderLeftColor: entry.platform === "youtube" ? config.youtubeColor : config.twitchColor })
+			applyStyles(article, { background: toRgba(config.backgroundColor, config.backgroundOpacity), borderLeftColor: entry.platform === "youtube" ? config.youtubeColor : entry.platform === "kick" ? config.kickColor : config.twitchColor })
 			const meta = createElement("div", "chat-feed__meta")
 			const marker = createElement("span", "chat-feed__platform")
-			applyStyles(marker, { backgroundColor: entry.platform === "youtube" ? config.youtubeColor : config.twitchColor })
+			applyStyles(marker, { backgroundColor: entry.platform === "youtube" ? config.youtubeColor : entry.platform === "kick" ? config.kickColor : config.twitchColor })
 			meta.append(marker)
 			if (config.showBadges) {
 				const badges = createElement("span", "chat-feed__badges")

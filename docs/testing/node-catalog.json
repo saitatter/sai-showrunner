@@ -2055,6 +2055,190 @@
       "resources": []
     },
     {
+      "id": "kick",
+      "name": "Kick",
+      "actions": [
+        {
+          "id": "sendChatMessage",
+          "name": "Send Chat Message",
+          "config": {
+            "key": null,
+            "label": "Kick chat message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "message",
+                "label": "Message",
+                "type": "multilineText",
+                "required": true
+              },
+              {
+                "key": "account",
+                "label": "Account (user or app bot)",
+                "type": "enumeration",
+                "options": [
+                  "user",
+                  "bot"
+                ]
+              },
+              {
+                "key": "replyToMessageId",
+                "label": "Reply to message ID",
+                "type": "text"
+              }
+            ]
+          },
+          "result": {
+            "key": null,
+            "label": "Sent message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "liveStatus": "pending"
+        },
+        {
+          "id": "deleteMessage",
+          "name": "Delete Chat Message",
+          "config": {
+            "key": null,
+            "label": "Delete message",
+            "type": "object",
+            "fields": [
+              {
+                "key": "messageId",
+                "label": "Message ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "banUser",
+          "name": "Ban User",
+          "config": {
+            "key": null,
+            "label": "Kick moderation",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "userId",
+                "label": "User ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "reason",
+                "label": "Reason (up to 100 characters)",
+                "type": "text"
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "timeoutUser",
+          "name": "Timeout User",
+          "config": {
+            "key": null,
+            "label": "Kick moderation",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "userId",
+                "label": "User ID",
+                "type": "text",
+                "required": true
+              },
+              {
+                "key": "reason",
+                "label": "Reason (up to 100 characters)",
+                "type": "text"
+              },
+              {
+                "key": "durationMinutes",
+                "label": "Duration (minutes, 1–10080)",
+                "type": "number",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "unbanUser",
+          "name": "Unban User",
+          "config": {
+            "key": null,
+            "label": "Kick moderation",
+            "type": "object",
+            "fields": [
+              {
+                "key": "broadcasterId",
+                "label": "Broadcaster ID",
+                "type": "text"
+              },
+              {
+                "key": "userId",
+                "label": "User ID",
+                "type": "text",
+                "required": true
+              }
+            ]
+          },
+          "result": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "triggers": [
+        {
+          "id": "chatMessage",
+          "name": "Chat Message",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "userBanned",
+          "name": "User Banned",
+          "config": null,
+          "liveStatus": "pending"
+        },
+        {
+          "id": "userTimedOut",
+          "name": "User Timed Out",
+          "config": null,
+          "liveStatus": "pending"
+        }
+      ],
+      "resources": []
+    },
+    {
       "id": "twitch",
       "name": "Twitch",
       "actions": [
@@ -7293,10 +7477,10 @@
             "name": "QA resource",
             "activationAutomation": {
               "schemaVersion": 1,
-              "id": "79bd3eee10d29029de65967b848b0e89",
+              "id": "c57af2250f4701727e3729356216cc32",
               "graph": {
                 "schemaVersion": 1,
-                "id": "79bd3eee10d29029de65967b848b0e89",
+                "id": "c57af2250f4701727e3729356216cc32",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -7317,10 +7501,10 @@
             },
             "deactivationAutomation": {
               "schemaVersion": 1,
-              "id": "0fad1bd872604983872492702dbd9d3f",
+              "id": "68bd68050ca03dc8346fdd12f4a65969",
               "graph": {
                 "schemaVersion": 1,
-                "id": "0fad1bd872604983872492702dbd9d3f",
+                "id": "68bd68050ca03dc8346fdd12f4a65969",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -7346,9 +7530,9 @@
     }
   ],
   "counts": {
-    "plugins": 34,
-    "actions": 201,
-    "triggers": 68
+    "plugins": 35,
+    "actions": 206,
+    "triggers": 71
   },
   "note": "Insertion and serialization passed; live execution requires enabled scenarios and connections."
 }

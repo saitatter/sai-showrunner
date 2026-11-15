@@ -37,7 +37,7 @@ DartPluginManifest createChatCommandsPlugin({
   String? identity(RuntimeMap config) {
     final value = config['userIdentity'] as String?;
     if (value == null || value.isEmpty) return null;
-    if (!RegExp(r'^(twitch|youtube):[^\s:]+$').hasMatch(value)) {
+    if (!RegExp(r'^(twitch|youtube|kick):[^\s:]+$').hasMatch(value)) {
       throw const FormatException('Invalid user identity.');
     }
     return value;

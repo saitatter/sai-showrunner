@@ -10,6 +10,42 @@ import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 
 void main() {
   test(
+    'Kick normalized identities stay separate from the same Twitch ID',
+    () async {
+      final repository = InMemoryViewerDataRepository();
+      final hub = DartPluginEventHub();
+      addTearDown(hub.dispose);
+      final sync = ViewerDataSynchronizer(
+        repository: repository,
+        eventHub: hub,
+      );
+      final kick = await sync.syncEvent('kickChatMessage', {
+        'viewerId': '42',
+        'viewerName': 'Kick Viewer',
+      });
+      final twitch = await sync.syncEvent('chat', {
+        'chatter_user_id': '42',
+        'chatter_user_name': 'Twitch Viewer',
+      });
+      expect(kick!.row.viewer.displayName, 'Kick Viewer');
+      expect(twitch!.row.viewer.displayName, 'Twitch Viewer');
+      expect(
+        (await repository.loadViewer(
+          'kick',
+          kick.row.viewer,
+        )).viewer.displayName,
+        'Kick Viewer',
+      );
+      expect(
+        await sync.syncEvent('kickChatMessage', {
+          'viewerId': true,
+          'viewerName': 'Invalid',
+        }),
+        isNull,
+      );
+    },
+  );
+  test(
     'stop awaits a blocked viewer write before the event hub can close',
     () async {
       final root = await Directory.systemTemp.createTemp('viewer-sync-drain-');

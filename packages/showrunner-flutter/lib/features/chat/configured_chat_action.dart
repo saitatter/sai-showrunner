@@ -15,6 +15,7 @@ final class ConfiguredChatAction {
     Set<ChatPlatform> platforms = const {
       ChatPlatform.twitch,
       ChatPlatform.youtube,
+      ChatPlatform.kick,
     },
     Map<String, String> arguments = const {},
   }) : platforms = Set.unmodifiable(platforms),

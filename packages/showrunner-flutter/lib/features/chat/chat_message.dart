@@ -1,6 +1,6 @@
 import '../../runtime/expression.dart';
 
-enum ChatPlatform { twitch, youtube }
+enum ChatPlatform { twitch, youtube, kick }
 
 enum ChatOrigin {
   chat,
@@ -80,7 +80,7 @@ final class ChatMessage {
     'message': text,
     'channelId': channelId,
     if (platform == ChatPlatform.youtube) 'liveChatId': channelId,
-    if (platform == ChatPlatform.twitch) 'broadcasterId': channelId,
+    if (platform != ChatPlatform.youtube) 'broadcasterId': channelId,
     'isModerator': isModerator,
     'isMember': isSubscriber,
     'isOwner': isBroadcaster,

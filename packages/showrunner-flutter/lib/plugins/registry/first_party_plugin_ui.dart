@@ -14,6 +14,7 @@ import '../stream_plans/ui/plugin_ui.dart';
 import '../twitch/ui/plugin_ui.dart';
 import '../wyze/ui/plugin_ui.dart';
 import '../youtube/ui/plugin_ui.dart';
+import '../kick/ui/plugin_ui.dart';
 import 'flutter_plugin_ui_contract.dart';
 import 'generic_plugin_ui.dart';
 import 'plugin_registry.dart';
@@ -35,6 +36,7 @@ void registerCommonPluginUis(
   final factories = <String, DartPluginUiContribution Function()>{
     'obs': createObsPluginUi,
     'youtube': createYouTubePluginUi,
+    'kick': createKickPluginUi,
     'twitch': createTwitchPluginUi,
     'discord': createDiscordPluginUi,
     'bluesky': createBlueskyPluginUi,

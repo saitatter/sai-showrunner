@@ -41,6 +41,7 @@ IconData pluginIconFor(String id) => switch (id) {
   'voicemod' => mdiIcon(0xF0370),
   'wyze' => mdiIcon(0xF07AE),
   'youtube' => mdiIcon(0xF05C3),
+  'kick' => Icons.chat_outlined,
   _ => mdiIcon(0xF0A66),
 };
 
@@ -72,6 +73,7 @@ Color pluginColorFor(String id) => switch (id) {
   'obs' => const Color(0xff256eff),
   'youtube' => const Color(0xffff5f56),
   'twitch' => const Color(0xff9146ff),
+  'kick' => const Color(0xff53fc18),
   'heartrate' => const Color(0xfff43f5e),
   'discord' => const Color(0xff5865f2),
   'bluesky' => const Color(0xff208bfe),
@@ -108,6 +110,7 @@ String pluginDescriptionFor(String id) => switch (id) {
   'stream-plans' => 'Stream Plan',
   'time' => 'Time Utilities',
   'twitch' => 'Provides Twitch triggers for chat, raids, and more',
+  'kick' => 'Kick chat, signed webhook events and moderation tools.',
   'voicemod' => 'Control VoiceMod with ShowRunner',
   'youtube' =>
     'Provides YouTube Live triggers for chat, memberships, and paid messages.',

@@ -273,7 +273,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       "platform": {
         "type": "string",
         "default": "all",
-        "enum": ["all", "twitch", "youtube"],
+        "enum": ["all", "twitch", "youtube", "kick"],
       },
       "fontFamily": {"type": "string", "default": "Inter, Arial, sans-serif"},
       "fontSize": {"type": "number", "default": 24},
@@ -288,6 +288,7 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
       },
       "twitchColor": {"type": "string", "default": "#9146ff"},
       "youtubeColor": {"type": "string", "default": "#ff0033"},
+      "kickColor": {"type": "string", "default": "#53fc18"},
       "showBadges": {"type": "boolean", "default": true},
     },
   ),

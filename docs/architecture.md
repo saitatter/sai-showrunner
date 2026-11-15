@@ -176,7 +176,7 @@ green readiness. Per-resource connections can override missing defaults. Setting
 and diagnostics use the registry health boundary, which skips disabled probes,
 limits queries to ten seconds and invalidates stale results. Timeout does not
 abort arbitrary transport work: protocol adapters remain responsible for their
-own I/O cancellation and deadlines. Twitch/YouTube worker state remains the source
+own I/O cancellation and deadlines. Twitch/YouTube/Kick worker state remains the source
 of truth for shared chat connections, separate from action transport readiness.
 An unconfigured provider is not evidence of a successful external connection.
 
@@ -210,7 +210,7 @@ TTS requests carry the action cancellation token through synthesis and speech;
 cancelled synthesis cannot proceed to playback. Tests mock speech/process runners
 and output callbacks; real device playback and audio quality remain opt-in.
 
-Twitch and YouTube adapters publish `ProviderEventEnvelope` values containing
+Twitch, YouTube and Kick adapters publish `ProviderEventEnvelope` values containing
 platform, domain event type, provider ID when supplied, account/channel identity,
 time and a deeply immutable domain payload. Credential-shaped fields are removed
 recursively; message text remains intact. The event hub projects that same domain

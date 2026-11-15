@@ -39,6 +39,10 @@
         {
           "path": "packages/showrunner-flutter/lib/plugins/iot/ui/plugin_ui.dart",
           "marker": "PluginWorkspace"
+        },
+        {
+          "path": "packages/showrunner-flutter/lib/plugins/kick/ui/kick_workspace.dart",
+          "marker": "KickWorkspace"
         }
       ]
     },

@@ -784,3 +784,37 @@ with historical Electron differences remaining diagnostic. Native user-profile,
 thresholds were changed. These results cover isolated fixtures and local real
 transports, not live Twitch roles, account eligibility or OBS/CEF delivery of new
 features. Follow the live-service guide before authorized production probes.
+
+## Kick chat verification
+
+Kick uses isolated signed-webhook and HTTP fixtures; no live Kick credentials,
+public tunnel or production moderation writes are part of these checks. The
+provider fixtures generate RSA test keys in memory, route OAuth/API requests to
+loopback, verify PKCE/exact callback URLs and exercise refresh ownership,
+cancellation, rotation, replay, bounded admission and subscription cleanup.
+Chat tests cover three-platform sends, failed-target retries, Kick command
+permissions/counters, profiles, moderation and provider-qualified viewer storage.
+The command fixture verifies that Kick events never fire Twitch chat triggers.
+
+Flutter 3.47.7 / Dart 3.13.5 retains the existing visual capture contract. The
+native Chat fixture now adds a Kick message/filter capture; widget checks select
+all three destinations at 1024x640 through 1920x1080, DPR 1/1.5 and 150% text.
+The intended changes are compact provider status text, scrollable bounded chat
+controls, a Kick sender choice and a Kick setup panel with collapsible guidance.
+Frozen Electron references and inspector thresholds remain unchanged. Browser
+smoke checks add Kick overlay color/history and three-platform partial retry;
+standalone captures remain in ignored `.tmp` directories.
+
+Live validation still requires the setup described in
+[Chat and commands](chat-and-commands.md#kick-connection-and-live-validation).
+A listening local endpoint does not prove that Kick can reach its public URL.
+
+Completed local gates: `scripts/ci-check.ps1 -Stage All` passed 1,391 Flutter
+checks (10 existing opt-in probes skipped), 183 JavaScript tests across 27 files,
+generated contracts, analysis, docs, parity and the real Dart/Chromium transport
+smoke. The isolated Windows `-Stage Parity -Integration -Visual` run passed 102
+native scenarios (one existing audio opt-in skip), with no catalog failures and
+zero differing pixels in both reviewed inspector regions. Kick filter/history
+and browser overlay/dock captures were inspected; no baselines were replaced.
+The separate browser smoke also verified a three-platform send retaining exactly
+two failed destinations, followed by a retry that excludes the successful one.

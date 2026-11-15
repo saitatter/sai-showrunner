@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -6,6 +7,64 @@ import 'package:showrunner_flutter/services/oauth_token.dart';
 import 'package:showrunner_flutter/services/provider_settings_validator.dart';
 
 void main() {
+  test(
+    'callback cancellation is observed while browser opening is pending',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final opened = Completer<void>(), release = Completer<void>();
+      final flow = OAuthAuthorizationFlow(
+        httpServerFactory: () async => server,
+      );
+      final result = expectLater(
+        flow.authorize(
+          requestBuilder: (_) => OAuthAuthorizationRequest(
+            authorizationUrl: Uri.https('example.test', '/authorize'),
+            state: 'fixture',
+          ),
+          openAuthorizationUrl: (_) async {
+            opened.complete();
+            await release.future;
+          },
+          tokenClient: const OAuthTokenClient(),
+          tokenEndpoint: 'https://example.test/token',
+          clientId: 'fixture',
+        ),
+        throwsA(isA<TimeoutException>()),
+      );
+      await opened.future;
+      await server.close(force: true);
+      await result;
+      release.complete();
+    },
+  );
+
+  test(
+    'failed authorization request construction releases its callback listener',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final port = server.port;
+      final flow = OAuthAuthorizationFlow(
+        httpServerFactory: () async => server,
+      );
+      await expectLater(
+        flow.authorize(
+          requestBuilder: (_) =>
+              throw StateError('Request could not be built.'),
+          openAuthorizationUrl: (_) async {},
+          tokenClient: const OAuthTokenClient(),
+          tokenEndpoint: 'https://example.test/token',
+          clientId: 'fixture',
+        ),
+        throwsStateError,
+      );
+      final replacement = await HttpServer.bind(
+        InternetAddress.loopbackIPv4,
+        port,
+      );
+      await replacement.close(force: true);
+    },
+  );
+
   test('deduplicates concurrent OAuth refreshes', () async {
     var refreshes = 0;
     final manager = OAuthTokenManager(

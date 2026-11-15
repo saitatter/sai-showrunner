@@ -102,25 +102,36 @@ final class OAuthAuthorizationFlow {
     required String clientId,
     String? clientSecret,
     String callbackPath = '/oauth/callback',
+    String callbackHost = '127.0.0.1',
     Duration timeout = const Duration(minutes: 5),
   }) async {
+    if (!const {'127.0.0.1', 'localhost'}.contains(callbackHost)) {
+      throw ArgumentError('OAuth callbackHost must be a loopback hostname.');
+    }
     final server = await httpServerFactory();
     final redirectUri = Uri(
       scheme: 'http',
-      host: InternetAddress.loopbackIPv4.host,
+      host: callbackHost,
       port: server.port,
       path: callbackPath,
     );
-    final request = requestBuilder(redirectUri);
     try {
+      final request = requestBuilder(redirectUri);
       final callback = _readCallback(
         server,
         request.state,
         callbackPath,
         timeout,
       );
-      await openAuthorizationUrl(request.authorizationUrl);
-      final result = await callback;
+      // Observe both futures immediately: cancelling the listener while the
+      // browser opener is pending must not leak a callback error to the zone.
+      final results = await Future.wait<OAuthCallbackResult?>([
+        callback,
+        Future<void>.sync(
+          () => openAuthorizationUrl(request.authorizationUrl),
+        ).then<OAuthCallbackResult?>((_) => null),
+      ], eagerError: true);
+      final result = results.first!;
       return await tokenClient.exchangeCode(
         tokenEndpoint: tokenEndpoint,
         clientId: clientId,

@@ -38,6 +38,27 @@ void main() {
       );
 
   test(
+    'Kick has a dedicated filter and is included in the unified projection',
+    () {
+      final kick = OverlayChatProjection.fromResource(
+        overlay({'platform': 'kick'}),
+        'feed',
+      );
+      final rows = [
+        row('twitch'),
+        row('youtube', platform: 'youtube'),
+        row('kick', platform: 'kick'),
+      ];
+      expect(
+        (kick.project(rows, now)['messages'] as List).single,
+        containsPair('platform', 'kick'),
+      );
+      final all = OverlayChatProjection.fromResource(overlay(), 'feed');
+      expect(all.project(rows, now)['messages'] as List, hasLength(3));
+    },
+  );
+
+  test(
     'chat projection scopes platform, count, expiry and optional fields',
     () {
       final policy = OverlayChatProjection.fromResource(

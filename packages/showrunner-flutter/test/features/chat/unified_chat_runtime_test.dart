@@ -14,6 +14,7 @@ import 'package:showrunner_flutter/plugins/twitch/actions.dart';
 import 'package:showrunner_flutter/plugins/twitch/chat_profiles.dart';
 import 'package:showrunner_flutter/features/chat/chat_dock_protocol.dart';
 import 'package:showrunner_flutter/plugins/youtube/actions.dart';
+import 'package:showrunner_flutter/plugins/kick/actions.dart' as kick;
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
 import 'package:showrunner_flutter/schema/data_input.dart';
@@ -49,6 +50,7 @@ void main() {
       'liveChatId': 'live-chat',
       'channelId': 'yt-bot',
     });
+    await data.savePluginSettings('kick', {'broadcasterId': '7'});
     hub = DartPluginEventHub();
     calls = [];
     actionCalls = [];
@@ -84,6 +86,24 @@ void main() {
           }),
         ),
       );
+    registry.register(
+      kick.createKickPlugin(
+        kick.KickTransport((method, path, query, body) async {
+          calls.add({
+            'method': method,
+            'path': path,
+            'query': query,
+            'body': body,
+          });
+          return path == '/public/v1/chat'
+              ? {
+                  'data': {'is_sent': true, 'message_id': 'sent-kick'},
+                }
+              : {};
+        }, readBroadcasterId: () async => '7'),
+        eventHub: hub,
+      ),
+    );
     runtime = UnifiedChatRuntime(
       eventHub: hub,
       dataService: data,
@@ -139,6 +159,109 @@ void main() {
     await registry.close();
     await root.delete(recursive: true);
   });
+  test(
+    'Kick chat reaches commands, profiles and moderation without firing Twitch triggers',
+    () async {
+      var twitchEvents = 0;
+      final subscription = hub.stream('chat').listen((_) => twitchEvents++);
+      addTearDown(subscription.cancel);
+      await runtime.commands.save(
+        ChatCommand(
+          id: 'kick-command',
+          name: 'Kick hello',
+          pattern: '!hello',
+          automationFile: 'fixture.yaml',
+          platforms: {ChatPlatform.kick},
+          permission: ChatPermission.moderator,
+        ),
+      );
+      final dispatched = Completer<void>();
+      void commandChanged() {
+        if (!dispatched.isCompleted &&
+            runtime.commands.countersFor('kick-command').dispatched == 1) {
+          dispatched.complete();
+        }
+      }
+
+      runtime.commands.addListener(commandChanged);
+      addTearDown(() => runtime.commands.removeListener(commandChanged));
+      hub.emit('kickChatMessage', {
+        'messageId': 'kick-message',
+        'broadcasterId': '7',
+        'viewerId': '8',
+        'viewerName': 'Kick Viewer',
+        'message': '!hello world',
+        'createdAt': '2026-11-15T12:00:00Z',
+        'isModerator': true,
+        'avatarUrl': 'https://files.kick.com/avatar.png',
+      });
+      await Future<void>.delayed(Duration.zero);
+      await runtime.filtersSettled;
+      await dispatched.future.timeout(const Duration(seconds: 3));
+      expect(runtime.messages.single.platform, ChatPlatform.kick);
+      final message = runtime.messages.single;
+      expect(message.permits(ChatPermission.moderator), isTrue);
+      expect(runtime.commands.countersFor('kick-command').dispatched, 1);
+      expect(
+        runtime.userProfile(message).avatarUrl,
+        'https://files.kick.com/avatar.png',
+      );
+      expect(
+        chatDockSnapshot(runtime)['messages'].toString(),
+        contains('Kick Viewer'),
+      );
+      expect(twitchEvents, 0);
+      await runtime.quickAction(message, ChatQuickAction.timeout);
+      expect(calls.last['body'], {
+        'broadcaster_user_id': 7,
+        'user_id': 8,
+        'duration': 1,
+        'reason': '',
+      });
+      await runtime.quickAction(message, ChatQuickAction.unban);
+      expect(calls.last['method'], 'DELETE');
+      expect(calls.last['body'], {'broadcaster_user_id': 7, 'user_id': 8});
+      await runtime.quickAction(message, ChatQuickAction.deleteMessage);
+      expect(runtime.messages.single.deleted, isTrue);
+      await expectLater(
+        runtime.quickAction(message, ChatQuickAction.addVip),
+        throwsStateError,
+      );
+    },
+  );
+
+  test(
+    'three-platform sends preflight limits and support the Kick application bot',
+    () async {
+      final result = await runtime.sendMany({
+        ChatPlatform.twitch: ChatSendAccount.broadcaster,
+        ChatPlatform.youtube: ChatSendAccount.broadcaster,
+        ChatPlatform.kick: ChatSendAccount.bot,
+      }, 'Hello all three');
+      expect(result.succeeded, isTrue);
+      expect(result.delivered.keys.toSet(), ChatPlatform.values.toSet());
+      final kickCall = calls.singleWhere(
+        (call) => call['path'] == '/public/v1/chat',
+      );
+      expect(kickCall['body'], {'content': 'Hello all three', 'type': 'bot'});
+      calls.clear();
+      await expectLater(
+        runtime.sendMany({
+          ChatPlatform.kick: ChatSendAccount.broadcaster,
+          ChatPlatform.twitch: ChatSendAccount.broadcaster,
+        }, '👨‍👩‍👧‍👦' * 100),
+        throwsArgumentError,
+      );
+      expect(calls, isEmpty);
+      await runtime.send(ChatPlatform.kick, 'a\u0301' * 500);
+      expect(calls.single['body'], {
+        'content': 'a\u0301' * 500,
+        'type': 'user',
+        'broadcaster_user_id': 7,
+      });
+    },
+  );
+
   Map<String, dynamic> twitch(
     String id, {
     String user = 'viewer',

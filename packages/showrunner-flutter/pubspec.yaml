@@ -29,6 +29,8 @@ dependencies:
   cryptography: ^2.9.0
   sqlite_async: 0.14.8
   sqlite3: 3.5.2
+  pointycastle: 4.0.0
+  characters: 1.4.1
 
 dev_dependencies:
   flutter_test:

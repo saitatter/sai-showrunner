@@ -530,7 +530,8 @@
               "enum": [
                 "all",
                 "twitch",
-                "youtube"
+                "youtube",
+                "kick"
               ]
             },
             "fontFamily": {
@@ -576,6 +577,10 @@
             "youtubeColor": {
               "type": "string",
               "default": "#ff0033"
+            },
+            "kickColor": {
+              "type": "string",
+              "default": "#53fc18"
             },
             "showBadges": {
               "type": "boolean",

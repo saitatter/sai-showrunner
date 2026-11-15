@@ -113,7 +113,9 @@ class ChatTimeline extends StatelessWidget {
           ? _eventFeed(runtime, search)
           : messages.isEmpty
           ? const Center(
-              child: Text('No messages. Connect Twitch or YouTube in Plugins.'),
+              child: Text(
+                'No messages. Connect Twitch, YouTube or Kick in Plugins.',
+              ),
             )
           : ListView.builder(
               reverse: !preferences.newestFirst,

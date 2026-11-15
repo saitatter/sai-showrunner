@@ -33,6 +33,12 @@ final class ViewerDataSynchronizer {
     'membership',
   };
 
+  static const _kickEvents = {
+    'kickChatMessage',
+    'kickUserBanned',
+    'kickUserTimedOut',
+  };
+
   bool get isRunning => _subscriptions.isNotEmpty;
 
   Future<void> start() async {
@@ -41,7 +47,11 @@ final class ViewerDataSynchronizer {
     if (generation != _generation) return;
     _stopFuture = null;
     if (isRunning) return;
-    for (final eventId in [..._twitchEvents, ..._youtubeEvents]) {
+    for (final eventId in [
+      ..._twitchEvents,
+      ..._youtubeEvents,
+      ..._kickEvents,
+    ]) {
       _subscriptions.add(
         eventHub.stream(eventId).listen((event) {
           final operation = _handleEvent(eventId, event);
@@ -74,7 +84,11 @@ final class ViewerDataSynchronizer {
   ) async {
     final identity = _identityForEvent(eventId, event);
     if (identity == null) return null;
-    final provider = _twitchEvents.contains(eventId) ? 'twitch' : 'youtube';
+    final provider = _twitchEvents.contains(eventId)
+        ? 'twitch'
+        : _kickEvents.contains(eventId)
+        ? 'kick'
+        : 'youtube';
     final result = await repository.syncViewerIdentity(provider, identity);
     if (!result.changed) return result;
 
@@ -105,6 +119,14 @@ final class ViewerDataSynchronizer {
   }
 
   ViewerIdentity? _identityForEvent(String eventId, RuntimeMap event) {
+    if (_kickEvents.contains(eventId)) {
+      final id = event['viewerId'];
+      final name = event['viewerName'];
+      if (id is! String || id.isEmpty || name is! String || name.isEmpty) {
+        return null;
+      }
+      return ViewerIdentity(id: id, displayName: name);
+    }
     if (_twitchEvents.contains(eventId)) {
       if (_isAnonymous(event)) return null;
       final id = _firstText([
