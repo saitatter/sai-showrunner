@@ -4,11 +4,14 @@ import 'package:flutter/foundation.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/twitch/account_runtime.dart';
+import '../../plugins/twitch/chat_profiles.dart';
+import '../../plugins/youtube/chat_profiles.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../services/http_provider_transports.dart';
 import 'chat_message.dart';
 import 'chat_delivery.dart';
+import 'chat_user_profile.dart';
 import 'chat_completion.dart';
 import 'chat_preferences.dart';
 import 'configured_chat_action.dart';
@@ -53,10 +56,105 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     this.youtubeLiveChatId,
     this.executeAction,
     ChatEmoteCatalog? emoteCatalog,
+    TwitchChatMetadataSource? twitchProfiles,
     this.historyLimit = 500,
-  }) : emoteCatalog = emoteCatalog ?? ChatEmoteCatalog();
+  }) : emoteCatalog = emoteCatalog ?? ChatEmoteCatalog(),
+       twitchProfiles =
+           twitchProfiles ?? TwitchChatMetadataSource(dataService: dataService);
 
   final ChatEmoteCatalog emoteCatalog;
+  final TwitchChatMetadataSource twitchProfiles;
+  final _publicProfiles = <String, TwitchPublicProfile>{};
+  Map<String, TwitchPublicBadge> _publicBadges = {};
+  Future<void>? _loadingProfiles;
+  String profileStatus = 'notLoaded';
+
+  Future<void> loadUserProfiles(Iterable<ChatMessage> messages) {
+    if (_closed) return Future.error(StateError('Chat is closed.'));
+    return _loadingProfiles ??= _loadUserProfiles(
+      messages.toList(),
+    ).whenComplete(() => _loadingProfiles = null);
+  }
+
+  Future<void> _loadUserProfiles(List<ChatMessage> messages) async {
+    final users = messages
+        .where((m) => m.platform == ChatPlatform.twitch && m.userId.isNotEmpty)
+        .map((m) => m.userId)
+        .toSet()
+        .take(100)
+        .toSet();
+    if (users.isEmpty) return;
+    final channels = messages
+        .where((m) => m.platform == ChatPlatform.twitch)
+        .map((m) => twitchBadgeChannel(m.source, m.channelId))
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .take(10)
+        .toSet();
+    profileStatus = 'loading';
+    notifyListeners();
+    try {
+      final metadata = await twitchProfiles.load(users, channels);
+      if (_closed) return;
+      _publicProfiles.addAll(metadata.users);
+      while (_publicProfiles.length > 500) {
+        _publicProfiles.remove(_publicProfiles.keys.first);
+      }
+      _publicBadges = metadata.badges;
+      profileStatus = 'loaded';
+    } catch (_) {
+      if (_closed) return;
+      profileStatus = 'unavailable';
+    }
+    if (!_closed) notifyListeners();
+  }
+
+  ChatUserProfile userProfile(ChatMessage message) {
+    final cached = message.platform == ChatPlatform.twitch
+        ? _publicProfiles[message.userId]
+        : null;
+    final badges = <ChatUserBadge>[];
+    if (message.platform == ChatPlatform.twitch) {
+      final channel = twitchBadgeChannel(message.source, message.channelId);
+      for (final ref in twitchBadgeReferences(message.source)) {
+        final badge =
+            _publicBadges['$channel/${ref.set}/${ref.version}'] ??
+            _publicBadges['/${ref.set}/${ref.version}'];
+        if (badge != null) {
+          badges.add(
+            ChatUserBadge(
+              title: badge.title,
+              role: ref.set,
+              imageUrl: badge.imageUrl,
+            ),
+          );
+        }
+      }
+    }
+    for (final role in [
+      if (message.isBroadcaster) 'broadcaster',
+      if (message.isModerator) 'moderator',
+      if (message.isVip) 'vip',
+      if (message.isSubscriber) 'subscriber',
+      if (message.isBot) 'bot',
+    ]) {
+      if (!badges.any((b) => b.role == role)) {
+        badges.add(ChatUserBadge(title: role, role: role));
+      }
+    }
+    return ChatUserProfile(
+      id: message.userId,
+      name: cached?.name.isNotEmpty == true ? cached!.name : message.userName,
+      login: cached?.login ?? '',
+      avatarUrl:
+          cached?.avatarUrl ??
+          (message.platform == ChatPlatform.youtube
+              ? youtubeChatAvatar(message.source)
+              : null),
+      badges: List.unmodifiable(badges.take(8)),
+    );
+  }
+
   final DartPluginEventHub eventHub;
   final ShowRunnerDataService dataService;
   final Future<DartPluginRegistry> registryFuture;
@@ -849,6 +947,8 @@ final class UnifiedChatRuntime extends ChangeNotifier {
 
   Future<void> close() async {
     _closed = true;
+    await twitchProfiles.close();
+    await _loadingProfiles;
     try {
       await _starting;
     } catch (_) {

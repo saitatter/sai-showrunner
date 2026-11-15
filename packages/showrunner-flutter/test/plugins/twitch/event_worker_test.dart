@@ -378,7 +378,7 @@ void main() {
               ],
             },
             'badges': [
-              {'set_id': 'subscriber'},
+              {'set_id': 'subscriber', 'id': '12'},
             ],
           },
         },
@@ -400,6 +400,9 @@ void main() {
       'viewerName': 'Viewer',
       'messageId': 'message-1',
       'badges': 'subscriber',
+      'badgeVersions': [
+        {'set_id': 'subscriber', 'id': '12'},
+      ],
     });
 
     await worker.stop();

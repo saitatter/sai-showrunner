@@ -7,7 +7,7 @@ const dist = join(root, 'packages/showrunner-obs-overlay/dist/obs-overlay');
 if (!existsSync(join(dist, 'overlay.html'))) throw new Error('Build the overlay before running the browser smoke test.');
 const dockToken = 'isolated-browser-smoke-token';
 const dockMessages = [
-  {identity:'twitch:channel:1', quickActions:[{id:'pinMessage',label:'Pin message'},{id:'warnUser',label:'Warn user'}], platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', parts:[{text:'Hello '},{text:'from',imageUrl:'https://static-cdn.jtvnw.net/probe.png'},{text:' '},{text:'Twitch',imageUrl:'https://static-cdn.jtvnw.net/missing.png'}], isOwner:false, deleted:false},
+  {identity:'twitch:channel:1', profile:{userId:'same-id',name:'Twitch Viewer',login:'viewer',avatarUrl:'https://static-cdn.jtvnw.net/avatar.png',badges:[{title:'Moderator',role:'moderator',imageUrl:'https://static-cdn.jtvnw.net/badge.png'}]}, quickActions:[{id:'pinMessage',label:'Pin message'},{id:'warnUser',label:'Warn user'}], platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', parts:[{text:'Hello '},{text:'from',imageUrl:'https://static-cdn.jtvnw.net/probe.png'},{text:' '},{text:'Twitch',imageUrl:'https://static-cdn.jtvnw.net/missing.png'}], isOwner:false, deleted:false},
   {identity:'youtube:live:2', quickActions:[{id:'deleteMessage',label:'Delete message'}], platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', parts:[{text:'<script>window.chatXss=true</script>',imageUrl:'javascript:window.chatXss=true'}], isOwner:false, deleted:false},
 ];
 let dockPreferences = {version:1,fontSize:14,font:'system',timestamps:false,newestFirst:false,alternatingRows:false,platformIcons:true,roleBadges:true,animatedEmotes:true,hideCommands:false,preventIgnoredCommands:false,ignoredUsers:[],highlightedUsers:[],highlightedRoles:[],highlightTerms:[],ignoreRules:[]};
@@ -21,6 +21,7 @@ const server = createServer(async (request, response) => {
     let body = ''; for await (const chunk of request) body += chunk;
     dockRequests.push({path:pathname, ...JSON.parse(body)});
     if (pathname === '/api/preferences') dockPreferences = JSON.parse(body);
+    if (pathname === '/api/profile') {response.end(JSON.stringify({profile:dockMessages.find(m=>m.identity===JSON.parse(body).identity)?.profile,status:'loaded'})); return;}
     if (pathname === '/api/send-many') {response.end(JSON.stringify({ok:false, delivered:{twitch:true,youtube:false}})); return;}
     response.end(JSON.stringify({ok:true})); return;
   }
@@ -160,6 +161,14 @@ try {
   }
   const warning = dockRequests.find(r=>r.path==='/api/action' && r.action==='warnUser');
   if (warning.reason !== 'Respect the rules' || warning.identity !== 'twitch:channel:1') throw new Error('Warning lost its target or required reason.');
+  await evaluate(`const profileAction=[...document.querySelectorAll('article select')].find(s=>s.closest('article').textContent.includes('Twitch Viewer')); profileAction.value='profile'; profileAction.dispatchEvent(new Event('change'))`);
+  for (let attempt=0; !(await evaluate(`document.querySelector('dialog')?.open && document.querySelector('dialog .profile-avatar')?.naturalWidth > 0 && document.querySelector('dialog .badge')?.naturalWidth > 0`)); attempt++) {
+    if(attempt>100) throw new Error('Public profile avatar and badges did not render.'); await pause(50);
+  }
+  if (!(await evaluate(`document.querySelector('dialog').textContent.includes('twitch: same-id') && !document.querySelector('dialog script')`))) throw new Error('Profile identity or HTML safety failed.');
+  const profileCapture = await send('Page.captureScreenshot', {format:'png'});
+  writeFileSync(join(root, '.tmp/overlay-browser/chat-user-profile.png'), Buffer.from(profileCapture.data, 'base64'));
+  await evaluate(`document.querySelector('dialog button').click()`);
   const previousSends = dockRequests.length;
   await evaluate(`document.querySelector('#platform').value='all'; document.querySelector('#account').value='bot'; document.querySelector('#message').value='Multi-platform probe'; document.querySelector('#composer').requestSubmit()`);
   for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#status').textContent.includes('youtube: failed')`)); attempt++) {

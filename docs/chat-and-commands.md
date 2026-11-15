@@ -153,6 +153,25 @@ Regex failures are visible; affected messages stay hidden and the explicit block
 policy controls dispatch. Unsupported saved preferences are preserved and editing
 is refused until the file is repaired. Preferences live in `settings/chat.yaml`.
 
+## Public user profiles
+
+Choose **User profile** from a message menu in desktop Chat or the OBS dock.
+The card shows the provider-qualified ID, public name/login, avatar, badges and
+retained session message count (desktop). Twitch metadata loads on demand; use
+**Load recent profiles** in the desktop card to enrich up to 100 recent users
+across at most 10 channels. The session cache retains at most 500 users and 4,096
+badge versions; nothing is added to Viewer Data or authoring documents. Refresh
+reloads public metadata. Missing grants or images keep text and role fallbacks
+usable. No provider request is made for every incoming message.
+
+YouTube avatars come from live-chat `authorDetails.profileImageUrl`; graphical
+role icons represent its owner/moderator/member flags. Twitch uses public profile
+images and channel/global badge versions, including Shared Chat source badges.
+Image URLs are restricted to supported HTTPS provider CDNs. Email, tokens and raw
+user API payloads never enter profiles or dock projections. These display records
+never grant command permissions: authorization still uses delivered provider roles
+and the platform API. Public metadata may be stale until refreshed.
+
 ## Native moderation shortcuts
 
 The message menu in desktop chat and the OBS dock adds Twitch Pin/Unpin, Warn,

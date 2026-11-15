@@ -20,6 +20,7 @@ sealed class ChatDockRequest {
     final allowed = switch (path) {
       '/api/send' => {'platform', 'message', 'account'},
       '/api/send-many' => {'targets', 'message'},
+      '/api/profile' => {'identity'},
       '/api/configured-action' => {'id', 'platform', 'identity', 'eventId'},
       '/api/action' => {'identity', 'action', 'reason'},
       '/api/clear' => <String>{},
@@ -53,6 +54,8 @@ sealed class ChatDockRequest {
     };
 
     switch (path) {
+      case '/api/profile':
+        return ChatDockProfile(text('identity'));
       case '/api/send':
         final target = platform();
         final message = text(
@@ -142,6 +145,25 @@ final class ChatDockSendMany extends ChatDockRequest {
       runtime.sendMany(targets, message);
 }
 
+final class ChatDockProfile extends ChatDockRequest {
+  const ChatDockProfile(this.identity);
+  final String identity;
+  @override
+  Future<Map<String, Object?>> execute(UnifiedChatRuntime runtime) async {
+    final message = runtime.messages
+        .where((m) => m.identity == identity)
+        .firstOrNull;
+    if (message == null) {
+      throw const ChatDockProtocolException('target_not_found', 404);
+    }
+    await runtime.loadUserProfiles([message]);
+    return {
+      'profile': runtime.userProfile(message).toJson(),
+      'status': runtime.profileStatus,
+    };
+  }
+}
+
 final class ChatDockConfiguredAction extends ChatDockRequest {
   const ChatDockConfiguredAction(
     this.id,
@@ -222,6 +244,7 @@ Map<String, dynamic> chatDockSnapshot(UnifiedChatRuntime runtime) => {
           'identity': m.identity,
           ...m.context,
           'deleted': m.deleted,
+          'profile': runtime.userProfile(m).toJson(),
           'quickActions': [
             for (final action in runtime.quickActionsFor(m))
               {'id': action.name, 'label': action.label},

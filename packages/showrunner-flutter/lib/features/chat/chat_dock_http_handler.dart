@@ -32,7 +32,7 @@ final class ChatDockHttpHandler {
       request.response.headers.set('X-Content-Type-Options', 'nosniff');
       request.response.headers.set(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://static-cdn.jtvnw.net https://cdn.betterttv.net https://cdn.frankerfacez.com https://cdn.7tv.app https://cdn.7tv.io; object-src 'none'; base-uri 'none'",
+        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://static-cdn.jtvnw.net https://yt3.ggpht.com https://yt4.ggpht.com https://yt3.googleusercontent.com https://cdn.betterttv.net https://cdn.frankerfacez.com https://cdn.7tv.app https://cdn.7tv.io; object-src 'none'; base-uri 'none'",
       );
       final origin = 'http://127.0.0.1:$port';
       if (request.headers.value('host') != '127.0.0.1:$port' ||
@@ -74,6 +74,13 @@ final class ChatDockHttpHandler {
           throw const ChatDockProtocolException('invalid_json');
         }
         final command = ChatDockRequest.parse(path, payload);
+        if (command is ChatDockProfile) {
+          return await _respond(
+            request,
+            HttpStatus.ok,
+            await command.execute(runtime),
+          );
+        }
         if (command is ChatDockSendMany) {
           final result = await command.execute(runtime);
           return await _respond(request, HttpStatus.ok, {

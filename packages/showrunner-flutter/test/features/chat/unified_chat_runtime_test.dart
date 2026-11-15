@@ -11,6 +11,8 @@ import 'package:showrunner_flutter/features/chat/unified_chat_runtime.dart';
 import 'package:showrunner_flutter/persistence/secret_settings_store.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
+import 'package:showrunner_flutter/plugins/twitch/chat_profiles.dart';
+import 'package:showrunner_flutter/features/chat/chat_dock_protocol.dart';
 import 'package:showrunner_flutter/plugins/youtube/actions.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
@@ -89,6 +91,41 @@ void main() {
       commands: ChatCommandManager(
         repository: CommandRepository(root),
         execute: (_, _) async {},
+      ),
+      twitchProfiles: TwitchChatMetadataSource(
+        dataService: data,
+        request: (_, path, query, _) async {
+          if (path == '/helix/users') {
+            return {
+              'data': [
+                for (final id in query['id'] as List)
+                  {
+                    'id': id,
+                    'display_name': 'Public name',
+                    'login': 'public',
+                    'profile_image_url':
+                        'https://static-cdn.jtvnw.net/avatar.png',
+                    'email': 'private@example.test',
+                    'accessToken': 'private-profile-token',
+                  },
+              ],
+            };
+          }
+          return {
+            'data': [
+              {
+                'set_id': 'subscriber',
+                'versions': [
+                  {
+                    'id': '12',
+                    'title': 'One year',
+                    'image_url_1x': 'https://static-cdn.jtvnw.net/badge.png',
+                  },
+                ],
+              },
+            ],
+          };
+        },
       ),
       historyLimit: 2,
       executeAction: (action, values) async => actionCalls.add(values),
@@ -609,6 +646,31 @@ void main() {
       );
     },
   );
+  test(
+    'public profiles enrich history and dock without changing permission claims',
+    () async {
+      final raw = twitch('profile-message');
+      raw['badgeVersions'] = [
+        {'set_id': 'subscriber', 'id': '12'},
+      ];
+      final message = ChatMessage.fromTwitch(raw)!;
+      runtime.ingest(message);
+      await runtime.loadUserProfiles([message]);
+      final profile = runtime.userProfile(message);
+      expect(profile.name, 'Public name');
+      expect(profile.avatarUrl, 'https://static-cdn.jtvnw.net/avatar.png');
+      expect(
+        profile.badges.first.imageUrl,
+        'https://static-cdn.jtvnw.net/badge.png',
+      );
+      expect(message.isSubscriber, isFalse);
+      final public = chatDockSnapshot(runtime).toString();
+      expect(public, contains('avatar.png'));
+      expect(public, isNot(contains('private@example.test')));
+      expect(public, isNot(contains('private-profile-token')));
+    },
+  );
+
   test(
     'multi-send reports partial delivery and retries only failed platforms',
     () async {

@@ -638,6 +638,19 @@ catalog is diagnostic; a green comparison does not establish pixel equivalence.
 Selected Flutter baselines have explicit regions and a 0.5% differing-pixel limit
 at channel threshold 3. Keep the threshold and frozen reference images intact.
 
+### Public chat profile proof
+
+`test/plugins/twitch/chat_profiles_test.dart` checks curated public fields, bounded
+batches, Shared Chat badge references, CDN restrictions and shutdown rejection.
+The chat runtime tests verify that display badges never elevate command roles and
+that private email/token fields cannot enter dock snapshots. The native/widget
+profile dialog and Chromium modal exercise load/fallback behavior and actual
+avatar/badge image decoding. The default source performs no network reads until a
+profile is opened or recent profiles are requested. Existing enlarged-text layout
+checks remain unchanged; profile loading lives in the user card rather than
+adding another toolbar row. Captures use the same SDK and viewport contract as
+unified chat delivery. Live provider authorization remains a separate proof.
+
 ### Reviewed baseline SDK transition
 
 The reviewed baselines were originally committed in e64552bb1 when CI pinned

@@ -46,6 +46,7 @@ RuntimeMap normalizeTwitchEvent(String eventId, Map event) {
 
   final badges = event['badges'];
   if (badges is List) {
+    normalized['badgeVersions'] = badges;
     normalized['badges'] = badges
         .whereType<Map>()
         .map((badge) => badge['set_id']?.toString() ?? badge['title'])

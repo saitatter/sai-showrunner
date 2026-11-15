@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Show public chat profiles with provider avatars, graphical badges and session message counts in desktop chat and the OBS dock, with bounded on-demand Twitch lookups and safe image fallbacks.
 - Add Twitch message-menu shortcuts for pins, warnings and VIP/moderator roles in desktop chat and the OBS dock, with required warning reasons and platform-specific choices.
 - Send unified chat messages to Twitch and YouTube together, choose the authenticated Twitch broadcaster or bot, and retry only failed destinations while retaining the draft in both desktop chat and the OBS dock.
 - Add dedicated Twitch channel tag reads/replacement, temporary clip download URLs and Guest Star session, invitation and slot actions.
