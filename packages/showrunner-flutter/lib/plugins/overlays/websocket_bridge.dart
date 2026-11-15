@@ -21,6 +21,7 @@ import 'overlay_audio_bridge.dart';
 import 'overlay_media_resources.dart';
 import 'overlay_state_subscriptions.dart';
 import 'overlay_peer_manager.dart';
+import 'chat_projection.dart';
 
 /// Bridges the Flutter runtime to the browser/WebGL overlay.
 ///
@@ -41,6 +42,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     this.requestTimeout = const Duration(seconds: 20),
     OverlayAccessTokens? access,
     Directory? webRoot,
+    this.readChat,
   }) : access = access ?? OverlayAccessTokens.random(),
        webRoot = webRoot ?? discoverOverlayWebRoot() {
     if (maxPeers <= 0 ||
@@ -78,6 +80,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
   final Duration requestTimeout;
   final Directory? webRoot;
   final OverlayAccessTokens access;
+  final ReadOverlayChat? readChat;
   late final List<StreamSubscription<RuntimeMap>> _subscriptions;
   late final _rpc = OverlayRpcDispatcher(
     registry: registry,
@@ -112,6 +115,7 @@ final class DartOverlayWebSocketService implements OverlayPresenceReader {
     registerAudioOutput: registerAudioOutput,
     webRoot: webRoot,
     media: _media,
+    readChat: readChat,
   );
   late final OverlayPeerManager _manager = OverlayPeerManager(
     overlayStore: overlayStore,

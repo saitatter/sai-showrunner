@@ -109,6 +109,29 @@ void main() {
             tester.any(find.text('Hello from YouTube')),
       );
       await _capture(tester, 'unified-chat.png');
+      final twitchRow = find.ancestor(
+        of: find.text('!hi Ada'),
+        matching: find.byType(ListTile),
+      );
+      await tester.tap(
+        find.descendant(
+          of: twitchRow,
+          matching: find.byTooltip('Message and user actions'),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.tap(find.text('User profile'));
+      await _wait(
+        tester,
+        () =>
+            tester.any(find.byType(AlertDialog)) &&
+            chat.profileStatus != 'loading',
+      );
+      expect(find.text('twitch: viewer'), findsOneWidget);
+      await tester.pumpAndSettle();
+      await _capture(tester, 'chat-user-profile.png');
+      await tester.tap(find.widgetWithText(TextButton, 'Close').last);
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ChoiceChip, 'youtube'));
       await tester.pump();
       expect(find.text('Hello from YouTube'), findsOneWidget);

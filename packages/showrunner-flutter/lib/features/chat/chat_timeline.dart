@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'chat_message.dart';
+import 'chat_profile_widgets.dart';
 import 'chat_actions_dialog.dart';
 import 'chat_message_body.dart';
 import 'configured_chat_action.dart';
@@ -119,13 +120,16 @@ class ChatTimeline extends StatelessWidget {
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
+                final profile = runtime.userProfile(message);
                 return ListTile(
                   tileColor: preferences.highlights(message)
                       ? Theme.of(context).colorScheme.primaryContainer
                       : preferences.alternatingRows && index.isOdd
                       ? Theme.of(context).colorScheme.surfaceContainer
                       : null,
-                  leading: !preferences.platformIcons
+                  leading: profile.avatarUrl != null
+                      ? ChatProfileAvatar(profile: profile)
+                      : !preferences.platformIcons
                       ? null
                       : Tooltip(
                           message: message.platform.name,
@@ -135,17 +139,21 @@ class ChatTimeline extends StatelessWidget {
                                 : Icons.smart_display_outlined,
                           ),
                         ),
-                  title: Text(
-                    '${preferences.timestamps ? '${message.receivedAt.toLocal().toIso8601String().substring(11, 19)} ' : ''}${message.userName}${preferences.roleBadges && message.isBroadcaster
-                        ? ' · owner'
-                        : preferences.roleBadges && message.isModerator
-                        ? ' · moderator'
-                        : ''}',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: preferences.highlights(message)
-                          ? Theme.of(context).colorScheme.onPrimaryContainer
-                          : null,
-                    ),
+                  title: Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        '${preferences.timestamps ? '${message.receivedAt.toLocal().toIso8601String().substring(11, 19)} ' : ''}${message.userName}',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: preferences.highlights(message)
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : null,
+                        ),
+                      ),
+                      if (preferences.roleBadges)
+                        ChatProfileBadges(badges: profile.badges),
+                    ],
                   ),
                   subtitle: ChatMessageBody(
                     parts: runtime.messageParts(message),
@@ -167,6 +175,14 @@ class ChatTimeline extends StatelessWidget {
                         Clipboard.setData(ClipboardData(text: message.text));
                       } else if (value == 'reply') {
                         onReply(message);
+                      } else if (value == 'profile') {
+                        showDialog<void>(
+                          context: context,
+                          builder: (_) => ChatUserProfileDialog(
+                            runtime: runtime,
+                            message: message,
+                          ),
+                        );
                       } else if (value == 'user') {
                         onUser(message.userIdentity);
                       } else if (value.startsWith('configured:')) {
@@ -189,6 +205,10 @@ class ChatTimeline extends StatelessWidget {
                       const PopupMenuItem(
                         value: 'copy',
                         child: Text('Copy message'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'profile',
+                        child: Text('User profile'),
                       ),
                       const PopupMenuItem(
                         value: 'user',
@@ -216,28 +236,12 @@ class ChatTimeline extends StatelessWidget {
                                 ],
                               ),
                             ),
-                      if (!busy && !message.deleted && message.id.isNotEmpty)
-                        const PopupMenuItem(
-                          value: 'deleteMessage',
-                          child: Text('Delete message'),
-                        ),
-                      if (!busy &&
-                          !message.isBroadcaster &&
-                          message.userId.isNotEmpty) ...[
-                        const PopupMenuItem(
-                          value: 'timeout',
-                          child: Text('Timeout for 60 seconds'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'ban',
-                          child: Text('Ban user'),
-                        ),
-                        if (message.platform == ChatPlatform.twitch)
-                          const PopupMenuItem(
-                            value: 'unban',
-                            child: Text('Unban user'),
+                      if (!busy)
+                        for (final action in runtime.quickActionsFor(message))
+                          PopupMenuItem(
+                            value: action.name,
+                            child: Text(action.label),
                           ),
-                      ],
                     ],
                   ),
                 );

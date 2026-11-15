@@ -1,6 +1,7 @@
 import "./chat-dock.css"
 
-type Message = { identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean; parts?: {text:string; imageUrl?:string}[]; highlighted?: boolean; time?: string; isModerator?: boolean }
+type UserProfile = {userId:string; name:string; login:string; avatarUrl?:string; badges:{title:string;role:string;imageUrl?:string}[]}
+type Message = { profile?: UserProfile; quickActions: {id:string;label:string}[]; identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean; parts?: {text:string; imageUrl?:string}[]; highlighted?: boolean; time?: string; isModerator?: boolean }
 type FeedEvent = { eventId: string; eventType: string; platform: string; viewerId: string; viewerName: string; message: string; time: string }
 type ConfiguredAction = { id: string; label: string; scope: string; platforms: string[]; icon: string; color: string }
 let configuredActions: ConfiguredAction[] = []
@@ -16,6 +17,54 @@ const history = element<HTMLElement>("messages")
 const status = element<HTMLElement>("status")
 const input = element<HTMLInputElement>("message")
 const platform = element<HTMLSelectElement>("platform")
+const account = element<HTMLSelectElement>("account")
+const profileDialog = document.createElement("dialog")
+profileDialog.setAttribute("aria-label", "User profile")
+document.body.append(profileDialog)
+function publicProfileImage(url: string | undefined, cssClass: string, title: string) {
+  try {
+    const parsed = new URL(url ?? "")
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password ||
+        (parsed.port && parsed.port !== "443") ||
+        !["static-cdn.jtvnw.net", "yt3.ggpht.com", "yt4.ggpht.com", "yt3.googleusercontent.com"].includes(parsed.hostname)) return
+    const image = document.createElement("img"); image.src = parsed.href; image.className = cssClass; image.alt = title; image.title = title; image.referrerPolicy = "no-referrer"
+    image.addEventListener("error", () => image.replaceWith(document.createTextNode(cssClass === "badge" ? "?" : "")), {once:true})
+    return image
+  } catch { return }
+}
+function appendProfileBadges(parent: HTMLElement, profile?: UserProfile) {
+  for (const badge of profile?.badges ?? []) {
+    const wrapper = document.createElement("span"); wrapper.className = "role-badge"; wrapper.title = badge.title
+    const image = publicProfileImage(badge.imageUrl, "badge", badge.title)
+    wrapper.append(image ?? document.createTextNode(({broadcaster:"?",moderator:"?",vip:"?",subscriber:"?",bot:"?"} as Record<string,string>)[badge.role] ?? "?"))
+    parent.append(wrapper)
+  }
+}
+function renderProfile(profile: UserProfile, platform: string) {
+  profileDialog.replaceChildren()
+  const avatar = publicProfileImage(profile.avatarUrl, "profile-avatar", `Avatar for ${profile.name}`)
+  if (avatar) profileDialog.append(avatar)
+  const name = document.createElement("h2"); name.textContent = profile.name
+  const identity = document.createElement("p"); identity.textContent = `${platform}: ${profile.userId}${profile.login ? ` (@${profile.login})` : ""}`
+  const badges = document.createElement("div"); appendProfileBadges(badges, profile)
+  const close = document.createElement("button"); close.type = "button"; close.textContent = "Close"; close.addEventListener("click", () => profileDialog.close())
+  profileDialog.append(name, identity, badges, close)
+}
+async function showUserProfile(message: Message) {
+  const identity = message.identity
+  profileDialog.dataset.identity = identity
+  renderProfile(message.profile ?? {userId:userKey(message).split(":").slice(1).join(":"),name:message.viewerName,login:"",badges:[]}, message.platform)
+  if (!profileDialog.open) profileDialog.showModal()
+  try {
+    const result = await request("/api/profile", {identity}) as {profile:UserProfile;status:string}
+    if (profileDialog.open && profileDialog.dataset.identity === identity) {
+      renderProfile(result.profile, message.platform)
+      if (result.status === "unavailable") {
+        const hint = document.createElement("p"); hint.textContent = "Public profile unavailable. Check the connection and retry."; profileDialog.append(hint)
+      }
+    }
+  } catch { if (profileDialog.open && profileDialog.dataset.identity === identity) status.textContent = "Public profile unavailable." }
+}
 const filter = element<HTMLSelectElement>("filter")
 const form = element<HTMLFormElement>("composer")
 const token = location.hash.slice(1)
@@ -73,7 +122,10 @@ function render() {
     const row = document.createElement("article")
     row.classList.toggle("highlighted", message.highlighted === true)
     const title = document.createElement("strong")
-    title.textContent = `${preferences.timestamps && message.time ? new Date(message.time).toLocaleTimeString() + " " : ""}${preferences.platformIcons ? message.platform + " - " : ""}${message.viewerName}${preferences.roleBadges ? message.isOwner ? " - owner" : message.isModerator ? " - moderator" : "" : ""}`
+    title.textContent = `${preferences.timestamps && message.time ? new Date(message.time).toLocaleTimeString() + " " : ""}${preferences.platformIcons ? message.platform + " - " : ""}${message.viewerName}`
+    const avatar = publicProfileImage(message.profile?.avatarUrl, "chat-avatar", `Avatar for ${message.viewerName}`)
+    if (avatar) title.prepend(avatar)
+    if (preferences.roleBadges) appendProfileBadges(title, message.profile)
     const text = document.createElement("p")
     if (message.deleted) text.textContent = "Message deleted"
     else if (message.parts) {
@@ -91,7 +143,7 @@ function render() {
     } else text.textContent = message.message
     const actions = document.createElement("select")
     actions.setAttribute("aria-label", "Message actions")
-    for (const [value, label] of [["", "Actions"], ["reply", "Reply"], ["copy", "Copy message"], ["user", "Show messages from user"], ...(!message.deleted ? [["deleteMessage", "Delete message"]] : []), ...(!message.isOwner ? [["timeout", "Timeout 60s"], ["ban", "Ban user"], ...(message.platform === "twitch" ? [["unban", "Unban user"]] : [])] : [])]) {
+    for (const [value, label] of [["", "Actions"], ["reply", "Reply"], ["copy", "Copy message"], ["user", "Show messages from user"], ["profile", "User profile"], ...message.quickActions.map(a => [a.id, a.label])]) {
       const option = document.createElement("option"); option.value = value; option.textContent = label; actions.append(option)
     }
     for (const action of configuredActions.filter(a => ["message", "user"].includes(a.scope) && a.platforms.includes(message.platform) && !message.deleted)) {
@@ -105,7 +157,8 @@ function render() {
         catch (error) { status.textContent = String(error) } finally { actions.disabled = false }
         return
       }
-      if (action === "reply") { platform.value = message.platform; input.value = `@${message.viewerName} `; input.focus(); return }
+      if (action === "reply") { platform.value = message.platform; account.hidden = platform.value === "youtube"; input.value = `@${message.viewerName} `; input.focus(); return }
+      if (action === "profile") { await showUserProfile(message); return }
       if (action === "user") { userIdentity = userKey(message); render(); return }
       if (action === "copy") {
         try { await navigator.clipboard.writeText(message.message); status.textContent = "Message copied." }
@@ -113,7 +166,9 @@ function render() {
         return
       }
       if (!action || !confirm(`${actions.querySelector(`option[value="${action}"]`)?.textContent}: ${message.viewerName}?`)) return
-      try { await request("/api/action", { identity: message.identity, action }); status.textContent = "Action sent." } catch (error) { status.textContent = String(error) }
+      const reason = action === "warnUser" ? prompt("Warning reason (up to 500 characters)") : undefined
+      if (action === "warnUser" && (!reason?.trim() || reason.length > 500)) return
+      try { await request("/api/action", { identity: message.identity, action, ...(reason ? {reason:reason.trim()} : {}) }); status.textContent = "Action sent." } catch (error) { status.textContent = String(error) }
     })
     row.append(title, actions, text); history.append(row)
   }
@@ -149,7 +204,7 @@ function suggest(reset = true) {
   }
 }
 input.addEventListener("input", () => suggest())
-platform.addEventListener("change", () => { suggest(); render() })
+platform.addEventListener("change", () => { account.hidden = platform.value === "youtube"; suggest(); render() })
 input.addEventListener("keydown", event => {
   if (!candidates.length) return
   if (event.key === "Tab" || event.key === "Enter") { event.preventDefault(); insertCompletion(selectedCompletion) }
@@ -166,7 +221,24 @@ form.addEventListener("submit", async event => {
       case "/clear": await request("/api/clear", {}); messages = []; signature = ""; render(); status.textContent = "Local history cleared."; break
       case "/pause": pausedIdentities = new Set(messages.map(m => m.identity)); pausedEventIds = new Set(events.map(e => e.eventId)); render(); status.textContent = "View paused. Use /resume to show incoming messages."; break
       case "/resume": pausedIdentities = undefined; pausedEventIds = undefined; render(); status.textContent = "View resumed."; break
-      default: await request("/api/send", { platform: platform.value, message: sentText }); status.textContent = "Message sent."
+      default: {
+        if (platform.value === "all") {
+          const result = await request("/api/send-many", {
+            targets: {twitch: account.value, youtube: "broadcaster"}, message: sentText,
+          }) as {ok: boolean; delivered: Record<string, boolean>}
+          status.textContent = Object.entries(result.delivered).map(([name, ok]) => `${name}: ${ok ? "sent" : "failed"}`).join("; ")
+          if (!result.ok) {
+            const failed = Object.entries(result.delivered).filter(([, ok]) => !ok).map(([name]) => name)
+            if (failed.length === 1) { platform.value = failed[0]!; account.hidden = platform.value === "youtube" }
+            status.textContent += ". Retry sends only to failed destinations."
+            return
+          }
+        } else {
+          await request("/api/send", { platform: platform.value, message: sentText,
+            account: platform.value === "twitch" ? account.value : "broadcaster" })
+          status.textContent = "Message sent."
+        }
+      }
     }
     if (input.value === sentText) input.value = ""
     suggest()

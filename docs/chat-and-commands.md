@@ -1,7 +1,7 @@
 # Chat and managed commands
 
-These features are on the development branch after v2.0.0. Twitch and YouTube
-are included; Kick is a separate future integration.
+Twitch and YouTube are included. Unreleased additions below are validated with
+isolated fixtures; Kick is being developed as a separate provider.
 
 ## Commands
 
@@ -70,10 +70,10 @@ Type `!` for enabled, listed commands and aliases on the selected platform, or `
 for local clear/pause/resume actions. Arrow keys select a suggestion; Tab or Enter
 inserts it before sending. These menus are shared with the browser dock. Reply selects the destination
 and inserts a mention; it does not create a provider-native reply thread. Sending
-targets the selected platform. Messages appear when received from the provider,
+targets the selected destinations. Messages appear when received from the provider,
 without speculative local echoes. Clearing history keeps replay deduplication.
-Twitch sends and moderation use the authenticated channel account; switching to
-a separate bot sender is not yet exposed in this workspace.
+Twitch sends can use the broadcaster or separately authenticated bot; moderation
+uses the authenticated channel account.
 For YouTube, the active provider worker's chat takes precedence over the saved
 liveChatId, including a broadcast discovered through the YouTube workspace.
 
@@ -152,6 +152,125 @@ This policy does not disable separately configured raw provider graph triggers.
 Regex failures are visible; affected messages stay hidden and the explicit block
 policy controls dispatch. Unsupported saved preferences are preserved and editing
 is refused until the file is repaired. Preferences live in `settings/chat.yaml`.
+
+## Dedicated OBS chat overlay
+
+Add **Chat Feed** to an overlay, set **source** to `unifiedChat`, choose all/Twitch/
+YouTube, and save. Use that overlay's existing **Browser Source URL** in portable
+OBS. The widget polls approved public history once per second without a graph
+connection or the admin dock token. The existing `automation` source remains
+available for manually approved graph pushes; the two sources do not mix.
+
+Configure 1?200 messages, `fadeTime` 0?86,400 seconds (0 keeps messages until they
+leave history), horizontal/vertical layout, font/size, background color/opacity,
+platform colors and badge labels. Deletions, local clears and changed ignore
+preferences replace the displayed snapshot. Expiry also runs locally during a
+connection outage. Source changes and widget destruction abort pending reads and
+release poll/expiry timers. Authoring preview uses sample messages.
+
+Only a Chat Feed saved with `unifiedChat` may read its widget-specific endpoint.
+Access uses the overlay's scoped capability/HttpOnly session, and the server
+rechecks the current widget configuration after asynchronous reads. The endpoint
+has no send/moderation operations, credentials, raw provider data or private account metadata.
+Private/ignored/deleted messages and private moderation events are excluded.
+A disabled badge display also omits badge data from the projection. Browser
+markup is rendered as literal text. Live OBS/CEF authorization remains a separate
+probe from the isolated Chromium fixtures.
+
+## Public user profiles
+
+Choose **User profile** from a message menu in desktop Chat or the OBS dock.
+The card shows the provider-qualified ID, public name/login, avatar, badges and
+retained session message count (desktop). Twitch metadata loads on demand; use
+**Load recent profiles** in the desktop card to enrich up to 100 recent users
+across at most 10 channels. The session cache retains at most 500 users and 4,096
+badge versions; nothing is added to Viewer Data or authoring documents. Refresh
+reloads public metadata. Missing grants or images keep text and role fallbacks
+usable. No provider request is made for every incoming message.
+
+YouTube avatars come from live-chat `authorDetails.profileImageUrl`; graphical
+role icons represent its owner/moderator/member flags. Twitch uses public profile
+images and channel/global badge versions, including Shared Chat source badges.
+Image URLs are restricted to supported HTTPS provider CDNs. Email, tokens and raw
+user API payloads never enter profiles or dock projections. These display records
+never grant command permissions: authorization still uses delivered provider roles
+and the platform API. Public metadata may be stale until refreshed.
+
+## Native moderation shortcuts
+
+The message menu in desktop chat and the OBS dock adds Twitch Pin/Unpin, Warn,
+Add/Remove VIP and Add/Remove Moderator alongside delete/timeout/ban/unban.
+Role choices reflect badges on the received message; Twitch still authorizes
+and validates the current role on each request. Warning confirmation requires a
+non-empty reason (up to 500 characters). Platform-specific shortcuts are omitted
+from YouTube menus; its existing delete/timeout/ban paths remain available.
+Broadcaster messages may be pinned/deleted, but the owner is excluded from
+user sanctions and role changes. AutoMod held text and warning reasons remain
+on private automation events, outside public history and event-feed projections.
+
+## Multi-platform sends and sender accounts
+
+Select the Twitch/YouTube destination chips in desktop Chat, or **Twitch + YouTube**
+in the OBS dock. Select **Twitch: broadcaster** or **Twitch: bot** independently.
+YouTube uses its configured authorized account; it has no second bot account slot.
+The Twitch bot uses its separately encrypted `TwitchAccount/bot` credential and
+identity, never a different sender ID on the broadcaster token. A missing/expired
+bot grant fails explicitly, without falling back to the broadcaster. Sign in the
+bot in Twitch settings and grant `user:write:chat`; implicit tokens need reauthorization
+when expired. Moderation continues to use the channel's authenticated actor.
+
+Every target's message limit is checked before sending (500 Twitch, 200 YouTube).
+Destination requests run concurrently. Each reports its own result; a partial
+failure retains the text and selects only failed destinations for retry. Known
+successful targets are not resent. Delivery owns history; no local message echo
+is fabricated. A lost network response can leave delivery uncertain; this is not
+an exactly-once messaging protocol. Slash shortcuts execute on one platform at a
+time, and local `/clear`, `/pause`, `/resume` never become provider messages.
+The dock retains authentication and the same bounded, typed request validation.
+
+## Twitch lifecycle and moderation nodes
+
+Polls expose Get Polls (IDs or cursor pagination), Terminate Poll and Archive Poll.
+Predictions expose Get Predictions, Lock, Resolve and Cancel. Transition nodes
+require the exact poll/prediction ID; Resolve additionally requires the winning
+outcome ID. Get results keep Helix data and pagination; lifecycle triggers
+include option IDs, votes/points and timestamps. Progress is a separate trigger.
+
+Pin/Unpin Chat Message use a message ID. Pin duration is optional (until stream
+ends), or 30?1800 seconds. Adding/removing VIPs and moderators uses viewer IDs;
+these actions never silently demote another role. Warn Viewer requires a reason
+(up to 500 characters). Allow/Deny AutoMod Message acts on a held message ID.
+Warning sent/acknowledged and AutoMod held/updated/settings/terms triggers expose
+moderator IDs and details on dedicated automation events. Held text is private
+moderation data; it does not become public chat history or dock content.
+
+Reauthorize the channel account to grant `channel:manage:vips`,
+`channel:manage:moderators`, `moderator:manage:warnings`,
+`moderator:manage:automod` and `moderator:manage:automod_settings`.
+Polls/predictions use their existing manage scopes and Twitch account eligibility.
+Pins use `moderator:manage:chat_messages`. A scope alone does not grant channel
+roles. Provider refusals propagate without retrying lifecycle or role mutations.
+See the official [poll](https://dev.twitch.tv/docs/api/reference/polls/),
+[prediction](https://dev.twitch.tv/docs/api/reference/predictions/),
+[chat](https://dev.twitch.tv/docs/api/reference/chat/) and
+[moderation](https://dev.twitch.tv/docs/api/reference/moderation/) contracts.
+
+Channel tools include Get/Set Channel Tags (maximum 10 alphanumeric tags,
+25 characters each). Set replaces the list; `[]` clears it. Clip Download URLs
+accepts 1?10 clip IDs and returns Twitch's temporary download links without
+fetching the files. Reauthorize for `channel:manage:clips`; the editor ID must
+identify the authenticated broadcaster/editor. Do not persist signed URLs as
+long-lived media references.
+
+Guest Star (Twitch Stream Together, beta API) exposes get/create/end session,
+get/send/delete invites and assign/delete guest slots. Session/guest/slot IDs
+must be explicit; no automatic selection or silent guest replacement logic is
+added locally. Twitch itself replaces a guest occupying the assigned slot.
+Deleting a slot optionally reinvites the guest. Reauthorize the broadcaster for
+`channel:manage:guest_star`. Creating a session requires the broadcaster present
+in Twitch's call interface; these nodes do not implement a video-call client.
+See [Guest Star](https://dev.twitch.tv/docs/api/reference/guest-star/) and
+[Clips](https://dev.twitch.tv/docs/api/reference/clips/) for eligibility and API limits.
 
 ## Accounts and validation boundary
 

@@ -51,8 +51,11 @@ See [setup and behavior](../chat-and-commands.md).
 
 Before a live pass, reconnect Twitch if its token predates
 `moderator:manage:chat_messages` or `user:read:whispers` (channel and separate bot).
-The client uses the authenticated channel account
-for sends and moderation. YouTube needs an active test broadcast/liveChatId and
+The client can send as the authenticated Twitch channel or separate bot account;
+moderation uses the channel actor. Verify both send identities and a two-platform
+send against consenting test channels. Test partial failures without repeating
+successful destinations. New lifecycle/role/warning/AutoMod nodes also require
+the scopes listed in the chat documentation and explicit authorization for writes. YouTube needs an active test broadcast/liveChatId and
 an account allowed to send and moderate. Use a separate consenting test account
 for timeout/ban tests. Test aliases, unrelated messages, role rejection and
 global/user cooldowns using different users; inspect actual Queues execution as

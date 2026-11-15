@@ -5,11 +5,14 @@ import 'package:showrunner_flutter/features/chat/chat_command.dart';
 import 'package:showrunner_flutter/features/chat/chat_preferences.dart';
 import 'package:showrunner_flutter/features/chat/configured_chat_action.dart';
 import 'package:showrunner_flutter/features/chat/chat_message.dart';
+import 'package:showrunner_flutter/features/chat/chat_delivery.dart';
 import 'package:showrunner_flutter/features/chat/command_manager.dart';
 import 'package:showrunner_flutter/features/chat/unified_chat_runtime.dart';
 import 'package:showrunner_flutter/persistence/secret_settings_store.dart';
 import 'package:showrunner_flutter/plugins/registry/plugin_registry.dart';
 import 'package:showrunner_flutter/plugins/twitch/actions.dart';
+import 'package:showrunner_flutter/plugins/twitch/chat_profiles.dart';
+import 'package:showrunner_flutter/features/chat/chat_dock_protocol.dart';
 import 'package:showrunner_flutter/plugins/youtube/actions.dart';
 import 'package:showrunner_flutter/services/plugin_event_hub.dart';
 import 'package:showrunner_flutter/services/showrunner_data_service.dart';
@@ -24,8 +27,10 @@ void main() {
   late List<Map<String, dynamic>> calls;
   late List<Map<String, dynamic>> actionCalls;
   String? activeYouTubeChat;
+  bool rejectYouTube = false;
   setUp(() async {
     activeYouTubeChat = null;
+    rejectYouTube = false;
     root = await Directory.systemTemp.createTemp('showrunner-chat-runtime-');
     data = ShowRunnerDataService(
       root,
@@ -74,6 +79,7 @@ void main() {
               'query': query,
               'body': body,
             });
+            if (rejectYouTube) throw StateError('private provider error');
             return {};
           }),
         ),
@@ -85,6 +91,41 @@ void main() {
       commands: ChatCommandManager(
         repository: CommandRepository(root),
         execute: (_, _) async {},
+      ),
+      twitchProfiles: TwitchChatMetadataSource(
+        dataService: data,
+        request: (_, path, query, _) async {
+          if (path == '/helix/users') {
+            return {
+              'data': [
+                for (final id in query['id'] as List)
+                  {
+                    'id': id,
+                    'display_name': 'Public name',
+                    'login': 'public',
+                    'profile_image_url':
+                        'https://static-cdn.jtvnw.net/avatar.png',
+                    'email': 'private@example.test',
+                    'accessToken': 'private-profile-token',
+                  },
+              ],
+            };
+          }
+          return {
+            'data': [
+              {
+                'set_id': 'subscriber',
+                'versions': [
+                  {
+                    'id': '12',
+                    'title': 'One year',
+                    'image_url_1x': 'https://static-cdn.jtvnw.net/badge.png',
+                  },
+                ],
+              },
+            ],
+          };
+        },
       ),
       historyLimit: 2,
       executeAction: (action, values) async => actionCalls.add(values),
@@ -606,6 +647,111 @@ void main() {
     },
   );
   test(
+    'overlay history excludes deleted, whisper and internal messages',
+    () async {
+      final public = ChatMessage.fromTwitch(twitch('public'))!;
+      runtime.ingest(public);
+      await runtime.filtersSettled;
+      expect(runtime.overlayChatHistory().single.id, public.identity);
+      runtime.markDeleted(ChatPlatform.twitch, 'public', channelId: 'channel');
+      expect(runtime.overlayChatHistory(), isEmpty);
+      final private = ChatMessage.fromTwitch(
+        twitch('private'),
+        origin: ChatOrigin.whisper,
+      )!;
+      runtime.ingest(private);
+      await runtime.filtersSettled;
+      expect(runtime.overlayChatHistory(), isEmpty);
+      final internal = ChatMessage.fromTwitch(
+        twitch('internal'),
+        origin: ChatOrigin.internal,
+      )!;
+      runtime.ingest(internal);
+      await runtime.filtersSettled;
+      expect(runtime.overlayChatHistory(), isEmpty);
+    },
+  );
+
+  test(
+    'public profiles enrich history and dock without changing permission claims',
+    () async {
+      final raw = twitch('profile-message');
+      raw['badgeVersions'] = [
+        {'set_id': 'subscriber', 'id': '12'},
+      ];
+      final message = ChatMessage.fromTwitch(raw)!;
+      runtime.ingest(message);
+      await runtime.loadUserProfiles([message]);
+      final profile = runtime.userProfile(message);
+      expect(profile.name, 'Public name');
+      expect(profile.avatarUrl, 'https://static-cdn.jtvnw.net/avatar.png');
+      expect(
+        profile.badges.first.imageUrl,
+        'https://static-cdn.jtvnw.net/badge.png',
+      );
+      expect(message.isSubscriber, isFalse);
+      final public = chatDockSnapshot(runtime).toString();
+      expect(public, contains('avatar.png'));
+      expect(public, isNot(contains('private@example.test')));
+      expect(public, isNot(contains('private-profile-token')));
+    },
+  );
+
+  test(
+    'multi-send reports partial delivery and retries only failed platforms',
+    () async {
+      rejectYouTube = true;
+      final result = await runtime.sendMany({
+        ChatPlatform.twitch: ChatSendAccount.broadcaster,
+        ChatPlatform.youtube: ChatSendAccount.broadcaster,
+      }, 'Hello both');
+      expect(result.succeeded, isFalse);
+      expect(result.delivered, {
+        ChatPlatform.twitch: true,
+        ChatPlatform.youtube: false,
+      });
+      expect(result.failed, {ChatPlatform.youtube});
+      expect(calls, hasLength(2));
+      expect(runtime.messages, isEmpty);
+      rejectYouTube = false;
+      final retry = await runtime.sendMany({
+        for (final platform in result.failed)
+          platform: ChatSendAccount.broadcaster,
+      }, 'Hello both');
+      expect(retry.succeeded, isTrue);
+      expect(calls, hasLength(3));
+      expect(
+        calls.where((c) => c['path'] == '/helix/chat/messages'),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'all multi-send destinations validate before any provider write',
+    () async {
+      final targets = {
+        ChatPlatform.twitch: ChatSendAccount.broadcaster,
+        ChatPlatform.youtube: ChatSendAccount.broadcaster,
+      };
+      await expectLater(
+        runtime.sendMany(targets, 'x' * 201),
+        throwsFormatException,
+      );
+      await expectLater(
+        runtime.sendMany(targets, '/action:shortcut'),
+        throwsFormatException,
+      );
+      await expectLater(runtime.sendMany({}, 'text'), throwsFormatException);
+      await expectLater(
+        runtime.sendMany({ChatPlatform.youtube: ChatSendAccount.bot}, 'text'),
+        throwsFormatException,
+      );
+      expect(calls, isEmpty);
+    },
+  );
+
+  test(
     'routes sends to exactly one provider and does not fabricate history',
     () async {
       await runtime.send(ChatPlatform.twitch, 'Hello Twitch');
@@ -626,6 +772,71 @@ void main() {
       expect(calls, hasLength(2));
     },
   );
+  test(
+    'Twitch native shortcuts use message/user IDs and explicit warning reasons',
+    () async {
+      final message = ChatMessage.fromTwitch(twitch('moderation-target'))!;
+      for (final item in [
+        (ChatQuickAction.pinMessage, '/helix/chat/pins', 'PUT'),
+        (ChatQuickAction.unpinMessage, '/helix/chat/pins', 'DELETE'),
+        (ChatQuickAction.addVip, '/helix/channels/vips', 'POST'),
+        (ChatQuickAction.removeVip, '/helix/channels/vips', 'DELETE'),
+        (ChatQuickAction.addModerator, '/helix/moderation/moderators', 'POST'),
+        (
+          ChatQuickAction.removeModerator,
+          '/helix/moderation/moderators',
+          'DELETE',
+        ),
+        (ChatQuickAction.warnUser, '/helix/moderation/warnings', 'POST'),
+      ]) {
+        await runtime.quickAction(
+          message,
+          item.$1,
+          reason: 'Respect the rules',
+        );
+        expect(calls.last['path'], item.$2);
+        expect(calls.last['method'], item.$3);
+        expect(calls.last['query'], containsPair('broadcaster_id', 'channel'));
+      }
+      expect(calls.last['body'], {
+        'data': {'user_id': message.userId, 'reason': 'Respect the rules'},
+      });
+      expect(calls.where((c) => c['path'] == '/helix/chat/messages'), isEmpty);
+      final youtubeMessage = ChatMessage.fromYouTube(youtube('yt'))!;
+      expect(
+        runtime.quickActionsFor(youtubeMessage),
+        isNot(contains(ChatQuickAction.pinMessage)),
+      );
+      await expectLater(
+        runtime.quickAction(youtubeMessage, ChatQuickAction.addVip),
+        throwsStateError,
+      );
+      expect(calls, hasLength(7));
+      await expectLater(
+        runtime.quickAction(message, ChatQuickAction.warnUser),
+        throwsArgumentError,
+      );
+      expect(calls, hasLength(7));
+    },
+  );
+
+  test(
+    'AutoMod and warning details never enter public chat or the event feed',
+    () async {
+      hub.emit('autoModMessageHeld', {
+        'viewerId': 'private',
+        'message': 'private held text',
+      });
+      hub.emit('warningSent', {
+        'viewerId': 'private',
+        'reason': 'private reason',
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(runtime.messages, isEmpty);
+      expect(runtime.events, isEmpty);
+    },
+  );
+
   test(
     'uses provider message/user IDs for moderation and only marks a successful delete',
     () async {

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Features
+- Add a Unified Chat source for OBS Chat Feed widgets, with platform filters, message limits, expiry, deletion/clear synchronization and overlay-scoped access while retaining automation-driven feeds.
+- Show public chat profiles with provider avatars, graphical badges and session message counts in desktop chat and the OBS dock, with bounded on-demand Twitch lookups and safe image fallbacks.
+- Add Twitch message-menu shortcuts for pins, warnings and VIP/moderator roles in desktop chat and the OBS dock, with required warning reasons and platform-specific choices.
+- Send unified chat messages to Twitch and YouTube together, choose the authenticated Twitch broadcaster or bot, and retry only failed destinations while retaining the draft in both desktop chat and the OBS dock.
+- Add dedicated Twitch channel tag reads/replacement, temporary clip download URLs and Guest Star session, invitation and slot actions.
+- Complete Twitch poll and prediction lifecycle nodes, chat pin/unpin, VIP/moderator role actions, warnings and AutoMod decisions, with progress and moderation triggers carrying their event details.
 - Store Viewer Data in indexed SQLite tables with transactional updates, provider-qualified identities, safe one-time import of existing files, consistent online backups and portable import/export. Keep viewer values out of SQL profiling traces in development builds.
 - Add macOS Intel/Apple Silicon installers and portable ZIPs, plus Linux x64 DEB installers and portable archives, with secure OS-keyring credentials, platform data directories and native window/browser lifecycles with awaited window setup and Linux renderer lifetime retained through engine shutdown; preserve stored secrets when OS keys or key metadata are missing, and report Windows-only global input as unavailable without aborting desktop startup.
 - Add shader graph node search with Ctrl+F and a snap-to-grid toggle using the shared immutable canvas controls.
@@ -77,6 +83,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
+- Document Twitch lifecycle/moderation scopes, multi-send accounts, public profiles, scoped OBS chat setup and their isolated verification limits.
 - Document Viewer Data's SQLite ownership, source-preserving migration, backup/interchange commands and measured query costs at 1K, 10K and 100K viewers.
 - Align contributor rules, repository ownership and release-note guidance with the shared Collectarr model, including editorial summaries, banner history and parallel CI gates.
 - Document desktop package formats, proof hosts and Rosetta coverage limits, OS-keyring behavior, portable data locations, default SDK rendering, confirmed upstream Linux lifetime issues and the criteria for removing the application workaround.
@@ -85,6 +92,7 @@
 - Document typed storage ownership, journal recovery and stale-write policy, provider editor/codec boundaries, secret handling and measured Phase 04 validation limits.
 
 ### CI & Build
+- Await restored overlay editors in native persistence checks so asynchronous startup does not race saved-state assertions.
 - Run Flutter analysis/unit tests in parallel with native Windows builds and integration checks, preserve all required gates and upload machine-readable Flutter test results.
 - Format release descriptions with a versioned editorial summary, complete commit credits and immutable streaming-studio banners with the official application logo, locally bundled licensed emoji highlights and human-only contributor statistics; maintain historical summaries for every published version and preview or regenerate descriptions through a separate manual workflow.
 - Build and smoke-test macOS/Linux installer and portable artifacts in isolated CI, with verified target architectures, macOS x64 execution through Rosetta on Apple Silicon, separate build/verification status and only required native dependencies; publish releases only after every platform package passes, retain application logs and native launcher crash diagnostics, verify unlocked CI keyrings and wait for complete application startup and rasterized frames before running or closing scenarios, and cancel obsolete proof jobs independently per platform.

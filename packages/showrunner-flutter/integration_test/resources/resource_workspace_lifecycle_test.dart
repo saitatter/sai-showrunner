@@ -243,6 +243,7 @@ void main() {
     await tester.pumpWidget(buildShowRunnerTestApp(dataService: dataService));
     await _pumpApplication(tester);
 
+    await _waitForWidget(tester, find.byType(OverlayEditorPage));
     final reopened = tester.widget<OverlayEditorPage>(
       find.byType(OverlayEditorPage),
     );

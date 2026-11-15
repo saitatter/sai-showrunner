@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import 'chat_message.dart';
+import 'chat_delivery.dart';
+import 'chat_moderation_dialog.dart';
 import 'chat_completion.dart';
 import 'chat_preferences_dialog.dart';
 import 'chat_actions_dialog.dart';
@@ -29,6 +31,9 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
   final _composerFocus = FocusNode();
   final _search = TextEditingController();
   ChatPlatform _destination = ChatPlatform.twitch;
+  Set<ChatPlatform> _destinations = {ChatPlatform.twitch};
+  ChatSendAccount _twitchAccount = ChatSendAccount.broadcaster;
+  ChatDeliveryResult? _delivery;
   ChatPlatform? _filter;
   bool _busy = false;
   Object _owner = Object();
@@ -45,6 +50,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
       _pausedIdentities = null;
       _pausedEventIds = null;
       _userIdentity = null;
+      _delivery = null;
     }
   }
 
@@ -152,7 +158,12 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
     final owner = _owner;
     final runtime = widget.runtime;
     final text = _message.text;
-    final destination = _destination;
+    final targets = {
+      for (final platform in _destinations)
+        platform: platform == ChatPlatform.twitch
+            ? _twitchAccount
+            : ChatSendAccount.broadcaster,
+    };
     return _run(() async {
       switch (text.trim()) {
         case '/clear':
@@ -162,7 +173,15 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
         case '/resume':
           _resume();
         default:
-          await runtime.send(destination, text);
+          final result = await runtime.sendMany(targets, text);
+          if (!_isCurrent(owner)) return;
+          _delivery = result;
+          if (!result.succeeded) {
+            _destinations = result.failed;
+            if (_destinations.isNotEmpty) _destination = _destinations.first;
+            _error = StateError('Some chat destinations failed.');
+            return;
+          }
       }
       if (_isCurrent(owner) && _message.text == text) _message.clear();
     });
@@ -171,25 +190,12 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
   Future<void> _moderate(ChatMessage message, ChatQuickAction action) async {
     final owner = _owner;
     final runtime = widget.runtime;
-    final accepted = await showDialog<bool>(
+    final reason = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${action.name} on ${message.platform.name}?'),
-        content: Text('${message.userName}: ${message.text}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+      builder: (_) => ChatModerationDialog(message: message, action: action),
     );
-    if (accepted == true && _isCurrent(owner)) {
-      await _run(() => runtime.quickAction(message, action));
+    if (reason != null && _isCurrent(owner)) {
+      await _run(() => runtime.quickAction(message, action, reason: reason));
     }
   }
 
@@ -407,6 +413,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
               onReply: (message) {
                 setState(() {
                   _destination = message.platform;
+                  _destinations = {message.platform};
                   _message.text = '@${message.userName} ';
                 });
                 _composerFocus.requestFocus();
@@ -419,6 +426,66 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
             builder: (context, _) => Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Wrap(
+                  spacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Text('Send to:'),
+                    for (final platform in ChatPlatform.values)
+                      FilterChip(
+                        label: Text(platform.name),
+                        selected: _destinations.contains(platform),
+                        onSelected: _busy
+                            ? null
+                            : (selected) => setState(() {
+                                _delivery = null;
+                                if (selected) {
+                                  _destinations.add(platform);
+                                  _destination = platform;
+                                } else {
+                                  _destinations.remove(platform);
+                                  if (_destinations.isNotEmpty) {
+                                    _destination = _destinations.first;
+                                  }
+                                }
+                              }),
+                      ),
+                    if (_destinations.contains(ChatPlatform.twitch))
+                      DropdownButton<ChatSendAccount>(
+                        value: _twitchAccount,
+                        hint: const Text('Twitch account'),
+                        onChanged: _busy
+                            ? null
+                            : (value) {
+                                if (value != null) {
+                                  setState(() => _twitchAccount = value);
+                                }
+                              },
+                        items: const [
+                          DropdownMenuItem(
+                            value: ChatSendAccount.broadcaster,
+                            child: Text('Twitch: broadcaster'),
+                          ),
+                          DropdownMenuItem(
+                            value: ChatSendAccount.bot,
+                            child: Text('Twitch: bot'),
+                          ),
+                        ],
+                      ),
+                    if (_delivery case final result?)
+                      for (final entry in result.delivered.entries)
+                        Chip(
+                          avatar: Icon(
+                            entry.value
+                                ? Icons.check_circle_outline
+                                : Icons.error_outline,
+                          ),
+                          label: Text(
+                            '${entry.key.name}: ${entry.value ? 'sent' : 'failed — retry selected'}',
+                          ),
+                        ),
+                  ],
+                ),
                 if (_suggestions.isNotEmpty)
                   Wrap(
                     spacing: 6,
@@ -435,21 +502,6 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                   ),
                 Row(
                   children: [
-                    DropdownButton<ChatPlatform>(
-                      value: _destination,
-                      onChanged: _busy
-                          ? null
-                          : (v) {
-                              if (v != null) setState(() => _destination = v);
-                            },
-                      items: ChatPlatform.values
-                          .map(
-                            (p) =>
-                                DropdownMenuItem(value: p, child: Text(p.name)),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
                       child: CallbackShortcuts(
                         bindings: {
@@ -479,7 +531,7 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
                           enabled: !_busy,
                           decoration: const InputDecoration(
                             labelText: 'Message',
-                            hintText: 'Send to the selected platform',
+                            hintText: 'Send to the selected destinations',
                           ),
                           onSubmitted: (_) => _completeOrSend(),
                           onChanged: (_) =>

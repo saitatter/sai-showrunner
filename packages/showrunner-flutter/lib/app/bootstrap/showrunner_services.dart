@@ -13,6 +13,7 @@ import '../../persistence/viewer_data_sync.dart';
 import '../../plugins/registry/plugin_bootstrap.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/overlays/overlay_presence.dart';
+import '../../plugins/overlays/chat_projection.dart';
 import '../../plugins/obs/overlay_source_service.dart';
 import '../../plugins/obs/connection_router.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
@@ -71,6 +72,7 @@ final class ShowRunnerServices {
     final actionQueue = DartActionQueue();
     final eventHub = DartPluginEventHub();
     final commandManagerReady = Completer<ChatCommandManager>();
+    final chatHistoryReady = Completer<OverlayChatReader>();
     final viewerDataRepository = dataService.storage.viewerData;
     final viewerDataSynchronizer = ViewerDataSynchronizer(
       repository: viewerDataRepository,
@@ -125,6 +127,7 @@ final class ShowRunnerServices {
           dataService,
           eventHub: eventHub,
           chatCommands: commandManagerReady.future,
+          readOverlayChat: () async => (await chatHistoryReady.future)(),
           viewerDataRepository: viewerDataRepository,
           queueManager: queueManager,
           executionEngine: graphExecutionEngine,
@@ -267,6 +270,7 @@ final class ShowRunnerServices {
       youtubeLiveChatId: () => providerEvents.youtube?.liveChatId,
     );
     final chatDock = ChatDockService(runtime: chatRuntime);
+    chatHistoryReady.complete(chatRuntime.overlayChatHistory);
     var identitiesEnabled = false;
     Future<void> identityRefresh = Future.value();
     void refreshChatIdentities() {

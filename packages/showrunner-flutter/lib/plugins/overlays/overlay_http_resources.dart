@@ -6,6 +6,7 @@ import 'manifest.dart';
 import 'overlay_access.dart';
 import 'overlay_media_resources.dart';
 import 'overlay_browser_projection.dart';
+import 'chat_projection.dart';
 
 /// Read-only HTTP resources for one overlay runtime; no peer or event ownership.
 final class OverlayHttpResourceHandler {
@@ -15,12 +16,14 @@ final class OverlayHttpResourceHandler {
     required this.registerAudioOutput,
     this.webRoot,
     required this.media,
+    this.readChat,
   });
   final OverlayResourceStore overlayStore;
   final OverlayAccessTokens access;
   final void Function(String overlayId) registerAudioOutput;
   final Directory? webRoot;
   final OverlayMediaResources media;
+  final ReadOverlayChat? readChat;
   bool _disposed = false;
   Future<Map<String, dynamic>> projectConfig(ResourceData resource) =>
       projectOverlayConfig(resource, media);
@@ -62,9 +65,66 @@ final class OverlayHttpResourceHandler {
         await _respond(request, HttpStatus.noContent);
         return true;
       }
-      if ((segments[2] == 'config' || segments[2] == 'media') &&
+      if ((segments[2] == 'config' ||
+              segments[2] == 'media' ||
+              segments[2] == 'chat') &&
           !access.authorizes(request, id)) {
         await _respond(request, HttpStatus.unauthorized);
+        return true;
+      }
+      if (segments[2] == 'chat') {
+        if (segments.length != 4 ||
+            request.method != 'GET' ||
+            request.uri.hasQuery) {
+          await _respond(request, HttpStatus.badRequest);
+          return true;
+        }
+        try {
+          final reader = readChat;
+          if (reader == null) {
+            await _respond(request, HttpStatus.serviceUnavailable);
+            return true;
+          }
+          var resource = await overlayStore.load(id);
+          if (resource == null) {
+            await _respond(request, HttpStatus.notFound);
+            return true;
+          }
+          OverlayChatProjection.fromResource(resource, segments[3]);
+          if (_disposed) {
+            await _respond(request, HttpStatus.serviceUnavailable);
+            return true;
+          }
+          final history = await reader().timeout(const Duration(seconds: 5));
+          if (_disposed) {
+            await _respond(request, HttpStatus.serviceUnavailable);
+            return true;
+          }
+          // Re-read after the asynchronous source: deleting the overlay or
+          // changing its widget/source must revoke an already pending read.
+          resource = await overlayStore.load(id);
+          if (_disposed || resource == null) {
+            await _respond(
+              request,
+              _disposed ? HttpStatus.serviceUnavailable : HttpStatus.notFound,
+            );
+            return true;
+          }
+          final policy = OverlayChatProjection.fromResource(
+            resource,
+            segments[3],
+          );
+          final payload = policy.project(history, DateTime.now());
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(jsonEncode(payload));
+          await request.response.close();
+        } on OverlayChatNotEnabled {
+          await _respond(request, HttpStatus.forbidden);
+        } on FormatException {
+          await _respond(request, HttpStatus.badRequest);
+        } on Object {
+          await _respond(request, HttpStatus.serviceUnavailable);
+        }
         return true;
       }
       if (segments[2] == 'media' && request.method == 'GET') {

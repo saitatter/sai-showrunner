@@ -4,10 +4,15 @@ import 'package:flutter/foundation.dart';
 
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/twitch/account_runtime.dart';
+import '../../plugins/twitch/chat_profiles.dart';
+import '../../plugins/overlays/chat_projection.dart';
+import '../../plugins/youtube/chat_profiles.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../services/http_provider_transports.dart';
 import 'chat_message.dart';
+import 'chat_delivery.dart';
+import 'chat_user_profile.dart';
 import 'chat_completion.dart';
 import 'chat_preferences.dart';
 import 'configured_chat_action.dart';
@@ -15,7 +20,33 @@ import 'chat_emote.dart';
 import 'chat_emote_catalog.dart';
 import 'command_manager.dart';
 
-enum ChatQuickAction { deleteMessage, timeout, ban, unban }
+enum ChatQuickAction {
+  deleteMessage,
+  timeout,
+  ban,
+  unban,
+  pinMessage,
+  unpinMessage,
+  warnUser,
+  addVip,
+  removeVip,
+  addModerator,
+  removeModerator;
+
+  String get label => switch (this) {
+    deleteMessage => 'Delete message',
+    timeout => 'Timeout for 60 seconds',
+    ban => 'Ban user',
+    unban => 'Unban user',
+    pinMessage => 'Pin message',
+    unpinMessage => 'Unpin message',
+    warnUser => 'Warn user',
+    addVip => 'Add VIP',
+    removeVip => 'Remove VIP',
+    addModerator => 'Add moderator',
+    removeModerator => 'Remove moderator',
+  };
+}
 
 final class UnifiedChatRuntime extends ChangeNotifier {
   UnifiedChatRuntime({
@@ -26,10 +57,105 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     this.youtubeLiveChatId,
     this.executeAction,
     ChatEmoteCatalog? emoteCatalog,
+    TwitchChatMetadataSource? twitchProfiles,
     this.historyLimit = 500,
-  }) : emoteCatalog = emoteCatalog ?? ChatEmoteCatalog();
+  }) : emoteCatalog = emoteCatalog ?? ChatEmoteCatalog(),
+       twitchProfiles =
+           twitchProfiles ?? TwitchChatMetadataSource(dataService: dataService);
 
   final ChatEmoteCatalog emoteCatalog;
+  final TwitchChatMetadataSource twitchProfiles;
+  final _publicProfiles = <String, TwitchPublicProfile>{};
+  Map<String, TwitchPublicBadge> _publicBadges = {};
+  Future<void>? _loadingProfiles;
+  String profileStatus = 'notLoaded';
+
+  Future<void> loadUserProfiles(Iterable<ChatMessage> messages) {
+    if (_closed) return Future.error(StateError('Chat is closed.'));
+    return _loadingProfiles ??= _loadUserProfiles(
+      messages.toList(),
+    ).whenComplete(() => _loadingProfiles = null);
+  }
+
+  Future<void> _loadUserProfiles(List<ChatMessage> messages) async {
+    final users = messages
+        .where((m) => m.platform == ChatPlatform.twitch && m.userId.isNotEmpty)
+        .map((m) => m.userId)
+        .toSet()
+        .take(100)
+        .toSet();
+    if (users.isEmpty) return;
+    final channels = messages
+        .where((m) => m.platform == ChatPlatform.twitch)
+        .map((m) => twitchBadgeChannel(m.source, m.channelId))
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .take(10)
+        .toSet();
+    profileStatus = 'loading';
+    notifyListeners();
+    try {
+      final metadata = await twitchProfiles.load(users, channels);
+      if (_closed) return;
+      _publicProfiles.addAll(metadata.users);
+      while (_publicProfiles.length > 500) {
+        _publicProfiles.remove(_publicProfiles.keys.first);
+      }
+      _publicBadges = metadata.badges;
+      profileStatus = 'loaded';
+    } catch (_) {
+      if (_closed) return;
+      profileStatus = 'unavailable';
+    }
+    if (!_closed) notifyListeners();
+  }
+
+  ChatUserProfile userProfile(ChatMessage message) {
+    final cached = message.platform == ChatPlatform.twitch
+        ? _publicProfiles[message.userId]
+        : null;
+    final badges = <ChatUserBadge>[];
+    if (message.platform == ChatPlatform.twitch) {
+      final channel = twitchBadgeChannel(message.source, message.channelId);
+      for (final ref in twitchBadgeReferences(message.source)) {
+        final badge =
+            _publicBadges['$channel/${ref.set}/${ref.version}'] ??
+            _publicBadges['/${ref.set}/${ref.version}'];
+        if (badge != null) {
+          badges.add(
+            ChatUserBadge(
+              title: badge.title,
+              role: ref.set,
+              imageUrl: badge.imageUrl,
+            ),
+          );
+        }
+      }
+    }
+    for (final role in [
+      if (message.isBroadcaster) 'broadcaster',
+      if (message.isModerator) 'moderator',
+      if (message.isVip) 'vip',
+      if (message.isSubscriber) 'subscriber',
+      if (message.isBot) 'bot',
+    ]) {
+      if (!badges.any((b) => b.role == role)) {
+        badges.add(ChatUserBadge(title: role, role: role));
+      }
+    }
+    return ChatUserProfile(
+      id: message.userId,
+      name: cached?.name.isNotEmpty == true ? cached!.name : message.userName,
+      login: cached?.login ?? '',
+      avatarUrl:
+          cached?.avatarUrl ??
+          (message.platform == ChatPlatform.youtube
+              ? youtubeChatAvatar(message.source)
+              : null),
+      badges: List.unmodifiable(badges.take(8)),
+    );
+  }
+
   final DartPluginEventHub eventHub;
   final ShowRunnerDataService dataService;
   final Future<DartPluginRegistry> registryFuture;
@@ -196,6 +322,29 @@ final class UnifiedChatRuntime extends ChangeNotifier {
           !_pending.contains(message.identity),
     ),
   );
+
+  List<OverlayChatEntry> overlayChatHistory() {
+    if (_closed) throw StateError('Chat is closed.');
+    return [
+      for (final message in messages)
+        if (!message.deleted &&
+            {
+              ChatOrigin.chat,
+              ChatOrigin.sharedChat,
+              ChatOrigin.subscription,
+            }.contains(message.origin))
+          OverlayChatEntry(
+            id: message.identity,
+            platform: message.platform.name,
+            displayName: message.userName,
+            message: message.text,
+            receivedAt: message.receivedAt,
+            badges: [
+              for (final badge in userProfile(message).badges) badge.title,
+            ],
+          ),
+    ];
+  }
 
   Future<void> savePreferences(ChatPreferences next) async {
     if (!_preferencesValid) {
@@ -629,7 +778,60 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     if (!_closed) notifyListeners();
   }
 
-  Future<void> send(ChatPlatform platform, String text) async {
+  Future<ChatDeliveryResult> sendMany(
+    Map<ChatPlatform, ChatSendAccount> targets,
+    String text,
+  ) async {
+    if (_closed) throw StateError('Chat is closed.');
+    if (targets.isEmpty) {
+      throw const FormatException('Select a chat destination.');
+    }
+    final selected = Map<ChatPlatform, ChatSendAccount>.of(targets);
+    // Validate every destination before the first side effect. Shortcuts execute
+    // on one explicit platform; they are not broadcast as if they were text.
+    if (text.trimLeft().startsWith('/') && selected.length > 1) {
+      throw const FormatException(
+        'Run chat shortcuts on one platform at a time.',
+      );
+    }
+    for (final entry in selected.entries) {
+      _validateSend(entry.key, text.trim(), entry.value);
+    }
+    final results = await Future.wait(
+      selected.entries.map((entry) async {
+        try {
+          await send(entry.key, text, account: entry.value);
+          return MapEntry(entry.key, true);
+        } catch (_) {
+          return MapEntry(entry.key, false);
+        }
+      }),
+    );
+    return ChatDeliveryResult(Map.fromEntries(results));
+  }
+
+  void _validateSend(
+    ChatPlatform platform,
+    String message,
+    ChatSendAccount account,
+  ) {
+    if (account == ChatSendAccount.bot && platform != ChatPlatform.twitch) {
+      throw const FormatException(
+        'A separate bot account is available for Twitch only.',
+      );
+    }
+    if (message.isEmpty) throw const FormatException('Enter a chat message.');
+    if (message.length > (platform == ChatPlatform.twitch ? 500 : 200)) {
+      throw const FormatException('Message exceeds the platform limit.');
+    }
+  }
+
+  Future<void> send(
+    ChatPlatform platform,
+    String text, {
+    ChatSendAccount account = ChatSendAccount.broadcaster,
+  }) async {
+    if (_closed) throw StateError('Chat is closed.');
     final message = text.trim();
     if (message.startsWith('/action:')) {
       final token = message.split(RegExp(r'\s')).first;
@@ -639,10 +841,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
         input: message.substring(token.length).trimLeft(),
       );
     }
-    if (message.isEmpty) throw const FormatException('Enter a chat message.');
-    if (message.length > (platform == ChatPlatform.twitch ? 500 : 200)) {
-      throw const FormatException('Message exceeds the platform limit.');
-    }
+    _validateSend(platform, message, account);
     await refreshIdentities();
     final registry = await registryFuture;
     final twitch = platform == ChatPlatform.twitch
@@ -653,12 +852,14 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             'broadcasterId': twitch['broadcasterId'],
             // The configured registry authenticates using the channel account.
             'moderatorId': twitch['broadcasterId'],
+            'account': account.name,
             'message': message,
           }
         : {'liveChatId': _liveChatId, 'message': message};
     if (platform == ChatPlatform.youtube && _liveChatId.isEmpty) {
       throw StateError('Connect a YouTube live chat first.');
     }
+    if (_closed) throw StateError('Chat is closed.');
     // Never echo locally: provider delivery owns history, avoiding duplicates and false success.
     await registry.invokeActionKey(
       ActionKey(
@@ -671,14 +872,46 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     );
   }
 
-  Future<void> quickAction(ChatMessage message, ChatQuickAction action) async {
-    if (message.userId.isEmpty) {
+  List<ChatQuickAction> quickActionsFor(ChatMessage message) => [
+    if (!message.deleted && message.id.isNotEmpty) ...[
+      ChatQuickAction.deleteMessage,
+      if (message.platform == ChatPlatform.twitch) ...[
+        ChatQuickAction.pinMessage,
+        ChatQuickAction.unpinMessage,
+      ],
+    ],
+    if (!message.isBroadcaster && message.userId.isNotEmpty) ...[
+      ChatQuickAction.timeout,
+      ChatQuickAction.ban,
+      if (message.platform == ChatPlatform.twitch) ...[
+        ChatQuickAction.unban,
+        ChatQuickAction.warnUser,
+        message.isVip ? ChatQuickAction.removeVip : ChatQuickAction.addVip,
+        message.isModerator
+            ? ChatQuickAction.removeModerator
+            : ChatQuickAction.addModerator,
+      ],
+    ],
+  ];
+
+  Future<void> quickAction(
+    ChatMessage message,
+    ChatQuickAction action, {
+    String reason = '',
+  }) async {
+    if (_closed) throw StateError('Chat is closed.');
+    final messageAction = {
+      ChatQuickAction.deleteMessage,
+      ChatQuickAction.pinMessage,
+      ChatQuickAction.unpinMessage,
+    }.contains(action);
+    if (!messageAction && message.userId.isEmpty) {
       throw StateError('This message has no provider user ID.');
     }
-    if (action == ChatQuickAction.deleteMessage && message.id.isEmpty) {
+    if (messageAction && message.id.isEmpty) {
       throw StateError('This message has no provider message ID.');
     }
-    if (message.isBroadcaster && action != ChatQuickAction.deleteMessage) {
+    if (message.isBroadcaster && !messageAction) {
       throw StateError('The channel owner cannot be banned or timed out.');
     }
     final registry = await registryFuture;
@@ -691,6 +924,13 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             ChatQuickAction.timeout => 'timeout',
             ChatQuickAction.ban => 'ban',
             ChatQuickAction.unban => 'unban',
+            ChatQuickAction.pinMessage => 'pinMessage',
+            ChatQuickAction.unpinMessage => 'unpinMessage',
+            ChatQuickAction.warnUser => 'warnUser',
+            ChatQuickAction.addVip => 'addVip',
+            ChatQuickAction.removeVip => 'removeVip',
+            ChatQuickAction.addModerator => 'addModerator',
+            ChatQuickAction.removeModerator => 'removeModerator',
           }
         : switch (action) {
             ChatQuickAction.deleteMessage => 'deleteMessage',
@@ -698,7 +938,11 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             ChatQuickAction.unban => throw StateError(
               'YouTube unban requires the ban ID, available in the YouTube workspace.',
             ),
+            _ => throw StateError(
+              'This quick action is available for Twitch only.',
+            ),
           };
+    if (_closed) throw StateError('Chat is closed.');
     await registry.invokeActionKey(
       ActionKey(
         plugin: PluginId(message.platform.name),
@@ -717,7 +961,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             : _liveChatId,
         if (action == ChatQuickAction.timeout) 'duration': 60,
         'banDurationSeconds': action == ChatQuickAction.timeout ? 60 : 0,
-        'reason': '',
+        'reason': reason,
       },
     );
     if (action == ChatQuickAction.deleteMessage) {
@@ -727,6 +971,8 @@ final class UnifiedChatRuntime extends ChangeNotifier {
 
   Future<void> close() async {
     _closed = true;
+    await twitchProfiles.close();
+    await _loadingProfiles;
     try {
       await _starting;
     } catch (_) {

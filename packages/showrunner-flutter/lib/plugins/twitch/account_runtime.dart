@@ -127,6 +127,12 @@ const _channelScopes = <String>[
   'moderator:manage:banned_users',
   'moderator:manage:chat_messages',
   'channel:moderate',
+  'channel:manage:vips',
+  'channel:manage:moderators',
+  'moderation:read',
+  'moderator:manage:warnings',
+  'moderator:manage:automod',
+  'moderator:manage:automod_settings',
   'bits:read',
   'channel:manage:raids',
   'channel:manage:polls',
@@ -136,6 +142,8 @@ const _channelScopes = <String>[
   'channel:read:ads',
   'channel:manage:ads',
   'clips:edit',
+  'channel:manage:clips',
+  'channel:manage:guest_star',
 ];
 
 const _botScopes = <String>[

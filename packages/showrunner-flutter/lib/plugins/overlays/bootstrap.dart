@@ -10,6 +10,7 @@ import 'manifest.dart';
 import 'overlay_presence.dart';
 import 'websocket_bridge.dart';
 import 'overlay_access.dart';
+import 'chat_projection.dart';
 
 Future<void> registerConfiguredOverlays(
   DartPluginRegistry registry, {
@@ -20,6 +21,7 @@ Future<void> registerConfiguredOverlays(
   required SoundOutputRegistry configuredSoundOutputs,
   required void Function(OverlayPresenceReader reader)?
   onOverlayPresenceReaderCreated,
+  ReadOverlayChat? readChat,
 }) async {
   final overlayRepository = dataService.storage.resource(
     const ResourceTypeId('Overlay'),
@@ -40,6 +42,7 @@ Future<void> registerConfiguredOverlays(
           soundOutputs: configuredSoundOutputs,
           mediaRoot: Directory('${dataService.userDirectory.path}/media'),
           ttsRoot: Directory('${Directory.systemTemp.path}/ShowRunner-tts'),
+          readChat: readChat,
         );
   if (overlayBridge != null) {
     onOverlayPresenceReaderCreated?.call(overlayBridge);

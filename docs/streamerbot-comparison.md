@@ -36,10 +36,10 @@ Existing live-test limits are recorded in `docs/testing/`.
 | Capability | Current ShowRunner evidence | Missing or partial | Priority |
 | --- | --- | --- | --- |
 | Managed chat commands | Development: Chat Commands workspace, shared Twitch/YouTube runtime, aliases, bounded regex/captures, argument parsers, Allow/Deny roles/users/groups, selectable sources, cooldowns, persistence switches, grouping and graph management events/actions | Internal sources require an explicit runtime producer; live whisper authorization remains unverified. See focused comparison below. | P1 |
-| Unified chat client | Development: shared Twitch/YouTube history/composer, built-in moderation, emote-name suggestions and authenticated local OBS dock | Multi-send/account selection, provider badge/avatar images and remaining moderation edge cases remain. | P1 |
+| Unified chat client | Development: shared Twitch/YouTube history/composer, multi-send with per-platform results, Twitch broadcaster/bot selection, built-in moderation, emote-name suggestions and authenticated local OBS dock | Public profile avatars/badges and native moderation shortcuts are implemented with isolated fixtures. Dedicated Unified Chat Feed presentation is implemented. Kick and live account verification remain. | P1 |
 | Kick | No Flutter provider, OAuth/runtime, manifest or UI identified | Native chat, moderation, platform events and platform-state integration. | P1 if multistreaming |
 | Donation/commerce integrations | DonorDrive exists; generic HTTP endpoints exist | No native StreamElements, Streamlabs, Ko-Fi, Fourthwall, Patreon, Throne, Shopify, StreamLoots or TipeeeStream integration identified. Generic endpoints require users to implement mappings/auth themselves. | P1 for selected providers |
-| Twitch action breadth | `plugins/twitch/actions/stream.dart`, `actions.dart` | Poll/prediction creation exists; corresponding get/terminate/archive/lock/resolve/cancel actions are not exposed as dedicated native actions. Also missing documented pinned-message, channel-tag, VIP/moderator-management and warn-user actions. | P1 |
+| Twitch action breadth | Development: dedicated poll/prediction lifecycle, pins, VIP/moderator roles, warnings/AutoMod, tags, clip download links and Guest Star session/invite/slot nodes in `plugins/twitch/actions/` | Isolated contract/transport/event fixtures pass; new OAuth scopes and account eligibility still need live verification. Guest Star settings/slot audio/video controls remain outside this increment. | P1 validation |
 | MIDI | Input plugin exposes keyboard/mouse simulation and keyboard shortcut trigger | No MIDI device lifecycle, incoming Note/CC triggers or outgoing MIDI actions identified. | P2 |
 | Voice commands | TTS exists in sound plugin | TTS is speech output, not speech recognition. No microphone recognition, phrase/confidence configuration or voice-command triggers identified. | P2 |
 | Elgato ecosystem | Elgato manifest exposes light/device actions | No native Stream Deck integration/plugin, Wave Link or Camera Hub integration identified. Current Elgato support is not the complete ecosystem. | P1/P2 |
@@ -177,8 +177,8 @@ authenticated emote catalogs were not tested against Streamer.bot accounts.
 1. Finish live authorization checks for managed commands and unified Twitch/YouTube chat.
 2. Add advanced command permissions, management events/actions and moderation synchronization.
 3. Add rich emotes, command menus and configurable chat actions; keep Kick separate.
-4. Add the highest-value donation providers and complete Twitch poll/prediction
-   lifecycle actions.
+4. Validate the new Twitch lifecycle/moderation nodes with explicitly authorized
+   live scenarios, then add the highest-value donation providers.
 5. Add shareable automation packages and full configuration backup/restore.
 6. Expand remote dashboards and add Stream Deck, then MIDI/voice and niche apps.
 

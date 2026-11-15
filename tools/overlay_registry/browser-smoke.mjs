@@ -7,13 +7,20 @@ const dist = join(root, 'packages/showrunner-obs-overlay/dist/obs-overlay');
 if (!existsSync(join(dist, 'overlay.html'))) throw new Error('Build the overlay before running the browser smoke test.');
 const dockToken = 'isolated-browser-smoke-token';
 const dockMessages = [
-  {identity:'twitch:channel:1', platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', parts:[{text:'Hello '},{text:'from',imageUrl:'https://static-cdn.jtvnw.net/probe.png'},{text:' '},{text:'Twitch',imageUrl:'https://static-cdn.jtvnw.net/missing.png'}], isOwner:false, deleted:false},
-  {identity:'youtube:live:2', platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', parts:[{text:'<script>window.chatXss=true</script>',imageUrl:'javascript:window.chatXss=true'}], isOwner:false, deleted:false},
+  {identity:'twitch:channel:1', profile:{userId:'same-id',name:'Twitch Viewer',login:'viewer',avatarUrl:'https://static-cdn.jtvnw.net/avatar.png',badges:[{title:'Moderator',role:'moderator',imageUrl:'https://static-cdn.jtvnw.net/badge.png'}]}, quickActions:[{id:'pinMessage',label:'Pin message'},{id:'warnUser',label:'Warn user'}], platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', parts:[{text:'Hello '},{text:'from',imageUrl:'https://static-cdn.jtvnw.net/probe.png'},{text:' '},{text:'Twitch',imageUrl:'https://static-cdn.jtvnw.net/missing.png'}], isOwner:false, deleted:false},
+  {identity:'youtube:live:2', quickActions:[{id:'deleteMessage',label:'Delete message'}], platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', parts:[{text:'<script>window.chatXss=true</script>',imageUrl:'javascript:window.chatXss=true'}], isOwner:false, deleted:false},
 ];
 let dockPreferences = {version:1,fontSize:14,font:'system',timestamps:false,newestFirst:false,alternatingRows:false,platformIcons:true,roleBadges:true,animatedEmotes:true,hideCommands:false,preventIgnoredCommands:false,ignoredUsers:[],highlightedUsers:[],highlightedRoles:[],highlightTerms:[],ignoreRules:[]};
 const dockRequests = [];
+let overlayChatRows = [];
+let overlayChatReads = 0;
 const server = createServer(async (request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname).replace(/^\/overlays(?=\/assets\/)/, '');
+  if (pathname === '/overlays/smoke/chat/browser-chat') {
+    overlayChatReads++;
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify({version:1,messages:overlayChatRows.filter(row=>!row.expiresAt || row.expiresAt>Date.now()).map(({expiresAt,...row})=>({...row,...(expiresAt?{expiresInMs:expiresAt-Date.now()}: {})}))})); return;
+  }
   if (pathname.startsWith('/api/')) {
     if (request.headers['x-showrunner-chat'] !== dockToken) {response.writeHead(401); response.end(); return;}
     response.setHeader('Content-Type', 'application/json');
@@ -21,6 +28,8 @@ const server = createServer(async (request, response) => {
     let body = ''; for await (const chunk of request) body += chunk;
     dockRequests.push({path:pathname, ...JSON.parse(body)});
     if (pathname === '/api/preferences') dockPreferences = JSON.parse(body);
+    if (pathname === '/api/profile') {response.end(JSON.stringify({profile:dockMessages.find(m=>m.identity===JSON.parse(body).identity)?.profile,status:'loaded'})); return;}
+    if (pathname === '/api/send-many') {response.end(JSON.stringify({ok:false, delivered:{twitch:true,youtube:false}})); return;}
     response.end(JSON.stringify({ok:true})); return;
   }
   const file = pathname.startsWith('/assets/') ? resolve(dist, '.' + pathname) : join(dist, pathname === '/chat-dock' ? 'chat-dock.html' : 'overlay.html');
@@ -97,6 +106,39 @@ try {
   config.widgets[0] = {...config.widgets[0],widget:'bar',config:{value:50,target:100}};
   await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
   if (!(await evaluate(`document.querySelectorAll('.overlay-widget').length === 1 && Boolean(document.querySelector('.outer-bar')) && !document.body.innerText.includes('Browser update verified')`))) throw new Error('Same-ID widget type replacement did not remount its renderer.');
+  overlayChatRows = [
+    {id:'chat-twitch',platform:'twitch',displayName:'<b>Viewer</b>',message:'<script>window.overlayChatXss=true</script>',badges:['subscriber']},
+    {id:'chat-youtube',platform:'youtube',displayName:'YouTube Viewer',message:'Unified feed probe',badges:['member']},
+  ];
+  config.widgets = [{id:'browser-chat',plugin:'overlays',widget:'chatFeed',name:'Unified chat',visible:true,locked:false,
+    position:{x:0,y:0},size:{width:640,height:300},config:{source:'unifiedChat',platform:'all',fadeTime:0,maxMessages:2,orientation:'vertical'}}];
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
+  for (let attempt=0; !(await evaluate(`document.querySelectorAll('.chat-feed__message').length === 2`)); attempt++) {
+    if(attempt>100) throw new Error('Unified Chat Feed did not load its configured snapshot.'); await pause(50);
+  }
+  if (await evaluate(`Boolean(window.overlayChatXss) || Boolean(document.querySelector('.chat-feed script, .chat-feed b'))`)) throw new Error('Overlay chat interpreted user HTML.');
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_broadcast', ['showrunner_chat_message', {id:'manual',displayName:'Manual',message:'Must not mix automation messages'}])`);
+  if (await evaluate(`document.body.innerText.includes('Must not mix automation messages')`)) throw new Error('Unified mode mixed automation messages.');
+  mkdirSync(join(root, '.tmp/overlay-browser'), {recursive:true});
+  const chatFeedCapture = await send('Page.captureScreenshot', {format:'png'});
+  writeFileSync(join(root, '.tmp/overlay-browser/unified-chat-feed.png'), Buffer.from(chatFeedCapture.data,'base64'));
+  overlayChatRows = [overlayChatRows[1]];
+  for (let attempt=0; !(await evaluate(`document.querySelectorAll('.chat-feed__message').length === 1 && document.body.innerText.includes('Unified feed probe')`)); attempt++) {
+    if(attempt>100) throw new Error('Chat deletion did not replace the overlay snapshot.'); await pause(50);
+  }
+  overlayChatRows = [{...overlayChatRows[0],expiresAt:Date.now()+2500}];
+  for (let attempt=0; !(await evaluate(`document.querySelectorAll('.chat-feed__message').length === 0`)); attempt++) {
+    if(attempt>120) throw new Error('Chat message did not expire from the overlay.'); await pause(50);
+  }
+  config.widgets[0].config.source = 'automation';
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
+  const readsAfterSourceChange = overlayChatReads;
+  await pause(1200);
+  if (overlayChatReads !== readsAfterSourceChange) throw new Error('Chat widget kept polling after source changed.');
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_broadcast', ['showrunner_chat_message', {id:'manual',displayName:'Manual',message:'Automation feed retained'}])`);
+  config.widgets[0].config.showBadges = false;
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
+  if (!(await evaluate(`document.body.innerText.includes('Automation feed retained')`))) throw new Error('Chat style update cleared automation history.');
   await evaluate('window.showRunnerOverlayRuntime.stop()');
   if (await evaluate(`document.querySelectorAll('.overlay-widget').length`)) throw new Error('Runtime stop leaked widget elements.');
   if (errors.length) throw new Error(`Browser exceptions: ${JSON.stringify(errors)}`);
@@ -132,7 +174,7 @@ try {
   if (!(await evaluate(`document.querySelector('#message').value === '!hi '`))) throw new Error('Dock keyboard command completion failed.');
   await evaluate(`document.querySelector('#message').value='/pause'; document.querySelector('#composer').requestSubmit()`);
   await pause(50);
-  dockMessages.push({identity:'twitch:channel:late',platform:'twitch',viewerId:'late',viewerName:'Late',message:'Incoming during pause',isOwner:false,deleted:false});
+  dockMessages.push({identity:'twitch:channel:late',quickActions:[{id:'pinMessage',label:'Pin message'}],platform:'twitch',viewerId:'late',viewerName:'Late',message:'Incoming during pause',isOwner:false,deleted:false});
   await pause(1100);
   if (await evaluate(`document.querySelector('#messages').textContent.includes('Incoming during pause')`)) throw new Error('Paused dock rendered new arrivals.');
   await evaluate(`document.querySelector('#message').value='/resume'; document.querySelector('#composer').requestSubmit()`);
@@ -153,6 +195,34 @@ try {
   await evaluate(`document.querySelector('article button').click()`);
   for (let attempt=0; !dockRequests.some(r=>r.id==='event'); attempt++) { if(attempt>100) throw new Error('Event chat action failed.'); await pause(50); }
   if (dockRequests.find(r=>r.id==='event').eventId !== 'follow-1') throw new Error('Event action used wrong context.');
+  await evaluate(`document.querySelector('#view').value='messages'; document.querySelector('#view').dispatchEvent(new Event('change')); window.confirm=()=>true; window.prompt=()=> 'Respect the rules'; const moderation=[...document.querySelectorAll('article select')].find(s=>s.querySelector('option[value="warnUser"]')); moderation.value='warnUser'; moderation.dispatchEvent(new Event('change'))`);
+  for (let attempt=0; !dockRequests.some(r=>r.path==='/api/action' && r.action==='warnUser'); attempt++) {
+    if(attempt>100) throw new Error('Native warning shortcut did not dispatch from the dock.'); await pause(50);
+  }
+  const warning = dockRequests.find(r=>r.path==='/api/action' && r.action==='warnUser');
+  if (warning.reason !== 'Respect the rules' || warning.identity !== 'twitch:channel:1') throw new Error('Warning lost its target or required reason.');
+  await evaluate(`const profileAction=[...document.querySelectorAll('article select')].find(s=>s.closest('article').textContent.includes('Twitch Viewer')); profileAction.value='profile'; profileAction.dispatchEvent(new Event('change'))`);
+  for (let attempt=0; !(await evaluate(`document.querySelector('dialog')?.open && document.querySelector('dialog .profile-avatar')?.naturalWidth > 0 && document.querySelector('dialog .badge')?.naturalWidth > 0`)); attempt++) {
+    if(attempt>100) throw new Error('Public profile avatar and badges did not render.'); await pause(50);
+  }
+  if (!(await evaluate(`document.querySelector('dialog').textContent.includes('twitch: same-id') && !document.querySelector('dialog script')`))) throw new Error('Profile identity or HTML safety failed.');
+  const profileCapture = await send('Page.captureScreenshot', {format:'png'});
+  writeFileSync(join(root, '.tmp/overlay-browser/chat-user-profile.png'), Buffer.from(profileCapture.data, 'base64'));
+  await evaluate(`document.querySelector('dialog button').click()`);
+  const previousSends = dockRequests.length;
+  await evaluate(`document.querySelector('#platform').value='all'; document.querySelector('#account').value='bot'; document.querySelector('#message').value='Multi-platform probe'; document.querySelector('#composer').requestSubmit()`);
+  for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#status').textContent.includes('youtube: failed')`)); attempt++) {
+    if(attempt>100) throw new Error('Partial chat delivery did not preserve retry state.'); await pause(50);
+  }
+  if (JSON.stringify(dockRequests[previousSends]?.targets) !== JSON.stringify({twitch:'bot',youtube:'broadcaster'})) throw new Error('Multi-send lost sender accounts.');
+  if (!(await evaluate(`document.querySelector('#message').value === 'Multi-platform probe' && document.querySelector('#platform').value === 'youtube'`))) throw new Error('Partial delivery cleared draft or retained successful destination.');
+  await evaluate(`document.querySelector('#composer').requestSubmit()`);
+  for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#message').value === ''`)); attempt++) {
+    if(attempt>100) throw new Error('Failed-destination retry did not finish.'); await pause(50);
+  }
+  if (dockRequests[previousSends+1]?.platform !== 'youtube' || dockRequests[previousSends+1]?.account !== 'broadcaster') throw new Error('Retry repeated a successful platform or used the wrong account.');
+  await send('Emulation.setDeviceMetricsOverride', {width:360,height:760,deviceScaleFactor:1,mobile:false});
+  if (!(await evaluate(`document.documentElement.scrollWidth <= innerWidth && document.querySelector('#message').getBoundingClientRect().width >= 150 && document.querySelector('#preferences-toggle').getBoundingClientRect().right <= innerWidth`))) throw new Error('Narrow dock composer overflows or collapses the message field.');
   const screenshot = await send('Page.captureScreenshot', {format:'png'});
   writeFileSync(join(root, '.tmp/overlay-browser/chat-dock.png'), Buffer.from(screenshot.data, 'base64'));
   if (errors.length) throw new Error(`Chat dock browser exceptions: ${JSON.stringify(errors)}`);

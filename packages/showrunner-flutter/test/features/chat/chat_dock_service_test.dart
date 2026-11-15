@@ -257,8 +257,43 @@ void main() {
         ),
         (
           '/api/action',
+          <String, dynamic>{'identity': 'one', 'action': 'warnUser'},
+          'invalid_reason',
+        ),
+        (
+          '/api/action',
           <String, dynamic>{'identity': 'one', 'action': 'unsupported'},
           'invalid_action',
+        ),
+        (
+          '/api/send',
+          <String, dynamic>{
+            'platform': 'twitch',
+            'message': 'hello',
+            'account': 'unknown',
+          },
+          'invalid_account',
+        ),
+        (
+          '/api/send-many',
+          <String, dynamic>{'targets': {}, 'message': 'hello'},
+          'invalid_targets',
+        ),
+        (
+          '/api/send-many',
+          <String, dynamic>{
+            'targets': {'invalid': 'bot'},
+            'message': 'hello',
+          },
+          'invalid_platform',
+        ),
+        (
+          '/api/send-many',
+          <String, dynamic>{
+            'targets': {'twitch': 'unknown'},
+            'message': 'hello',
+          },
+          'invalid_account',
         ),
         ('/api/clear', <String, dynamic>{'surprise': true}, 'invalid_payload'),
         (
@@ -271,6 +306,18 @@ void main() {
         expect(response.$1, 400);
         expect(response.$2, {'error': code});
       }
+      final delivery = await post(
+        '/api/send-many',
+        jsonEncode({
+          'targets': {'twitch': 'broadcaster', 'youtube': 'broadcaster'},
+          'message': 'probe',
+        }),
+      );
+      expect(delivery.$1, 200);
+      expect(delivery.$2, {
+        'ok': false,
+        'delivered': {'twitch': false, 'youtube': false},
+      });
       final malformed = await post('/api/send', '{invalid');
       expect(malformed.$1, 400);
       expect(malformed.$2, {'error': 'invalid_json'});

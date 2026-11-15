@@ -638,6 +638,36 @@ catalog is diagnostic; a green comparison does not establish pixel equivalence.
 Selected Flutter baselines have explicit regions and a 0.5% differing-pixel limit
 at channel threshold 3. Keep the threshold and frozen reference images intact.
 
+### Unified chat overlay proof
+
+`test/plugins/overlays/chat_projection_test.dart` checks field/platform/count/
+expiry projection and real loopback HTTP capability enforcement, including source
+revocation while a read is pending. The real application-composition fixture
+connects Chat to that loopback HTTP source and verifies clear propagation.
+Runtime fixtures exclude deleted/private/
+internal messages and use the same filtered public history as desktop chat.
+`unified-chat-source.test.ts` verifies snapshot deletion/clear behavior, outage
+expiry, strict bounds and physical cancellation with no late updates or timers.
+The Chromium smoke renders real Chat Feed widgets, checks text/HTML safety,
+deletes and expires messages, stops polling on source changes and preserves
+manual automation history across styling updates. The 640x360 feed capture was
+visually inspected; it adds a data source to the existing renderer, with unchanged
+frozen references and thresholds. Native authoring and application composition
+are covered by the full integration/visual gate before pushing.
+
+### Public chat profile proof
+
+`test/plugins/twitch/chat_profiles_test.dart` checks curated public fields, bounded
+batches, Shared Chat badge references, CDN restrictions and shutdown rejection.
+The chat runtime tests verify that display badges never elevate command roles and
+that private email/token fields cannot enter dock snapshots. The native/widget
+profile dialog checks loading, fallback and lifecycle; the Chromium modal also
+decodes actual avatar/badge image fixtures. The default source performs no network reads until a
+profile is opened or recent profiles are requested. Existing enlarged-text layout
+checks remain unchanged; profile loading lives in the user card rather than
+adding another toolbar row. Captures use the same SDK and viewport contract as
+unified chat delivery. Live provider authorization remains a separate proof.
+
 ### Reviewed baseline SDK transition
 
 The reviewed baselines were originally committed in e64552bb1 when CI pinned
@@ -657,6 +687,33 @@ captures independently passed with 0 differing pixels in both regions. The full
 21-file native suite also passed locally and on GitHub, with its opt-in audio
 probe skipped. These results cover the pinned capture contract and SDK, rather
 than establishing universal pixel equivalence across machines.
+
+### Twitch lifecycle and unified chat delivery
+
+The unreleased Twitch nodes use isolated request fixtures in
+`test/plugins/twitch/lifecycle_actions_test.dart` and `channel_tools_test.dart`:
+explicit transition IDs/statuses, paging, repeated query IDs, actor defaults,
+input rejection, warning/AutoMod payloads, tags, clips and Guest Star sessions.
+`chat_account_router_test.dart` verifies separate bot/channel grants, prevents
+caller-supplied sender IDs from changing the actor and rejects unavailable bots.
+The real loopback HTTP fixture checks repeated query encoding without live calls.
+
+`test/features/chat/chat_delivery_view_test.dart` proves partial-send draft
+retention and failed-target-only retry through the desktop composer. Runtime and
+dock HTTP fixtures cover validation before writes and safe per-platform results.
+`tools/overlay_registry/browser-smoke.mjs` exercises the real Chromium dock,
+bot selection, partial delivery, retry and a 360px-wide composer. Source payloads
+and credentials remain excluded from dock projections.
+
+The capture contract is Windows 11, Flutter 3.47.7 / Dart 3.13.5, native
+1440x900/DPR 1 and Chromium 157 at 360x760. The intended change adds destination
+chips and a Twitch sender selector to the composer; narrow dock controls wrap.
+The captured native chat and dock layouts were inspected for clipping and draft
+visibility. Existing reviewed Flutter baselines and frozen Electron references
+remain unchanged. The native gate passes 102 scenarios with one existing opt-in skip after the
+overlay restore check awaits its editor. Both reviewed inspector regions have
+zero differing pixels.
+These fixtures do not certify live moderation permissions or Twitch eligibility.
 
 ## Browser shaders and audio
 
@@ -713,3 +770,17 @@ or print tokens. The [release checklist](release-checklist.md) remains an
 operator gate. Public packages and the manual Windows release proof are unsigned;
 packaging still exercises installed upgrade/rollback without a signature requirement.
 The separate signing-helper fixture uses a temporary test certificate only.
+
+### Current Twitch and unified chat verification
+
+On Windows 11 with Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0,
+`ci-check.ps1 -Stage All` passes 1,366 Flutter tests (10 existing opt-in skips),
+182 JavaScript tests, formatting/analysis, docs/generated contracts, product parity
+and the real Dart/Chromium transport proof. Isolated `-Stage Parity -Integration
+-Visual` passes 102 native scenarios (one existing audio skip). The reviewed
+inspector regions have zero differing pixels; the catalog has no gate failures,
+with historical Electron differences remaining diagnostic. Native user-profile,
+360px dock and 640x360 Chat Feed captures were inspected. No baselines or
+thresholds were changed. These results cover isolated fixtures and local real
+transports, not live Twitch roles, account eligibility or OBS/CEF delivery of new
+features. Follow the live-service guide before authorized production probes.

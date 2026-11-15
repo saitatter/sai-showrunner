@@ -1,6 +1,7 @@
 import 'chat_message.dart';
 import 'unified_chat_runtime.dart';
 import 'chat_preferences.dart';
+import 'chat_delivery.dart';
 
 final class ChatDockProtocolException implements Exception {
   const ChatDockProtocolException(this.code, [this.status = 400]);
@@ -17,9 +18,11 @@ sealed class ChatDockRequest {
       throw const ChatDockProtocolException('invalid_payload');
     }
     final allowed = switch (path) {
-      '/api/send' => {'platform', 'message'},
+      '/api/send' => {'platform', 'message', 'account'},
+      '/api/send-many' => {'targets', 'message'},
+      '/api/profile' => {'identity'},
       '/api/configured-action' => {'id', 'platform', 'identity', 'eventId'},
-      '/api/action' => {'identity', 'action'},
+      '/api/action' => {'identity', 'action', 'reason'},
       '/api/clear' => <String>{},
       '/api/preferences' => null,
       _ => throw const ChatDockProtocolException('not_found', 404),
@@ -44,14 +47,43 @@ sealed class ChatDockRequest {
           (throw const ChatDockProtocolException('invalid_platform'));
     }
 
+    ChatSendAccount account(Object? name) => switch (name) {
+      null || 'broadcaster' => ChatSendAccount.broadcaster,
+      'bot' => ChatSendAccount.bot,
+      _ => throw const ChatDockProtocolException('invalid_account'),
+    };
+
     switch (path) {
+      case '/api/profile':
+        return ChatDockProfile(text('identity'));
       case '/api/send':
         final target = platform();
         final message = text(
           'message',
           target == ChatPlatform.twitch ? 500 : 200,
         );
-        return ChatDockSend(target, message);
+        return ChatDockSend(target, message, account(value['account']));
+      case '/api/send-many':
+        final raw = value['targets'];
+        if (raw is! Map<String, dynamic> ||
+            raw.isEmpty ||
+            raw.length > ChatPlatform.values.length) {
+          throw const ChatDockProtocolException('invalid_targets');
+        }
+        final targets = <ChatPlatform, ChatSendAccount>{};
+        for (final entry in raw.entries) {
+          final target = ChatPlatform.values
+              .where((p) => p.name == entry.key)
+              .firstOrNull;
+          if (target == null) {
+            throw const ChatDockProtocolException('invalid_platform');
+          }
+          targets[target] = account(entry.value);
+        }
+        return ChatDockSendMany(
+          Map.unmodifiable(targets),
+          text('message', 500),
+        );
       case '/api/configured-action':
         return ChatDockConfiguredAction(
           text('id', 128),
@@ -67,7 +99,12 @@ sealed class ChatDockRequest {
         if (action == null) {
           throw const ChatDockProtocolException('invalid_action');
         }
-        return ChatDockAction(text('identity'), action);
+        final reason = optional('reason') ?? '';
+        if (reason.length > 500 ||
+            (action == ChatQuickAction.warnUser && reason.trim().isEmpty)) {
+          throw const ChatDockProtocolException('invalid_reason');
+        }
+        return ChatDockAction(text('identity'), action, reason: reason);
       case '/api/clear':
         return const ChatDockClear();
       case '/api/preferences':
@@ -90,12 +127,41 @@ sealed class ChatDockRequest {
 }
 
 final class ChatDockSend extends ChatDockRequest {
-  const ChatDockSend(this.platform, this.message);
+  const ChatDockSend(this.platform, this.message, this.account);
   final ChatPlatform platform;
   final String message;
+  final ChatSendAccount account;
   @override
   Future<void> execute(UnifiedChatRuntime runtime) =>
-      runtime.send(platform, message);
+      runtime.send(platform, message, account: account);
+}
+
+final class ChatDockSendMany extends ChatDockRequest {
+  const ChatDockSendMany(this.targets, this.message);
+  final Map<ChatPlatform, ChatSendAccount> targets;
+  final String message;
+  @override
+  Future<ChatDeliveryResult> execute(UnifiedChatRuntime runtime) =>
+      runtime.sendMany(targets, message);
+}
+
+final class ChatDockProfile extends ChatDockRequest {
+  const ChatDockProfile(this.identity);
+  final String identity;
+  @override
+  Future<Map<String, Object?>> execute(UnifiedChatRuntime runtime) async {
+    final message = runtime.messages
+        .where((m) => m.identity == identity)
+        .firstOrNull;
+    if (message == null) {
+      throw const ChatDockProtocolException('target_not_found', 404);
+    }
+    await runtime.loadUserProfiles([message]);
+    return {
+      'profile': runtime.userProfile(message).toJson(),
+      'status': runtime.profileStatus,
+    };
+  }
 }
 
 final class ChatDockConfiguredAction extends ChatDockRequest {
@@ -119,9 +185,10 @@ final class ChatDockConfiguredAction extends ChatDockRequest {
 }
 
 final class ChatDockAction extends ChatDockRequest {
-  const ChatDockAction(this.identity, this.action);
+  const ChatDockAction(this.identity, this.action, {this.reason = ''});
   final String identity;
   final ChatQuickAction action;
+  final String reason;
   @override
   Future<void> execute(UnifiedChatRuntime runtime) async {
     final target = runtime.messages
@@ -130,7 +197,7 @@ final class ChatDockAction extends ChatDockRequest {
     if (target == null) {
       throw const ChatDockProtocolException('target_not_found', 404);
     }
-    await runtime.quickAction(target, action);
+    await runtime.quickAction(target, action, reason: reason);
   }
 }
 
@@ -177,6 +244,11 @@ Map<String, dynamic> chatDockSnapshot(UnifiedChatRuntime runtime) => {
           'identity': m.identity,
           ...m.context,
           'deleted': m.deleted,
+          'profile': runtime.userProfile(m).toJson(),
+          'quickActions': [
+            for (final action in runtime.quickActionsFor(m))
+              {'id': action.name, 'label': action.label},
+          ],
           'parts': runtime
               .messageParts(m)
               .map(

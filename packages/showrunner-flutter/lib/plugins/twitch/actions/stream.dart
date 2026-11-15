@@ -19,6 +19,7 @@ List<DartActionContract> _twitchStreamActions(TwitchTransport transport) => [
     displayName: 'Create Prediction',
     configSchema: _predictionSchema,
     configCodec: twitchPredictionConfigCodec,
+    resultSchema: _helixDataResult,
     invoke: (config, context) =>
         transport.request('POST', '/helix/predictions', {}, {
           'broadcaster_id': _idValue(
@@ -62,6 +63,7 @@ List<DartActionContract> _twitchStreamActions(TwitchTransport transport) => [
     displayName: 'Create Poll',
     configSchema: _pollSchema,
     configCodec: twitchPollConfigCodec,
+    resultSchema: _helixDataResult,
     invoke: (config, context) => transport.request('POST', '/helix/polls', {}, {
       'broadcaster_id': _idValue(
         config.broadcasterId,

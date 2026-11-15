@@ -29,8 +29,24 @@ RuntimeMap normalizeTwitchEvent(String eventId, Map event) {
   copyIfPresent('targetBroadcasterId', event['to_broadcaster_user_id']);
   copyIfPresent('viewers', event['viewers']);
 
+  if (eventId.startsWith('poll')) {
+    copyIfPresent('pollId', event['id']);
+    copyIfPresent('choices', event['choices']);
+  }
+  if (eventId.startsWith('prediction')) {
+    copyIfPresent('predictionId', event['id']);
+    copyIfPresent('winningOutcomeId', event['winning_outcome_id']);
+    copyIfPresent('outcomes', event['outcomes']);
+  }
+  copyIfPresent('moderatorId', event['moderator_user_id']);
+  copyIfPresent('startedAt', event['started_at']);
+  copyIfPresent('endsAt', event['ends_at']);
+  copyIfPresent('locksAt', event['locks_at']);
+  copyIfPresent('endedAt', event['ended_at']);
+
   final badges = event['badges'];
   if (badges is List) {
+    normalized['badgeVersions'] = badges;
     normalized['badges'] = badges
         .whereType<Map>()
         .map((badge) => badge['set_id']?.toString() ?? badge['title'])
@@ -84,8 +100,16 @@ String? twitchDomainEventType(String? type, Map event, String broadcasterId) {
     'channel.hype_train.end' => 'hypeTrainEnded',
     'channel.poll.begin' => 'pollStarted',
     'channel.poll.end' => 'pollEnded',
+    'channel.poll.progress' => 'pollProgress',
     'channel.prediction.begin' => 'predictionStarted',
     'channel.prediction.lock' => 'predictionLocked',
+    'channel.prediction.progress' => 'predictionProgress',
+    'automod.message.hold' => 'autoModMessageHeld',
+    'automod.message.update' => 'autoModMessageUpdated',
+    'automod.settings.update' => 'autoModSettingsUpdated',
+    'automod.terms.update' => 'autoModTermsUpdated',
+    'channel.warning.send' => 'warningSent',
+    'channel.warning.acknowledge' => 'warningAcknowledged',
     'channel.prediction.end' => 'predictionSettled',
     'channel.subscribe' => 'subscription',
     'channel.subscription.gift' => 'giftedSub',
