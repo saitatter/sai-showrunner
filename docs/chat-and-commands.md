@@ -1,7 +1,7 @@
 # Chat and managed commands
 
-Twitch and YouTube are included. Unreleased additions below are validated with
-isolated fixtures; Kick is being developed as a separate provider.
+Twitch, YouTube and Kick are included. Unreleased additions below are validated
+with isolated fixtures; live-account validation is a separate step.
 
 ## Commands
 
@@ -62,7 +62,7 @@ and counters; the same values are available under `event` and `trigger`.
 
 ## Unified chat and OBS dock
 
-**Chat** keeps a bounded session history from both connected providers, with search,
+**Chat** keeps a bounded session history from the connected providers, with search,
 platform filtering, reply/copy and moderation actions. The user action filters by
 platform-qualified ID, so identical names on different platforms stay separate.
 Pause view freezes visible arrivals while collection continues; resume shows them.
@@ -156,12 +156,12 @@ is refused until the file is repaired. Preferences live in `settings/chat.yaml`.
 ## Dedicated OBS chat overlay
 
 Add **Chat Feed** to an overlay, set **source** to `unifiedChat`, choose all/Twitch/
-YouTube, and save. Use that overlay's existing **Browser Source URL** in portable
+YouTube/Kick, and save. Use that overlay's existing **Browser Source URL** in portable
 OBS. The widget polls approved public history once per second without a graph
 connection or the admin dock token. The existing `automation` source remains
 available for manually approved graph pushes; the two sources do not mix.
 
-Configure 1?200 messages, `fadeTime` 0?86,400 seconds (0 keeps messages until they
+Configure 1-200 messages, `fadeTime` 0-86,400 seconds (0 keeps messages until they
 leave history), horizontal/vertical layout, font/size, background color/opacity,
 platform colors and badge labels. Deletions, local clears and changed ignore
 preferences replace the displayed snapshot. Expiry also runs locally during a
@@ -210,8 +210,8 @@ on private automation events, outside public history and event-feed projections.
 
 ## Multi-platform sends and sender accounts
 
-Select the Twitch/YouTube destination chips in desktop Chat, or **Twitch + YouTube**
-in the OBS dock. Select **Twitch: broadcaster** or **Twitch: bot** independently.
+Select Twitch/YouTube/Kick destination chips in desktop Chat, or a platform
+combination in the OBS dock. Select **Twitch: broadcaster** or **Twitch: bot** independently.
 YouTube uses its configured authorized account; it has no second bot account slot.
 The Twitch bot uses its separately encrypted `TwitchAccount/bot` credential and
 identity, never a different sender ID on the broadcaster token. A missing/expired
@@ -219,7 +219,8 @@ bot grant fails explicitly, without falling back to the broadcaster. Sign in the
 bot in Twitch settings and grant `user:write:chat`; implicit tokens need reauthorization
 when expired. Moderation continues to use the channel's authenticated actor.
 
-Every target's message limit is checked before sending (500 Twitch, 200 YouTube).
+Every target's message limit is checked before sending (500 Twitch, 200 YouTube;
+Kick allows 500 grapheme clusters and at most 2048 UTF-8 bytes).
 Destination requests run concurrently. Each reports its own result; a partial
 failure retains the text and selects only failed destinations for retry. Known
 successful targets are not resent. Delivery owns history; no local message echo
@@ -227,6 +228,74 @@ is fabricated. A lost network response can leave delivery uncertain; this is not
 an exactly-once messaging protocol. Slash shortcuts execute on one platform at a
 time, and local `/clear`, `/pause`, `/resume` never become provider messages.
 The dock retains authentication and the same bounded, typed request validation.
+
+## Kick connection and live validation
+
+In **Plugins > Kick**, save a Kick Developer client ID and client secret. Register
+`http://localhost:53543/oauth/callback` as the OAuth redirect URL, then choose
+**Connect Kick** and authorize the broadcaster account. The OAuth flow uses PKCE;
+Kick also requires the client secret. Secrets use the application's encrypted
+settings store. The verified user ID becomes the broadcaster ID; profile email is
+not retained. Token refresh preserves unrelated settings and refuses to overwrite
+a replacement account.
+
+Kick's official event API requires a public HTTPS webhook. In Kick Developer,
+enable webhooks and register `https://YOUR-HOST/kick/webhook`. Forward only that
+route to `http://127.0.0.1:53544/kick/webhook`, using your existing reverse proxy
+or tunnel, and save the public URL in Kick settings. A different local port may
+be saved before starting. Do not forward the application's admin server or chat
+dock. No tunnel/cloud service is created automatically.
+
+Choose **Start listener**. `Running` means the local listener and subscriptions
+are ready; it does not certify public reachability. Send a human message from a
+second account and verify it in Chat with the Kick filter. A proxy/CDN must allow
+Kick's webhook requests through to this route without an interactive challenge.
+Stop releases the listener and removes only subscriptions created by that session;
+pre-existing subscriptions are reused and retained. An unsuccessful unsubscribe
+may leave an orphan that is reused on the next start.
+
+Webhook ingestion checks RSA/SHA-256 signatures against Kick's fetched public key,
+refreshes keys for rotation, rejects old/future timestamps and deduplicates both
+delivery IDs and logical messages. Unsigned, malformed, foreign-channel and
+unsupported subscription payloads never become commands. Body size, concurrent
+verification and replay memory are bounded. Provider events are namespaced as
+`kickChatMessage`, `kickUserBanned` and `kickUserTimedOut`, so Twitch triggers do
+not receive Kick messages. Kick viewer identities are stored under `kick`.
+
+Sending supports **Kick: user** and **Kick: app bot**. The latter is the bot
+created for the Kick Developer application, using the same authorized channel
+token; it is not a second personal bot-account credential. For bot mode, create
+the application's bot in Kick Developer. The API selects its token's channel;
+an explicit target broadcaster ID is used only for user mode.
+
+Graph nodes and message menus provide send, delete, timeout, ban and unban. Timeout
+durations are minutes (1-10080); the 60-second shortcut sends one minute. Only a
+confirmed `is_sent` response reports send success. Request failures retain drafts;
+there is no speculative local echo. Successful deletes update local history and
+OBS projections. The public API currently has no message-deleted event, so deletes
+performed by another client are not guaranteed to update our retained history.
+
+Kick avatars use approved Kick HTTPS image hosts; roles come from signed identity
+badge types and the broadcaster ID, not display names, labels or verification
+marks. Native emote tokens remain literal and built-in emoji autocomplete works;
+there is no official emote-catalog API used here. Provider badge image URLs are
+not supplied by the event API, so role badges use our existing label/icon fallback.
+Bot filtering uses a signed bot badge when present. If the app bot is not marked
+by Kick, add its `kick:USER_ID` to ignored users and enable **Prevent ignored
+commands** before testing automations that could answer their own messages.
+
+The sign-in requests `user:read`, `chat:write`, `events:subscribe`, `moderation:ban`
+and `moderation:chat_message:manage`. A real client ID/secret, app bot for bot mode,
+public webhook route and a dedicated second account are needed for live proofs.
+Do not enable mutation scenarios until their target and effects are authorized.
+The generated `test/live/connections.example.yml` includes empty Kick settings;
+copy it to the ignored `connections.local.yml` for isolated node probes. Never
+commit filled credentials or post them in chat.
+
+API contracts: [OAuth](https://docs.kick.com/getting-started/generating-tokens-oauth2-flow),
+[chat](https://docs.kick.com/apis/chat),
+[webhook security](https://docs.kick.com/events/webhook-security),
+[event types](https://docs.kick.com/events/event-types).
 
 ## Twitch lifecycle and moderation nodes
 
@@ -237,7 +306,7 @@ outcome ID. Get results keep Helix data and pagination; lifecycle triggers
 include option IDs, votes/points and timestamps. Progress is a separate trigger.
 
 Pin/Unpin Chat Message use a message ID. Pin duration is optional (until stream
-ends), or 30?1800 seconds. Adding/removing VIPs and moderators uses viewer IDs;
+ends), or 30-1800 seconds. Adding/removing VIPs and moderators uses viewer IDs;
 these actions never silently demote another role. Warn Viewer requires a reason
 (up to 500 characters). Allow/Deny AutoMod Message acts on a held message ID.
 Warning sent/acknowledged and AutoMod held/updated/settings/terms triggers expose
@@ -257,7 +326,7 @@ See the official [poll](https://dev.twitch.tv/docs/api/reference/polls/),
 
 Channel tools include Get/Set Channel Tags (maximum 10 alphanumeric tags,
 25 characters each). Set replaces the list; `[]` clears it. Clip Download URLs
-accepts 1?10 clip IDs and returns Twitch's temporary download links without
+accepts 1-10 clip IDs and returns Twitch's temporary download links without
 fetching the files. Reauthorize for `channel:manage:clips`; the editor ID must
 identify the authenticated broadcaster/editor. Do not persist signed URLs as
 long-lived media references.

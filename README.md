@@ -13,7 +13,7 @@ A production workspace for streamers and live creators, built with Flutter for W
 
 - Build visual automations with typed connections, conditions, variables,
   reusable subgraphs, queues and execution feedback.
-- Connect Twitch, YouTube and OBS; manage chat, events, scenes and production tools.
+- Connect Twitch, YouTube, Kick and OBS; manage chat, events, scenes and production tools.
 - Use [managed commands and unified chat](docs/chat-and-commands.md)
   with Twitch/YouTube, cooldowns, role checks, multi-platform sends, public profiles
   and an OBS chat dock. Chat Feed overlays can follow approved unified history.

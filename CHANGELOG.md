@@ -85,6 +85,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
+- Document Kick Developer setup, isolated webhook forwarding, live-account requirements and native/browser verification limits.
 - Document Twitch lifecycle/moderation scopes, multi-send accounts, public profiles, scoped OBS chat setup and their isolated verification limits.
 - Document Viewer Data's SQLite ownership, source-preserving migration, backup/interchange commands and measured query costs at 1K, 10K and 100K viewers.
 - Align contributor rules, repository ownership and release-note guidance with the shared Collectarr model, including editorial summaries, banner history and parallel CI gates.
