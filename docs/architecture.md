@@ -457,8 +457,18 @@ Browser-to-desktop methods are `overlays_acquireState`, `overlays_freeState`,
 methods are `overlays_setConfig`, `overlays_stateUpdate`, `overlays_widget`,
 `overlays_widgetRPC`, `overlays_broadcast`, `overlays_playAudio`,
 `overlays_cancelAudio` and viewer data/variable notifications handled by the
-browser runtime. HTTP config/media, Satellite signaling and chat dock HTTP remain
+browser runtime. HTTP config/media/unified-chat snapshots, Satellite signaling and chat dock HTTP remain
 distinct boundaries; this envelope does not authenticate them.
+
+Unified Chat Feed uses `GET /overlays/{overlayId}/chat/{widgetId}` with the overlay
+capability/session. Its version-1 snapshot contains at most 200 public messages,
+optional configured badge labels and remaining expiry durations. The handler
+requires a saved `overlays.chatFeed` with `source: unifiedChat`, bounds settings
+and rechecks the resource after the read. The application supplies a narrow typed
+history reader after chat composition; provider source maps and admin commands
+are outside that port. Browser readers own abortable fetch, poll and expiry
+lifecycles. The automation-driven widget event contract remains unchanged.
+
 
 Remote control uses the same generated envelope with the dashboard resource ID.
 The host and satellite reject wrong IDs, unknown versions, oversized frames and

@@ -128,6 +128,7 @@ void main() {
             chat.profileStatus != 'loading',
       );
       expect(find.text('twitch: viewer'), findsOneWidget);
+      await tester.pumpAndSettle();
       await _capture(tester, 'chat-user-profile.png');
       await tester.tap(find.widgetWithText(TextButton, 'Close').last);
       await tester.pumpAndSettle();

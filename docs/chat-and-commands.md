@@ -70,10 +70,10 @@ Type `!` for enabled, listed commands and aliases on the selected platform, or `
 for local clear/pause/resume actions. Arrow keys select a suggestion; Tab or Enter
 inserts it before sending. These menus are shared with the browser dock. Reply selects the destination
 and inserts a mention; it does not create a provider-native reply thread. Sending
-targets the selected platform. Messages appear when received from the provider,
+targets the selected destinations. Messages appear when received from the provider,
 without speculative local echoes. Clearing history keeps replay deduplication.
-Twitch sends and moderation use the authenticated channel account; switching to
-a separate bot sender is not yet exposed in this workspace.
+Twitch sends can use the broadcaster or separately authenticated bot; moderation
+uses the authenticated channel account.
 For YouTube, the active provider worker's chat takes precedence over the saved
 liveChatId, including a broadcast discovered through the YouTube workspace.
 
@@ -152,6 +152,30 @@ This policy does not disable separately configured raw provider graph triggers.
 Regex failures are visible; affected messages stay hidden and the explicit block
 policy controls dispatch. Unsupported saved preferences are preserved and editing
 is refused until the file is repaired. Preferences live in `settings/chat.yaml`.
+
+## Dedicated OBS chat overlay
+
+Add **Chat Feed** to an overlay, set **source** to `unifiedChat`, choose all/Twitch/
+YouTube, and save. Use that overlay's existing **Browser Source URL** in portable
+OBS. The widget polls approved public history once per second without a graph
+connection or the admin dock token. The existing `automation` source remains
+available for manually approved graph pushes; the two sources do not mix.
+
+Configure 1?200 messages, `fadeTime` 0?86,400 seconds (0 keeps messages until they
+leave history), horizontal/vertical layout, font/size, background color/opacity,
+platform colors and badge labels. Deletions, local clears and changed ignore
+preferences replace the displayed snapshot. Expiry also runs locally during a
+connection outage. Source changes and widget destruction abort pending reads and
+release poll/expiry timers. Authoring preview uses sample messages.
+
+Only a Chat Feed saved with `unifiedChat` may read its widget-specific endpoint.
+Access uses the overlay's scoped capability/HttpOnly session, and the server
+rechecks the current widget configuration after asynchronous reads. The endpoint
+has no send/moderation operations, credentials, raw provider data or private account metadata.
+Private/ignored/deleted messages and private moderation events are excluded.
+A disabled badge display also omits badge data from the projection. Browser
+markup is rendered as literal text. Live OBS/CEF authorization remains a separate
+probe from the isolated Chromium fixtures.
 
 ## Public user profiles
 

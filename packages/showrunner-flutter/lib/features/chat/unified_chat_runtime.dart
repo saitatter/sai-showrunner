@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../plugins/registry/plugin_registry.dart';
 import '../../plugins/twitch/account_runtime.dart';
 import '../../plugins/twitch/chat_profiles.dart';
+import '../../plugins/overlays/chat_projection.dart';
 import '../../plugins/youtube/chat_profiles.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
@@ -321,6 +322,29 @@ final class UnifiedChatRuntime extends ChangeNotifier {
           !_pending.contains(message.identity),
     ),
   );
+
+  List<OverlayChatEntry> overlayChatHistory() {
+    if (_closed) throw StateError('Chat is closed.');
+    return [
+      for (final message in messages)
+        if (!message.deleted &&
+            {
+              ChatOrigin.chat,
+              ChatOrigin.sharedChat,
+              ChatOrigin.subscription,
+            }.contains(message.origin))
+          OverlayChatEntry(
+            id: message.identity,
+            platform: message.platform.name,
+            displayName: message.userName,
+            message: message.text,
+            receivedAt: message.receivedAt,
+            badges: [
+              for (final badge in userProfile(message).badges) badge.title,
+            ],
+          ),
+    ];
+  }
 
   Future<void> savePreferences(ChatPreferences next) async {
     if (!_preferencesValid) {

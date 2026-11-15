@@ -12,8 +12,15 @@ const dockMessages = [
 ];
 let dockPreferences = {version:1,fontSize:14,font:'system',timestamps:false,newestFirst:false,alternatingRows:false,platformIcons:true,roleBadges:true,animatedEmotes:true,hideCommands:false,preventIgnoredCommands:false,ignoredUsers:[],highlightedUsers:[],highlightedRoles:[],highlightTerms:[],ignoreRules:[]};
 const dockRequests = [];
+let overlayChatRows = [];
+let overlayChatReads = 0;
 const server = createServer(async (request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname).replace(/^\/overlays(?=\/assets\/)/, '');
+  if (pathname === '/overlays/smoke/chat/browser-chat') {
+    overlayChatReads++;
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify({version:1,messages:overlayChatRows.filter(row=>!row.expiresAt || row.expiresAt>Date.now()).map(({expiresAt,...row})=>({...row,...(expiresAt?{expiresInMs:expiresAt-Date.now()}: {})}))})); return;
+  }
   if (pathname.startsWith('/api/')) {
     if (request.headers['x-showrunner-chat'] !== dockToken) {response.writeHead(401); response.end(); return;}
     response.setHeader('Content-Type', 'application/json');
@@ -99,6 +106,39 @@ try {
   config.widgets[0] = {...config.widgets[0],widget:'bar',config:{value:50,target:100}};
   await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
   if (!(await evaluate(`document.querySelectorAll('.overlay-widget').length === 1 && Boolean(document.querySelector('.outer-bar')) && !document.body.innerText.includes('Browser update verified')`))) throw new Error('Same-ID widget type replacement did not remount its renderer.');
+  overlayChatRows = [
+    {id:'chat-twitch',platform:'twitch',displayName:'<b>Viewer</b>',message:'<script>window.overlayChatXss=true</script>',badges:['subscriber']},
+    {id:'chat-youtube',platform:'youtube',displayName:'YouTube Viewer',message:'Unified feed probe',badges:['member']},
+  ];
+  config.widgets = [{id:'browser-chat',plugin:'overlays',widget:'chatFeed',name:'Unified chat',visible:true,locked:false,
+    position:{x:0,y:0},size:{width:640,height:300},config:{source:'unifiedChat',platform:'all',fadeTime:0,maxMessages:2,orientation:'vertical'}}];
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
+  for (let attempt=0; !(await evaluate(`document.querySelectorAll('.chat-feed__message').length === 2`)); attempt++) {
+    if(attempt>100) throw new Error('Unified Chat Feed did not load its configured snapshot.'); await pause(50);
+  }
+  if (await evaluate(`Boolean(window.overlayChatXss) || Boolean(document.querySelector('.chat-feed script, .chat-feed b'))`)) throw new Error('Overlay chat interpreted user HTML.');
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_broadcast', ['showrunner_chat_message', {id:'manual',displayName:'Manual',message:'Must not mix automation messages'}])`);
+  if (await evaluate(`document.body.innerText.includes('Must not mix automation messages')`)) throw new Error('Unified mode mixed automation messages.');
+  mkdirSync(join(root, '.tmp/overlay-browser'), {recursive:true});
+  const chatFeedCapture = await send('Page.captureScreenshot', {format:'png'});
+  writeFileSync(join(root, '.tmp/overlay-browser/unified-chat-feed.png'), Buffer.from(chatFeedCapture.data,'base64'));
+  overlayChatRows = [overlayChatRows[1]];
+  for (let attempt=0; !(await evaluate(`document.querySelectorAll('.chat-feed__message').length === 1 && document.body.innerText.includes('Unified feed probe')`)); attempt++) {
+    if(attempt>100) throw new Error('Chat deletion did not replace the overlay snapshot.'); await pause(50);
+  }
+  overlayChatRows = [{...overlayChatRows[0],expiresAt:Date.now()+2500}];
+  for (let attempt=0; !(await evaluate(`document.querySelectorAll('.chat-feed__message').length === 0`)); attempt++) {
+    if(attempt>120) throw new Error('Chat message did not expire from the overlay.'); await pause(50);
+  }
+  config.widgets[0].config.source = 'automation';
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
+  const readsAfterSourceChange = overlayChatReads;
+  await pause(1200);
+  if (overlayChatReads !== readsAfterSourceChange) throw new Error('Chat widget kept polling after source changed.');
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_broadcast', ['showrunner_chat_message', {id:'manual',displayName:'Manual',message:'Automation feed retained'}])`);
+  config.widgets[0].config.showBadges = false;
+  await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
+  if (!(await evaluate(`document.body.innerText.includes('Automation feed retained')`))) throw new Error('Chat style update cleared automation history.');
   await evaluate('window.showRunnerOverlayRuntime.stop()');
   if (await evaluate(`document.querySelectorAll('.overlay-widget').length`)) throw new Error('Runtime stop leaked widget elements.');
   if (errors.length) throw new Error(`Browser exceptions: ${JSON.stringify(errors)}`);

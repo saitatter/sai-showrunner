@@ -98,7 +98,7 @@ void main() {
       expect(find.text('Public viewer'), findsOneWidget);
       expect(find.text('twitch: viewer'), findsOneWidget);
       expect(
-        find.text('1 messages in retained session history'),
+        find.text('1 message in retained session history'),
         findsOneWidget,
       );
       expect(find.byTooltip('moderator'), findsWidgets);

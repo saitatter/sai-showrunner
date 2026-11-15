@@ -638,6 +638,23 @@ catalog is diagnostic; a green comparison does not establish pixel equivalence.
 Selected Flutter baselines have explicit regions and a 0.5% differing-pixel limit
 at channel threshold 3. Keep the threshold and frozen reference images intact.
 
+### Unified chat overlay proof
+
+`test/plugins/overlays/chat_projection_test.dart` checks field/platform/count/
+expiry projection and real loopback HTTP capability enforcement, including source
+revocation while a read is pending. The real application-composition fixture
+connects Chat to that loopback HTTP source and verifies clear propagation.
+Runtime fixtures exclude deleted/private/
+internal messages and use the same filtered public history as desktop chat.
+`unified-chat-source.test.ts` verifies snapshot deletion/clear behavior, outage
+expiry, strict bounds and physical cancellation with no late updates or timers.
+The Chromium smoke renders real Chat Feed widgets, checks text/HTML safety,
+deletes and expires messages, stops polling on source changes and preserves
+manual automation history across styling updates. The 640x360 feed capture was
+visually inspected; it adds a data source to the existing renderer, with unchanged
+frozen references and thresholds. Native authoring and application composition
+are covered by the full integration/visual gate before pushing.
+
 ### Public chat profile proof
 
 `test/plugins/twitch/chat_profiles_test.dart` checks curated public fields, bounded

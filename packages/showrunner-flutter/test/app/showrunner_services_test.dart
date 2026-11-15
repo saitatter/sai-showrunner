@@ -1,6 +1,9 @@
 import 'package:showrunner_flutter/features/chat/configured_chat_action.dart';
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
+import 'package:showrunner_flutter/persistence/secret_settings_store.dart';
+import 'package:showrunner_flutter/schema/resource.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +18,92 @@ import 'package:showrunner_flutter/app/lifecycle/application_runtime.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'application composition connects filtered chat to the scoped overlay HTTP source',
+    () async {
+      final root = await Directory.systemTemp.createTemp(
+        'services-chat-overlay-',
+      );
+      final data = ShowRunnerDataService(
+        root,
+        secretSettings: SecretSettingsStore(
+          directory: Directory('${root.path}/secrets'),
+          encrypt: (bytes) async => bytes,
+          decrypt: (bytes) async => bytes,
+        ),
+      );
+      await data.savePluginSettings('showrunner-flutter', {
+        'disabledPlugins': ['obs', 'aitum', 'advss', 'input'],
+      });
+      await data.storage
+          .resource(const ResourceTypeId('Overlay'))
+          .save(
+            ResourceData(
+              id: 'chat-overlay',
+              config: {
+                'schemaVersion': 1,
+                'name': 'Chat',
+                'size': {'width': 640, 'height': 360},
+                'widgets': [
+                  {
+                    'id': 'feed',
+                    'plugin': 'overlays',
+                    'widget': 'chatFeed',
+                    'config': {'source': 'unifiedChat', 'fadeTime': 0},
+                  },
+                ],
+              },
+            ),
+          );
+      final services = ShowRunnerServices.create(
+        dataService: data,
+        onVariableChanged: (_, _) {},
+        smokeMode: true,
+      );
+      final client = HttpOverrides.runWithHttpOverrides(
+        () => HttpClient(),
+        _LoopbackHttpOverrides(),
+      );
+      addTearDown(() async {
+        client.close(force: true);
+        await services.shutdown();
+        await root.delete(recursive: true);
+      });
+      await services.start();
+      final presence = await services.overlayPresenceReaderFuture;
+      final url = Uri.parse(presence!.browserSourceUrl('chat-overlay'));
+      Future<List<dynamic>> read() async {
+        final request = await client.getUrl(
+          url.resolve('/overlays/chat-overlay/chat/feed'),
+        );
+        request.headers.set('x-showrunner-overlay', url.fragment);
+        final response = await request.close();
+        expect(response.statusCode, HttpStatus.ok);
+        return jsonDecode(await utf8.decoder.bind(response).join())['messages']
+            as List;
+      }
+
+      services.chatRuntime.ingest(
+        ChatMessage(
+          platform: ChatPlatform.twitch,
+          id: 'one',
+          channelId: 'channel',
+          userId: 'viewer',
+          userName: 'Viewer',
+          text: 'Public feed',
+          receivedAt: DateTime.now(),
+          source: {'accessToken': 'private-marker'},
+        ),
+      );
+      await services.chatRuntime.filtersSettled;
+      final rows = await read();
+      expect(rows.single['message'], 'Public feed');
+      expect(rows.toString(), isNot(contains('private-marker')));
+      services.chatRuntime.clearHistory();
+      expect(await read(), isEmpty);
+    },
+  );
+
   test(
     'separate application compositions never share active Stream Plan state',
     () async {
@@ -325,3 +414,6 @@ void main() {
     },
   );
 }
+
+// Bypass the widget binding's HTTP stub for this isolated loopback client only.
+class _LoopbackHttpOverrides extends HttpOverrides {}

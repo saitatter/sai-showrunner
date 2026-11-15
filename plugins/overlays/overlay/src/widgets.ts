@@ -27,6 +27,7 @@ import {
 	type WidgetOutlineStyle,
 } from "showrunner-plugin-overlays-shared"
 import { ShaderRenderer } from "./widgets/shader-renderer"
+import { UnifiedChatFeedSource } from "./widgets/unified-chat-source"
 
 type OverlayConfigObject = Record<string, unknown>
 
@@ -49,6 +50,8 @@ interface BarConfig extends OverlayConfigObject {
 }
 
 interface ChatFeedConfig extends OverlayConfigObject {
+	source?: "automation" | "unifiedChat"
+	platform?: "all" | "twitch" | "youtube"
 	fontFamily?: string
 	fontSize?: number
 	backgroundColor?: string
@@ -277,18 +280,51 @@ export const barWidget = widgetFactory("bar", () => new BarWidget())
 type ChatMessage = OverlayEventMap["showrunner_chat_message"]
 
 class ChatFeedWidget extends DomWidget<ChatFeedConfig> {
+	private source?: UnifiedChatFeedSource
+	private sourceKey = ""
 	private messages: Required<ChatMessage>[] = []
 	private readonly timers = new Set<number>()
 
 	protected onMount(): void {
-		this.onMessage("showrunner_chat_message", (message) => this.addMessage(message))
+		this.onMessage("showrunner_chat_message", (message) => {
+			if ((this.config.source ?? "automation") === "automation") this.addMessage(message)
+		})
+		this.syncSource()
 		if (this.context.isEditor) {
 			this.addMessage({ id: "sample-twitch", platform: "twitch", displayName: "ViewerName", message: "Approved Twitch message preview.", badges: ["sub"] })
 			this.addMessage({ id: "sample-youtube", platform: "youtube", displayName: "Channel Member", message: "Approved YouTube message preview.", badges: ["member"] })
 		}
 	}
 
+	update(config: ChatFeedConfig): void {
+		super.update(config)
+		this.syncSource()
+	}
+
+	private syncSource(): void {
+		const mode = this.config.source ?? "automation"
+		const key = mode === "unifiedChat" ? JSON.stringify([mode, this.config.platform ?? "all", this.config.maxMessages ?? 8, this.config.fadeTime ?? 10, this.config.showBadges ?? true]) : mode
+		if (key === this.sourceKey || this.context.isEditor) return
+		this.sourceKey = key
+		this.source?.stop()
+		this.source = undefined
+		delete this.container.dataset.chatStatus
+		for (const timer of this.timers) window.clearTimeout(timer)
+		this.timers.clear()
+		this.messages = []
+		if (this.config.source === "unifiedChat") {
+			this.source = new UnifiedChatFeedSource(this.context.overlayId, this.context.widgetId, messages => {
+				this.messages = messages.map(message => this.entry(message))
+				this.render()
+			}, status => { this.container.dataset.chatStatus = status })
+			this.source.start()
+		}
+		this.render()
+	}
+
 	protected onDestroy(): void {
+		this.source?.stop()
+		this.source = undefined
 		for (const timer of this.timers) window.clearTimeout(timer)
 		this.timers.clear()
 	}
@@ -297,22 +333,11 @@ class ChatFeedWidget extends DomWidget<ChatFeedConfig> {
 		const current = this.context.bridge.getConfig()
 		if (!this.context.isEditor && message.targetOverlayId && message.targetOverlayId !== this.context.overlayId) return
 		if (!this.context.isEditor && message.targetWidgetId && message.targetWidgetId !== current.id) return
-		const entry = {
-			id: String(message.id || `${Date.now()}-${Math.random()}`),
-			platform: String(message.platform || "unknown").toLowerCase(),
-			user: String(message.user || message.username || message.displayName || "unknown"),
-			username: String(message.username || message.user || message.displayName || "unknown"),
-			displayName: String(message.displayName || message.username || message.user || "unknown"),
-			message: String(message.message || message.text || ""),
-			text: String(message.text || message.message || ""),
-			badges: Array.isArray(message.badges) ? message.badges : String(message.badges || "").split(",").map((badge) => badge.trim()).filter(Boolean),
-			targetOverlayId: String(message.targetOverlayId || ""),
-			targetWidgetId: String(message.targetWidgetId || ""),
-		} satisfies Required<ChatMessage>
-		const max = Math.max(1, Number(this.config.maxMessages) || 8)
+		const entry = this.entry(message)
+		const max = Math.max(1, Math.min(200, Number(this.config.maxMessages) || 8))
 		this.messages.unshift(entry)
 		this.messages = this.messages.slice(0, max)
-		const fadeMs = Math.max(0, Number(this.config.fadeTime) || 0) * 1000
+		const fadeMs = Math.max(0, Math.min(86400, Number(this.config.fadeTime) || 0)) * 1000
 		if (fadeMs && !this.context.isEditor) {
 			const timer = window.setTimeout(() => {
 			this.messages = this.messages.filter((item) => item.id !== entry.id)
@@ -324,6 +349,21 @@ class ChatFeedWidget extends DomWidget<ChatFeedConfig> {
 		this.render()
 	}
 
+	private entry(message: ChatMessage): Required<ChatMessage> {
+		return {
+			id: String(message.id || `${Date.now()}-${Math.random()}`),
+			platform: String(message.platform || "unknown").toLowerCase(),
+			user: String(message.user || message.username || message.displayName || "unknown"),
+			username: String(message.username || message.user || message.displayName || "unknown"),
+			displayName: String(message.displayName || message.username || message.user || "unknown"),
+			message: String(message.message || message.text || ""),
+			text: String(message.text || message.message || ""),
+			badges: Array.isArray(message.badges) ? message.badges : String(message.badges || "").split(",").map((badge) => badge.trim()).filter(Boolean),
+			targetOverlayId: String(message.targetOverlayId || ""),
+			targetWidgetId: String(message.targetWidgetId || ""),
+		} satisfies Required<ChatMessage>
+	}
+
 	protected render(): void {
 		const config = configWithDefaults(this.config, {
 			fontFamily: "Inter, Arial, sans-serif", fontSize: 24, backgroundColor: "#0d1117", backgroundOpacity: 0.72,
@@ -331,7 +371,7 @@ class ChatFeedWidget extends DomWidget<ChatFeedConfig> {
 		})
 		const root = createElement("div", `chat-feed chat-feed--${config.orientation}`)
 		applyStyles(root, { fontFamily: config.fontFamily, fontSize: `${config.fontSize}px` })
-		for (const entry of this.messages.slice(0, Math.max(1, Number(config.maxMessages) || 8))) {
+		for (const entry of this.messages.slice(0, Math.max(1, Math.min(200, Number(config.maxMessages) || 8)))) {
 			const article = createElement("article", "chat-feed__message")
 			article.dataset.platform = entry.platform
 			applyStyles(article, { background: toRgba(config.backgroundColor, config.backgroundOpacity), borderLeftColor: entry.platform === "youtube" ? config.youtubeColor : config.twitchColor })

@@ -258,19 +258,29 @@ const generatedOverlayWidgets = <GeneratedOverlayWidget>[
     id: "chatFeed",
     name: "Chat Feed",
     description:
-        "Displays approved chat messages pushed by ShowRunner automations.",
+        "Displays automation messages or the approved unified Twitch/YouTube chat history.",
     icon: "mdi mdi-chat-processing-outline",
     capabilities: {
       "events": ["showrunner_chat_message"],
     },
     defaultSize: {"width": 900, "height": 180},
     config: {
+      "source": {
+        "type": "string",
+        "default": "automation",
+        "enum": ["automation", "unifiedChat"],
+      },
+      "platform": {
+        "type": "string",
+        "default": "all",
+        "enum": ["all", "twitch", "youtube"],
+      },
       "fontFamily": {"type": "string", "default": "Inter, Arial, sans-serif"},
       "fontSize": {"type": "number", "default": 24},
       "backgroundColor": {"type": "string", "default": "#0d1117"},
       "backgroundOpacity": {"type": "number", "default": 0.72},
-      "fadeTime": {"type": "number", "default": 10},
-      "maxMessages": {"type": "number", "default": 8},
+      "fadeTime": {"type": "number", "default": 10, "min": 0, "max": 86400},
+      "maxMessages": {"type": "number", "default": 8, "min": 1, "max": 200},
       "orientation": {
         "type": "string",
         "default": "horizontal",

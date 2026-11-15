@@ -40,6 +40,7 @@ import '../time/bootstrap.dart';
 import '../tplink_kasa/bootstrap.dart';
 import '../twinkly/bootstrap.dart';
 import '../twitch/bootstrap.dart';
+import '../overlays/chat_projection.dart';
 import '../variables/bootstrap.dart';
 import '../variables/runtime.dart';
 import '../voicemod/bootstrap.dart';
@@ -65,6 +66,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
   int? httpPortOverride,
   bool startRuntime = true,
   void Function(OverlayPresenceReader reader)? onOverlayPresenceReaderCreated,
+  ReadOverlayChat? readOverlayChat,
 }) async {
   final variablesRepository =
       viewerDataRepository ?? dataService.storage.viewerData;
@@ -178,6 +180,7 @@ Future<DartPluginRegistry> createConfiguredPluginRegistry(
       httpEndpointService: httpEndpointService,
       configuredSoundOutputs: configuredSoundOutputs,
       onOverlayPresenceReaderCreated: onOverlayPresenceReaderCreated,
+      readChat: readOverlayChat,
     );
     registerConfiguredSpellcast(registry, eventHub: eventHub);
     await registerConfiguredGovee(registry, dataService: dataService);

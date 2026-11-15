@@ -112,7 +112,9 @@ class _ChatUserProfileDialogState extends State<ChatUserProfileDialog> {
               const SizedBox(height: 8),
               ChatProfileBadges(badges: profile.badges),
               const SizedBox(height: 8),
-              Text('$count messages in retained session history'),
+              Text(
+                '$count ${count == 1 ? 'message' : 'messages'} in retained session history',
+              ),
               if (widget.message.platform == ChatPlatform.twitch &&
                   widget.runtime.profileStatus == 'loading')
                 const LinearProgressIndicator(),

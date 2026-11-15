@@ -647,6 +647,32 @@ void main() {
     },
   );
   test(
+    'overlay history excludes deleted, whisper and internal messages',
+    () async {
+      final public = ChatMessage.fromTwitch(twitch('public'))!;
+      runtime.ingest(public);
+      await runtime.filtersSettled;
+      expect(runtime.overlayChatHistory().single.id, public.identity);
+      runtime.markDeleted(ChatPlatform.twitch, 'public', channelId: 'channel');
+      expect(runtime.overlayChatHistory(), isEmpty);
+      final private = ChatMessage.fromTwitch(
+        twitch('private'),
+        origin: ChatOrigin.whisper,
+      )!;
+      runtime.ingest(private);
+      await runtime.filtersSettled;
+      expect(runtime.overlayChatHistory(), isEmpty);
+      final internal = ChatMessage.fromTwitch(
+        twitch('internal'),
+        origin: ChatOrigin.internal,
+      )!;
+      runtime.ingest(internal);
+      await runtime.filtersSettled;
+      expect(runtime.overlayChatHistory(), isEmpty);
+    },
+  );
+
+  test(
     'public profiles enrich history and dock without changing permission claims',
     () async {
       final raw = twitch('profile-message');
