@@ -661,8 +661,8 @@ are covered by the full integration/visual gate before pushing.
 batches, Shared Chat badge references, CDN restrictions and shutdown rejection.
 The chat runtime tests verify that display badges never elevate command roles and
 that private email/token fields cannot enter dock snapshots. The native/widget
-profile dialog and Chromium modal exercise load/fallback behavior and actual
-avatar/badge image decoding. The default source performs no network reads until a
+profile dialog checks loading, fallback and lifecycle; the Chromium modal also
+decodes actual avatar/badge image fixtures. The default source performs no network reads until a
 profile is opened or recent profiles are requested. Existing enlarged-text layout
 checks remain unchanged; profile loading lives in the user card rather than
 adding another toolbar row. Captures use the same SDK and viewport contract as
@@ -770,3 +770,17 @@ or print tokens. The [release checklist](release-checklist.md) remains an
 operator gate. Public packages and the manual Windows release proof are unsigned;
 packaging still exercises installed upgrade/rollback without a signature requirement.
 The separate signing-helper fixture uses a temporary test certificate only.
+
+### Current Twitch and unified chat verification
+
+On Windows 11 with Flutter 3.47.7 / Dart 3.13.5, Node 22.23.2 and Yarn 4.1.0,
+`ci-check.ps1 -Stage All` passes 1,366 Flutter tests (10 existing opt-in skips),
+182 JavaScript tests, formatting/analysis, docs/generated contracts, product parity
+and the real Dart/Chromium transport proof. Isolated `-Stage Parity -Integration
+-Visual` passes 102 native scenarios (one existing audio skip). The reviewed
+inspector regions have zero differing pixels; the catalog has no gate failures,
+with historical Electron differences remaining diagnostic. Native user-profile,
+360px dock and 640x360 Chat Feed captures were inspected. No baselines or
+thresholds were changed. These results cover isolated fixtures and local real
+transports, not live Twitch roles, account eligibility or OBS/CEF delivery of new
+features. Follow the live-service guide before authorized production probes.

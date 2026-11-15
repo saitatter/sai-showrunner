@@ -83,6 +83,7 @@
 - Catalog persisted document ownership, formats and required public/secret coherence boundaries from canonical resource declarations.
 
 ### Docs
+- Document Twitch lifecycle/moderation scopes, multi-send accounts, public profiles, scoped OBS chat setup and their isolated verification limits.
 - Document Viewer Data's SQLite ownership, source-preserving migration, backup/interchange commands and measured query costs at 1K, 10K and 100K viewers.
 - Align contributor rules, repository ownership and release-note guidance with the shared Collectarr model, including editorial summaries, banner history and parallel CI gates.
 - Document desktop package formats, proof hosts and Rosetta coverage limits, OS-keyring behavior, portable data locations, default SDK rendering, confirmed upstream Linux lifetime issues and the criteria for removing the application workaround.
