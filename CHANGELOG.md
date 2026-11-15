@@ -88,6 +88,7 @@
 - Document typed storage ownership, journal recovery and stale-write policy, provider editor/codec boundaries, secret handling and measured Phase 04 validation limits.
 
 ### CI & Build
+- Await restored overlay editors in native persistence checks so asynchronous startup does not race saved-state assertions.
 - Run Flutter analysis/unit tests in parallel with native Windows builds and integration checks, preserve all required gates and upload machine-readable Flutter test results.
 - Format release descriptions with a versioned editorial summary, complete commit credits and immutable streaming-studio banners with the official application logo, locally bundled licensed emoji highlights and human-only contributor statistics; maintain historical summaries for every published version and preview or regenerate descriptions through a separate manual workflow.
 - Build and smoke-test macOS/Linux installer and portable artifacts in isolated CI, with verified target architectures, macOS x64 execution through Rosetta on Apple Silicon, separate build/verification status and only required native dependencies; publish releases only after every platform package passes, retain application logs and native launcher crash diagnostics, verify unlocked CI keyrings and wait for complete application startup and rasterized frames before running or closing scenarios, and cancel obsolete proof jobs independently per platform.
