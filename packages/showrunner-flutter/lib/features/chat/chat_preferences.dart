@@ -53,7 +53,7 @@ final class ChatPreferences {
     }
     for (final id in {...ignoredUsers, ...highlightedUsers}) {
       if (id.length > 128 ||
-          !RegExp(r'^(twitch|youtube):[^\s:]+$').hasMatch(id)) {
+          !RegExp(r'^(twitch|youtube|kick):[^\s:]+$').hasMatch(id)) {
         throw const FormatException(
           'Users require platform:userId identities.',
         );

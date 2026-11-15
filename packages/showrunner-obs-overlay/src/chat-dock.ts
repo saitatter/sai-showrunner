@@ -18,6 +18,25 @@ const status = element<HTMLElement>("status")
 const input = element<HTMLInputElement>("message")
 const platform = element<HTMLSelectElement>("platform")
 const account = element<HTMLSelectElement>("account")
+const kickAccount = element<HTMLSelectElement>("kick-account")
+function destinations(): string[] {
+  if (platform.value === "all") return ["twitch", "youtube"]
+  if (platform.value === "every") return ["twitch", "youtube", "kick"]
+  return platform.value.split("+")
+}
+function updateAccounts() {
+  account.hidden = !destinations().includes("twitch")
+  kickAccount.hidden = !destinations().includes("kick")
+}
+function sender(target: string): string {
+  return target === "twitch" ? account.value : target === "kick" ? kickAccount.value : "broadcaster"
+}
+function selectFailed(targets: string[]) {
+  if (targets.length === 3) platform.value = "every"
+  else if (targets.includes("twitch") && targets.includes("youtube")) platform.value = "all"
+  else platform.value = ["twitch", "youtube", "kick"].filter(name => targets.includes(name)).join("+")
+  updateAccounts()
+}
 const profileDialog = document.createElement("dialog")
 profileDialog.setAttribute("aria-label", "User profile")
 document.body.append(profileDialog)
@@ -26,7 +45,7 @@ function publicProfileImage(url: string | undefined, cssClass: string, title: st
     const parsed = new URL(url ?? "")
     if (parsed.protocol !== "https:" || parsed.username || parsed.password ||
         (parsed.port && parsed.port !== "443") ||
-        !["static-cdn.jtvnw.net", "yt3.ggpht.com", "yt4.ggpht.com", "yt3.googleusercontent.com"].includes(parsed.hostname)) return
+        !["static-cdn.jtvnw.net", "yt3.ggpht.com", "yt4.ggpht.com", "yt3.googleusercontent.com", "kick.com", "files.kick.com"].includes(parsed.hostname)) return
     const image = document.createElement("img"); image.src = parsed.href; image.className = cssClass; image.alt = title; image.title = title; image.referrerPolicy = "no-referrer"
     image.addEventListener("error", () => image.replaceWith(document.createTextNode(cssClass === "badge" ? "?" : "")), {once:true})
     return image
@@ -157,7 +176,7 @@ function render() {
         catch (error) { status.textContent = String(error) } finally { actions.disabled = false }
         return
       }
-      if (action === "reply") { platform.value = message.platform; account.hidden = platform.value === "youtube"; input.value = `@${message.viewerName} `; input.focus(); return }
+      if (action === "reply") { platform.value = message.platform; updateAccounts(); input.value = `@${message.viewerName} `; input.focus(); return }
       if (action === "profile") { await showUserProfile(message); return }
       if (action === "user") { userIdentity = userKey(message); render(); return }
       if (action === "copy") {
@@ -204,7 +223,7 @@ function suggest(reset = true) {
   }
 }
 input.addEventListener("input", () => suggest())
-platform.addEventListener("change", () => { account.hidden = platform.value === "youtube"; suggest(); render() })
+platform.addEventListener("change", () => { updateAccounts(); suggest(); render() })
 input.addEventListener("keydown", event => {
   if (!candidates.length) return
   if (event.key === "Tab" || event.key === "Enter") { event.preventDefault(); insertCompletion(selectedCompletion) }
@@ -222,20 +241,20 @@ form.addEventListener("submit", async event => {
       case "/pause": pausedIdentities = new Set(messages.map(m => m.identity)); pausedEventIds = new Set(events.map(e => e.eventId)); render(); status.textContent = "View paused. Use /resume to show incoming messages."; break
       case "/resume": pausedIdentities = undefined; pausedEventIds = undefined; render(); status.textContent = "View resumed."; break
       default: {
-        if (platform.value === "all") {
+        if (destinations().length > 1) {
           const result = await request("/api/send-many", {
-            targets: {twitch: account.value, youtube: "broadcaster"}, message: sentText,
+            targets: Object.fromEntries(destinations().map(target => [target, sender(target)])), message: sentText,
           }) as {ok: boolean; delivered: Record<string, boolean>}
           status.textContent = Object.entries(result.delivered).map(([name, ok]) => `${name}: ${ok ? "sent" : "failed"}`).join("; ")
           if (!result.ok) {
             const failed = Object.entries(result.delivered).filter(([, ok]) => !ok).map(([name]) => name)
-            if (failed.length === 1) { platform.value = failed[0]!; account.hidden = platform.value === "youtube" }
+            selectFailed(failed)
             status.textContent += ". Retry sends only to failed destinations."
             return
           }
         } else {
           await request("/api/send", { platform: platform.value, message: sentText,
-            account: platform.value === "twitch" ? account.value : "broadcaster" })
+            account: sender(platform.value) })
           status.textContent = "Message sent."
         }
       }

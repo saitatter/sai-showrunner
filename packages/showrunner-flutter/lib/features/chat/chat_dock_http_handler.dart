@@ -32,7 +32,7 @@ final class ChatDockHttpHandler {
       request.response.headers.set('X-Content-Type-Options', 'nosniff');
       request.response.headers.set(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://static-cdn.jtvnw.net https://yt3.ggpht.com https://yt4.ggpht.com https://yt3.googleusercontent.com https://cdn.betterttv.net https://cdn.frankerfacez.com https://cdn.7tv.app https://cdn.7tv.io; object-src 'none'; base-uri 'none'",
+        "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' https://static-cdn.jtvnw.net https://yt3.ggpht.com https://yt4.ggpht.com https://yt3.googleusercontent.com https://kick.com https://files.kick.com https://cdn.betterttv.net https://cdn.frankerfacez.com https://cdn.7tv.app https://cdn.7tv.io; object-src 'none'; base-uri 'none'",
       );
       final origin = 'http://127.0.0.1:$port';
       if (request.headers.value('host') != '127.0.0.1:$port' ||

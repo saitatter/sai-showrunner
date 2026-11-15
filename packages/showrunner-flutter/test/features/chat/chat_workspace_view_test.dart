@@ -193,6 +193,11 @@ void main() {
         await tester.pump();
         expect(tester.takeException(), isNull);
         expect(find.byTooltip('Send message').hitTestable(), findsOneWidget);
+        await tester.tap(find.widgetWithText(FilterChip, 'youtube'));
+        await tester.tap(find.widgetWithText(FilterChip, 'kick'));
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(find.byTooltip('Send message').hitTestable(), findsOneWidget);
         await tester.pumpWidget(const SizedBox.shrink());
       });
     }

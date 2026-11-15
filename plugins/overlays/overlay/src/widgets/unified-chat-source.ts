@@ -21,7 +21,7 @@ export function decodeUnifiedChat(value: unknown): UnifiedChatMessage[] {
 			return value
 		}
 		const id = text("id", 512), platform = text("platform", 32)
-		if (!id || ids.has(id) || !["twitch", "youtube"].includes(platform)) throw new Error("Invalid chat identity")
+		if (!id || ids.has(id) || !["twitch", "youtube", "kick"].includes(platform)) throw new Error("Invalid chat identity")
 		ids.add(id)
 		const badges = row.badges ?? []
 		const expiry = row.expiresInMs

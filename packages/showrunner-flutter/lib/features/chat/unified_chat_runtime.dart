@@ -7,6 +7,8 @@ import '../../plugins/twitch/account_runtime.dart';
 import '../../plugins/twitch/chat_profiles.dart';
 import '../../plugins/overlays/chat_projection.dart';
 import '../../plugins/youtube/chat_profiles.dart';
+import '../../plugins/kick/chat_message.dart';
+import '../../plugins/kick/contracts.dart';
 import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../services/http_provider_transports.dart';
@@ -151,6 +153,8 @@ final class UnifiedChatRuntime extends ChangeNotifier {
           cached?.avatarUrl ??
           (message.platform == ChatPlatform.youtube
               ? youtubeChatAvatar(message.source)
+              : message.platform == ChatPlatform.kick
+              ? kickChatAvatar(message.source)
               : null),
       badges: List.unmodifiable(badges.take(8)),
     );
@@ -426,6 +430,11 @@ final class UnifiedChatRuntime extends ChangeNotifier {
 
   Future<void> loadTwitchEmotes() => loadEmotes(ChatPlatform.twitch);
   Future<void> loadEmotes(ChatPlatform platform) async {
+    if (platform == ChatPlatform.kick) {
+      // Kick's public API does not expose an emote catalog. Unicode emoji and
+      // literal provider emote tokens still work; do not query other providers.
+      return;
+    }
     final settings = platform == ChatPlatform.twitch
         ? await loadTwitchChannelSettings(dataService)
         : await dataService.loadPluginSettings('youtube');
@@ -541,7 +550,9 @@ final class UnifiedChatRuntime extends ChangeNotifier {
               'ban',
               'timeout',
             ]
-          : ['membership', 'superChat', 'superSticker'];
+          : platform == ChatPlatform.youtube
+          ? ['membership', 'superChat', 'superSticker']
+          : ['kickUserBanned', 'kickUserTimedOut'];
       for (final type in types) {
         _subscriptions.add(
           eventHub
@@ -549,6 +560,24 @@ final class UnifiedChatRuntime extends ChangeNotifier {
               .listen((values) => _addFeedEvent(platform, type, values)),
         );
       }
+    }
+    _subscriptions.add(
+      eventHub.stream('kickChatMessage').listen((event) {
+        final message = kickChatMessage(event);
+        if (message != null) ingest(message);
+      }),
+    );
+    for (final eventId in ['kickUserBanned', 'kickUserTimedOut']) {
+      _subscriptions.add(
+        eventHub.stream(eventId).listen((event) {
+          markUserDeleted(
+            ChatPlatform.kick,
+            userId: event['viewerId'] as String?,
+            channelId: event['broadcasterId'] as String?,
+            before: DateTime.tryParse(event['createdAt'] as String? ?? ''),
+          );
+        }),
+      );
     }
     _subscriptions.add(
       eventHub.stream('chat').listen((event) {
@@ -815,12 +844,16 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     String message,
     ChatSendAccount account,
   ) {
-    if (account == ChatSendAccount.bot && platform != ChatPlatform.twitch) {
+    if (account == ChatSendAccount.bot && platform == ChatPlatform.youtube) {
       throw const FormatException(
         'A separate bot account is available for Twitch only.',
       );
     }
     if (message.isEmpty) throw const FormatException('Enter a chat message.');
+    if (platform == ChatPlatform.kick) {
+      validateKickMessage(message);
+      return;
+    }
     if (message.length > (platform == ChatPlatform.twitch ? 500 : 200)) {
       throw const FormatException('Message exceeds the platform limit.');
     }
@@ -853,6 +886,11 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             // The configured registry authenticates using the channel account.
             'moderatorId': twitch['broadcasterId'],
             'account': account.name,
+            'message': message,
+          }
+        : platform == ChatPlatform.kick
+        ? {
+            'account': account == ChatSendAccount.bot ? 'bot' : 'user',
             'message': message,
           }
         : {'liveChatId': _liveChatId, 'message': message};
@@ -891,6 +929,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             ? ChatQuickAction.removeModerator
             : ChatQuickAction.addModerator,
       ],
+      if (message.platform == ChatPlatform.kick) ChatQuickAction.unban,
     ],
   ];
 
@@ -932,6 +971,14 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             ChatQuickAction.addModerator => 'addModerator',
             ChatQuickAction.removeModerator => 'removeModerator',
           }
+        : message.platform == ChatPlatform.kick
+        ? switch (action) {
+            ChatQuickAction.deleteMessage => 'deleteMessage',
+            ChatQuickAction.timeout => 'timeoutUser',
+            ChatQuickAction.ban => 'banUser',
+            ChatQuickAction.unban => 'unbanUser',
+            _ => throw StateError('This action is unavailable for Kick.'),
+          }
         : switch (action) {
             ChatQuickAction.deleteMessage => 'deleteMessage',
             ChatQuickAction.timeout || ChatQuickAction.ban => 'banUser',
@@ -955,11 +1002,15 @@ final class UnifiedChatRuntime extends ChangeNotifier {
         'moderatorId': settings['broadcasterId'],
         'messageId': message.id,
         'viewerId': message.userId,
+        if (message.platform == ChatPlatform.kick) 'userId': message.userId,
         'channelId': message.userId,
         'liveChatId': message.channelId.isNotEmpty
             ? message.channelId
             : _liveChatId,
         if (action == ChatQuickAction.timeout) 'duration': 60,
+        if (message.platform == ChatPlatform.kick &&
+            action == ChatQuickAction.timeout)
+          'durationMinutes': 1,
         'banDurationSeconds': action == ChatQuickAction.timeout ? 60 : 0,
         'reason': reason,
       },

@@ -6,6 +6,9 @@ import '../../schema/json.dart';
 import '../../services/plugin_event_hub.dart';
 import '../twitch/connection_factory.dart';
 import '../youtube/connection_factory.dart';
+import '../kick/api_client.dart';
+import '../kick/contracts.dart';
+import '../kick/event_worker.dart';
 import 'provider_operation_policy.dart';
 import 'provider_event.dart';
 import '../twitch/event_worker.dart';
@@ -37,6 +40,16 @@ final class ProviderEventRuntime extends ChangeNotifier {
   Future<YouTubeRequest?>? _resolvingYouTube;
   int _twitchGeneration = 0;
   int _youtubeGeneration = 0;
+  int _kickGeneration = 0;
+  KickApiClient? _kickClient;
+  KickEventWorker? kick;
+
+  ProviderWorkerState get kickState => switch (kick?.state) {
+    'connecting' => ProviderWorkerState.starting,
+    'listening' => ProviderWorkerState.running,
+    'error' => ProviderWorkerState.error,
+    _ => ProviderWorkerState.stopped,
+  };
   bool _disposed = false;
 
   bool _currentTwitch(int generation) =>
@@ -62,6 +75,7 @@ final class ProviderEventRuntime extends ChangeNotifier {
     _disposed = true;
     _twitchGeneration++;
     _youtubeGeneration++;
+    _kickGeneration++;
     super.dispose();
   }
 
@@ -405,9 +419,15 @@ final class ProviderEventRuntime extends ChangeNotifier {
     _requireOpen();
     final twitchGeneration = ++_twitchGeneration;
     final youtubeGeneration = ++_youtubeGeneration;
-    await Future.wait([_stopTwitchOwned(), _stopYouTubeOwned()]);
+    final kickGeneration = ++_kickGeneration;
+    await Future.wait([
+      _stopTwitchOwned(),
+      _stopYouTubeOwned(),
+      _stopKickOwned(),
+    ]);
     final twitchSettings = await loadTwitchChannelSettings(dataService);
     final youtubeSettings = await dataService.loadPluginSettings('youtube');
+    final kickSettings = await dataService.loadPluginSettings('kick');
     if (_currentTwitch(twitchGeneration) &&
         (twitchSettings['accessToken'] as String?)?.isNotEmpty == true &&
         (twitchSettings['clientId'] as String?)?.isNotEmpty == true &&
@@ -421,13 +441,102 @@ final class ProviderEventRuntime extends ChangeNotifier {
         liveChatId: youtubeSettings['liveChatId'] as String,
       );
     }
+    if (!_disposed &&
+        kickGeneration == _kickGeneration &&
+        kickSettings['accessToken'] is String &&
+        (kickSettings['accessToken'] as String).isNotEmpty &&
+        kickSettings['publicWebhookUrl'] is String &&
+        (kickSettings['publicWebhookUrl'] as String).isNotEmpty) {
+      await _startKick(kickSettings, kickGeneration);
+    }
+  }
+
+  Future<void> startKickChat() async {
+    _requireOpen();
+    final generation = ++_kickGeneration;
+    await _stopKickOwned();
+    final settings = await dataService.loadPluginSettings('kick');
+    if (_disposed || generation != _kickGeneration) return;
+    await _startKick(settings, generation);
+  }
+
+  Future<void> _startKick(JsonMap settings, int generation) async {
+    if (_disposed || generation != _kickGeneration) return;
+    final channelId = kickUserId(settings['broadcasterId'], 'broadcasterId');
+    final client = KickApiClient(dataService: dataService);
+    _kickClient = client;
+    final rawPort = settings['webhookPort'] ?? 53544;
+    if (rawPort is! int || rawPort < 1 || rawPort > 65535) {
+      await client.close();
+      _kickClient = null;
+      throw const FormatException(
+        'Kick webhookPort must be between 1 and 65535.',
+      );
+    }
+    final worker = KickEventWorker(
+      request: client.request,
+      loadPublicKey: client.loadPublicKey,
+      broadcasterId: channelId,
+      publicWebhookUrl: settings['publicWebhookUrl'] is String
+          ? settings['publicWebhookUrl'] as String
+          : '',
+      port: rawPort,
+      onStateChanged: _notify,
+      onEvent: (event) {
+        if (_disposed || generation != _kickGeneration) {
+          throw StateError('Kick listener is stopped.');
+        }
+        eventHub.emitProviderEvent(
+          ProviderEventEnvelope(
+            platform: ProviderPlatform.kick,
+            eventType: event.type,
+            occurredAt: DateTime.parse(event.payload['createdAt'] as String),
+            providerEventId: event.payload['messageId'] as String?,
+            channelId: event.broadcasterId.toString(),
+            payload: event.payload,
+          ),
+        );
+      },
+    );
+    kick = worker;
+    try {
+      await worker.start();
+    } catch (_) {
+      await client.close();
+      rethrow;
+    } finally {
+      _notify();
+    }
+  }
+
+  Future<void> _stopKickOwned() async {
+    final worker = kick;
+    final client = _kickClient;
+    kick = null;
+    _kickClient = null;
+    try {
+      await worker?.stop();
+    } finally {
+      await client?.close();
+    }
+  }
+
+  Future<void> stopKickChat() async {
+    _kickGeneration++;
+    await _stopKickOwned();
+    _notify();
   }
 
   Future<void> stop() async {
-    // Both generations are invalidated before either platform can finish I/O.
+    // Invalidate all generations before a platform can finish I/O.
     _twitchGeneration++;
     _youtubeGeneration++;
-    final stopping = [_stopTwitchOwned(), _stopYouTubeOwned()];
+    _kickGeneration++;
+    final stopping = [
+      _stopTwitchOwned(),
+      _stopYouTubeOwned(),
+      _stopKickOwned(),
+    ];
     _youtubeLiveChatId = null;
     await Future.wait(stopping);
     _notify();

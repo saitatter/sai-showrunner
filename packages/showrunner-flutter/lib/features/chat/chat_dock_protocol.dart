@@ -60,7 +60,11 @@ sealed class ChatDockRequest {
         final target = platform();
         final message = text(
           'message',
-          target == ChatPlatform.twitch ? 500 : 200,
+          target == ChatPlatform.kick
+              ? 2048
+              : target == ChatPlatform.twitch
+              ? 500
+              : 200,
         );
         return ChatDockSend(target, message, account(value['account']));
       case '/api/send-many':
@@ -82,7 +86,7 @@ sealed class ChatDockRequest {
         }
         return ChatDockSendMany(
           Map.unmodifiable(targets),
-          text('message', 500),
+          text('message', 2048),
         );
       case '/api/configured-action':
         return ChatDockConfiguredAction(

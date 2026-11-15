@@ -69,7 +69,7 @@ final class OverlayChatProjection {
         !seconds.isFinite ||
         seconds < 0 ||
         seconds > 86400 ||
-        !{'all', 'twitch', 'youtube'}.contains(platform) ||
+        !{'all', 'twitch', 'youtube', 'kick'}.contains(platform) ||
         badges is! bool) {
       throw const FormatException('Invalid unified chat configuration.');
     }
@@ -85,7 +85,7 @@ final class OverlayChatProjection {
     final rows = <Map<String, Object?>>[];
     final ids = <String>{};
     for (final entry in history.reversed.take(500)) {
-      if (!{'twitch', 'youtube'}.contains(entry.platform) ||
+      if (!{'twitch', 'youtube', 'kick'}.contains(entry.platform) ||
           (platform != 'all' && entry.platform != platform)) {
         continue;
       }

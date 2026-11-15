@@ -1,6 +1,6 @@
 import '../../runtime/expression.dart';
 
-enum ProviderPlatform { twitch, youtube }
+enum ProviderPlatform { twitch, youtube, kick }
 
 enum ProviderEventVisibility { public, private }
 

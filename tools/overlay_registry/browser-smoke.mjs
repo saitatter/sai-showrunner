@@ -29,7 +29,13 @@ const server = createServer(async (request, response) => {
     dockRequests.push({path:pathname, ...JSON.parse(body)});
     if (pathname === '/api/preferences') dockPreferences = JSON.parse(body);
     if (pathname === '/api/profile') {response.end(JSON.stringify({profile:dockMessages.find(m=>m.identity===JSON.parse(body).identity)?.profile,status:'loaded'})); return;}
-    if (pathname === '/api/send-many') {response.end(JSON.stringify({ok:false, delivered:{twitch:true,youtube:false}})); return;}
+    if (pathname === '/api/send-many') {
+      const targets = JSON.parse(body).targets;
+      response.end(JSON.stringify(targets.kick
+        ? targets.twitch ? {ok:false,delivered:{twitch:true,youtube:false,kick:false}}
+          : {ok:true,delivered:Object.fromEntries(Object.keys(targets).map(name=>[name,true]))}
+        : {ok:false,delivered:{twitch:true,youtube:false}})); return;
+    }
     response.end(JSON.stringify({ok:true})); return;
   }
   const file = pathname.startsWith('/assets/') ? resolve(dist, '.' + pathname) : join(dist, pathname === '/chat-dock' ? 'chat-dock.html' : 'overlay.html');
@@ -130,6 +136,13 @@ try {
   for (let attempt=0; !(await evaluate(`document.querySelectorAll('.chat-feed__message').length === 0`)); attempt++) {
     if(attempt>120) throw new Error('Chat message did not expire from the overlay.'); await pause(50);
   }
+  overlayChatRows = [{id:'kick-overlay',platform:'kick',displayName:'Kick Viewer',message:'Kick overlay proof',badges:['moderator']}];
+  for (let attempt=0; !(await evaluate(`document.querySelector('.chat-feed__message[data-platform="kick"]')?.textContent.includes('Kick overlay proof')`)); attempt++) {
+    if(attempt>100) throw new Error('Kick chat did not render in the unified overlay.'); await pause(50);
+  }
+  if (!(await evaluate(`getComputedStyle(document.querySelector('.chat-feed__message[data-platform="kick"]')).borderLeftColor === 'rgb(83, 252, 24)'`))) throw new Error('Kick overlay color was not distinct.');
+  const kickOverlayCapture = await send('Page.captureScreenshot', {format:'png'});
+  writeFileSync(join(root, '.tmp/overlay-browser/unified-chat-kick.png'), Buffer.from(kickOverlayCapture.data,'base64'));
   config.widgets[0].config.source = 'automation';
   await evaluate(`window.showRunnerOverlayRuntime.handleRequest('overlays_setConfig', [${JSON.stringify(config)}])`);
   const readsAfterSourceChange = overlayChatReads;
@@ -221,6 +234,29 @@ try {
     if(attempt>100) throw new Error('Failed-destination retry did not finish.'); await pause(50);
   }
   if (dockRequests[previousSends+1]?.platform !== 'youtube' || dockRequests[previousSends+1]?.account !== 'broadcaster') throw new Error('Retry repeated a successful platform or used the wrong account.');
+  dockMessages.push({identity:'kick:7:3',platform:'kick',viewerId:'8',viewerName:'Kick Viewer',message:'Kick dock proof',quickActions:[{id:'timeout',label:'Timeout for 60 seconds'},{id:'unban',label:'Unban user'}],isOwner:false,deleted:false});
+  await evaluate(`document.querySelector('#filter').value='kick'; document.querySelector('#filter').dispatchEvent(new Event('change')); document.querySelector('#platform').value='kick'; document.querySelector('#platform').dispatchEvent(new Event('change'))`);
+  for (let attempt=0; !(await evaluate(`document.querySelector('article')?.textContent.includes('Kick dock proof')`)); attempt++) {
+    if(attempt>100) throw new Error('Kick dock history/filter failed.'); await pause(50);
+  }
+  if (!(await evaluate(`!document.querySelector('#kick-account').hidden && document.querySelector('#account').hidden`))) throw new Error('Kick sender control used Twitch account.');
+  const kickSends = dockRequests.length;
+  await evaluate(`document.querySelector('#kick-account').value='bot'; document.querySelector('#message').value='Kick bot probe'; document.querySelector('#composer').requestSubmit()`);
+  for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#message').value === ''`)); attempt++) {
+    if(attempt>100) throw new Error('Kick bot send did not finish.'); await pause(50);
+  }
+  if (dockRequests[kickSends]?.platform !== 'kick' || dockRequests[kickSends]?.account !== 'bot') throw new Error('Kick bot send lost account selection.');
+  const tripleSends = dockRequests.length;
+  await evaluate(`document.querySelector('#platform').value='every'; document.querySelector('#platform').dispatchEvent(new Event('change')); document.querySelector('#message').value='Three platforms'; document.querySelector('#composer').requestSubmit()`);
+  for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#platform').value === 'youtube+kick'`)); attempt++) {
+    if(attempt>100) throw new Error('Three-platform send did not retain exactly two failed destinations.'); await pause(50);
+  }
+  if (JSON.stringify(Object.keys(dockRequests[tripleSends]?.targets ?? {})) !== JSON.stringify(['twitch','youtube','kick'])) throw new Error('Three-platform selection omitted a provider.');
+  await evaluate(`document.querySelector('#composer').requestSubmit()`);
+  for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#message').value === ''`)); attempt++) {
+    if(attempt>100) throw new Error('Two failed destinations did not retry successfully.'); await pause(50);
+  }
+  if (JSON.stringify(dockRequests[tripleSends+1]?.targets) !== JSON.stringify({youtube:'broadcaster',kick:'bot'})) throw new Error('Retry repeated Twitch or lost the Kick bot.');
   await send('Emulation.setDeviceMetricsOverride', {width:360,height:760,deviceScaleFactor:1,mobile:false});
   if (!(await evaluate(`document.documentElement.scrollWidth <= innerWidth && document.querySelector('#message').getBoundingClientRect().width >= 150 && document.querySelector('#preferences-toggle').getBoundingClientRect().right <= innerWidth`))) throw new Error('Narrow dock composer overflows or collapses the message field.');
   const screenshot = await send('Page.captureScreenshot', {format:'png'});

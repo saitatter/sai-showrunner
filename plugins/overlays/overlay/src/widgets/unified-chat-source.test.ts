@@ -5,6 +5,10 @@ const row = (id: string, expiresInMs?: number): UnifiedChatMessage => ({id,platf
 const response = (messages: UnifiedChatMessage[]) => new Response(JSON.stringify({version:1,messages}), {status:200})
 
 describe("unified chat overlay source", () => {
+	it("accepts Twitch, YouTube and Kick snapshots", () => {
+		const messages = ["twitch", "youtube", "kick"].map(platform => ({...row(platform), platform}))
+		expect(decodeUnifiedChat({version:1,messages})).toEqual(messages)
+	})
 	const sources: UnifiedChatFeedSource[] = []
 	beforeEach(() => vi.useFakeTimers())
 	afterEach(() => { for (const source of sources.splice(0)) source.stop(); vi.unstubAllGlobals(); vi.useRealTimers() })

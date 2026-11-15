@@ -30,6 +30,14 @@ plugin_settings:
     "accessToken": "" # Access Token (SECRET)
     "refreshToken": "" # Refresh Token (SECRET)
     "liveChatId": "" # Live Chat ID
+  "kick":
+    "clientId": "" # Client ID
+    "clientSecret": "" # Client Secret (SECRET)
+    "accessToken": "" # Access Token (SECRET)
+    "refreshToken": "" # Refresh Token (SECRET)
+    "broadcasterId": "" # Broadcaster ID
+    "publicWebhookUrl": "" # Public HTTPS Webhook URL
+    "webhookPort": 53544 # Local Webhook Port
   "twitch":
     "clientId": "" # Client ID
     "clientSecret": "" # Client Secret (SECRET)
@@ -445,6 +453,31 @@ scenarios:
     plugin: "youtube"
     action: "removeBan"
     config: {"banId":""}
+  - name: "Kick: Send Chat Message"
+    enabled: false
+    plugin: "kick"
+    action: "sendChatMessage"
+    config: {"message":"","account":"user"}
+  - name: "Kick: Delete Chat Message"
+    enabled: false
+    plugin: "kick"
+    action: "deleteMessage"
+    config: {"messageId":""}
+  - name: "Kick: Ban User"
+    enabled: false
+    plugin: "kick"
+    action: "banUser"
+    config: {"userId":""}
+  - name: "Kick: Timeout User"
+    enabled: false
+    plugin: "kick"
+    action: "timeoutUser"
+    config: {"userId":"","durationMinutes":1}
+  - name: "Kick: Unban User"
+    enabled: false
+    plugin: "kick"
+    action: "unbanUser"
+    config: {"userId":""}
   - name: "Twitch: Get Polls"
     enabled: false
     plugin: "twitch"

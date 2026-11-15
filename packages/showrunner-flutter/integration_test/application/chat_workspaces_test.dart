@@ -108,6 +108,30 @@ void main() {
             manager.countersFor(manager.commands.single.id).dispatched == 1 &&
             tester.any(find.text('Hello from YouTube')),
       );
+      chat.eventHub.emit('kickChatMessage', {
+        'messageId': 'kick-native',
+        'broadcasterId': '7',
+        'viewerId': '8',
+        'viewerName': 'Kick Viewer',
+        'message': 'Hello from Kick',
+        'createdAt': DateTime.now().toUtc().toIso8601String(),
+        'isModerator': true,
+      });
+      await _wait(tester, () => tester.any(find.text('Hello from Kick')));
+      expect(
+        chat.messages
+            .where((message) => message.platform == ChatPlatform.kick)
+            .single
+            .isModerator,
+        isTrue,
+      );
+      await tester.tap(find.widgetWithText(ChoiceChip, 'kick'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hello from Kick'), findsOneWidget);
+      expect(find.text('Hello from YouTube'), findsNothing);
+      await _capture(tester, 'unified-chat-kick.png');
+      await tester.tap(find.widgetWithText(ChoiceChip, 'All platforms'));
+      await tester.pumpAndSettle();
       await _capture(tester, 'unified-chat.png');
       final twitchRow = find.ancestor(
         of: find.text('!hi Ada'),

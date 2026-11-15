@@ -102,12 +102,16 @@ final class OAuthAuthorizationFlow {
     required String clientId,
     String? clientSecret,
     String callbackPath = '/oauth/callback',
+    String callbackHost = '127.0.0.1',
     Duration timeout = const Duration(minutes: 5),
   }) async {
+    if (!const {'127.0.0.1', 'localhost'}.contains(callbackHost)) {
+      throw ArgumentError('OAuth callbackHost must be a loopback hostname.');
+    }
     final server = await httpServerFactory();
     final redirectUri = Uri(
       scheme: 'http',
-      host: InternetAddress.loopbackIPv4.host,
+      host: callbackHost,
       port: server.port,
       path: callbackPath,
     );

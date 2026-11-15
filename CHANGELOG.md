@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Add Kick chat with broadcaster sign-in, signed webhook reception, unified history and commands, user/app-bot sending, moderation shortcuts and OBS dock/Chat Feed support.
 - Add a Unified Chat source for OBS Chat Feed widgets, with platform filters, message limits, expiry, deletion/clear synchronization and overlay-scoped access while retaining automation-driven feeds.
 - Show public chat profiles with provider avatars, graphical badges and session message counts in desktop chat and the OBS dock, with bounded on-demand Twitch lookups and safe image fallbacks.
 - Add Twitch message-menu shortcuts for pins, warnings and VIP/moderator roles in desktop chat and the OBS dock, with required warning reasons and platform-specific choices.

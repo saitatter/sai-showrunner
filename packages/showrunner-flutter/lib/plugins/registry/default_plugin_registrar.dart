@@ -38,6 +38,7 @@ import '../variables/bootstrap.dart';
 import '../voicemod/bootstrap.dart';
 import '../wyze/bootstrap.dart';
 import '../youtube/bootstrap.dart';
+import '../kick/bootstrap.dart';
 import 'first_party_plugin_ui.dart';
 import 'plugin_registry.dart';
 
@@ -66,6 +67,7 @@ DartPluginRegistry buildDefaultPluginRegistry({
   );
   registerDefaultObsPack(registry, eventHub: eventHub);
   registerDefaultYouTube(registry, eventHub: eventHub);
+  registerDefaultKick(registry, eventHub: eventHub);
   registerDefaultTwitch(
     registry,
     eventHub: eventHub,

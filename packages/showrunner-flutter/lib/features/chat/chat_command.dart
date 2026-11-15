@@ -17,6 +17,7 @@ final class ChatCommand {
     Set<ChatPlatform> platforms = const {
       ChatPlatform.twitch,
       ChatPlatform.youtube,
+      ChatPlatform.kick,
     },
     this.enabled = true,
     this.caseSensitive = false,
@@ -87,7 +88,7 @@ final class ChatCommand {
       throw const FormatException('Select at least one message source.');
     }
     for (final user in users) {
-      if (!RegExp(r'^(twitch|youtube):[^\s:]+$').hasMatch(user)) {
+      if (!RegExp(r'^(twitch|youtube|kick):[^\s:]+$').hasMatch(user)) {
         throw const FormatException(
           'Users must use platform:userId, for example twitch:123.',
         );
