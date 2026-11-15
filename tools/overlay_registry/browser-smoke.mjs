@@ -21,6 +21,7 @@ const server = createServer(async (request, response) => {
     let body = ''; for await (const chunk of request) body += chunk;
     dockRequests.push({path:pathname, ...JSON.parse(body)});
     if (pathname === '/api/preferences') dockPreferences = JSON.parse(body);
+    if (pathname === '/api/send-many') {response.end(JSON.stringify({ok:false, delivered:{twitch:true,youtube:false}})); return;}
     response.end(JSON.stringify({ok:true})); return;
   }
   const file = pathname.startsWith('/assets/') ? resolve(dist, '.' + pathname) : join(dist, pathname === '/chat-dock' ? 'chat-dock.html' : 'overlay.html');
@@ -153,6 +154,20 @@ try {
   await evaluate(`document.querySelector('article button').click()`);
   for (let attempt=0; !dockRequests.some(r=>r.id==='event'); attempt++) { if(attempt>100) throw new Error('Event chat action failed.'); await pause(50); }
   if (dockRequests.find(r=>r.id==='event').eventId !== 'follow-1') throw new Error('Event action used wrong context.');
+  const previousSends = dockRequests.length;
+  await evaluate(`document.querySelector('#platform').value='all'; document.querySelector('#account').value='bot'; document.querySelector('#message').value='Multi-platform probe'; document.querySelector('#composer').requestSubmit()`);
+  for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#status').textContent.includes('youtube: failed')`)); attempt++) {
+    if(attempt>100) throw new Error('Partial chat delivery did not preserve retry state.'); await pause(50);
+  }
+  if (JSON.stringify(dockRequests[previousSends]?.targets) !== JSON.stringify({twitch:'bot',youtube:'broadcaster'})) throw new Error('Multi-send lost sender accounts.');
+  if (!(await evaluate(`document.querySelector('#message').value === 'Multi-platform probe' && document.querySelector('#platform').value === 'youtube'`))) throw new Error('Partial delivery cleared draft or retained successful destination.');
+  await evaluate(`document.querySelector('#composer').requestSubmit()`);
+  for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#message').value === ''`)); attempt++) {
+    if(attempt>100) throw new Error('Failed-destination retry did not finish.'); await pause(50);
+  }
+  if (dockRequests[previousSends+1]?.platform !== 'youtube' || dockRequests[previousSends+1]?.account !== 'broadcaster') throw new Error('Retry repeated a successful platform or used the wrong account.');
+  await send('Emulation.setDeviceMetricsOverride', {width:360,height:760,deviceScaleFactor:1,mobile:false});
+  if (!(await evaluate(`document.documentElement.scrollWidth <= innerWidth && document.querySelector('#message').getBoundingClientRect().width >= 150 && document.querySelector('#preferences-toggle').getBoundingClientRect().right <= innerWidth`))) throw new Error('Narrow dock composer overflows or collapses the message field.');
   const screenshot = await send('Page.captureScreenshot', {format:'png'});
   writeFileSync(join(root, '.tmp/overlay-browser/chat-dock.png'), Buffer.from(screenshot.data, 'base64'));
   if (errors.length) throw new Error(`Chat dock browser exceptions: ${JSON.stringify(errors)}`);

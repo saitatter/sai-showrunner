@@ -210,20 +210,36 @@ final class TwitchClipConfig {
   };
 }
 
+enum TwitchChatAccount { broadcaster, bot }
+
+TwitchChatAccount _chatAccount(Object? value) => switch (value) {
+  null || 'broadcaster' => TwitchChatAccount.broadcaster,
+  'bot' => TwitchChatAccount.bot,
+  _ => throw const FormatException('Unknown Twitch chat account.'),
+};
+
 final class TwitchChatConfig {
-  const TwitchChatConfig({this.broadcasterId, this.moderatorId, this.message});
+  const TwitchChatConfig({
+    this.broadcasterId,
+    this.moderatorId,
+    this.message,
+    this.account = TwitchChatAccount.broadcaster,
+  });
 
   factory TwitchChatConfig.fromRuntime(RuntimeMap value) => TwitchChatConfig(
     broadcasterId: _string(value['broadcasterId']),
     moderatorId: _string(value['moderatorId']),
     message: _string(value['message']),
+    account: _chatAccount(value['account']),
   );
 
   final String? broadcasterId;
   final String? moderatorId;
   final String? message;
+  final TwitchChatAccount account;
 
   RuntimeMap toRuntime() => {
+    'account': account.name,
     if (broadcasterId != null) 'broadcasterId': broadcasterId,
     if (moderatorId != null) 'moderatorId': moderatorId,
     if (message != null) 'message': message,

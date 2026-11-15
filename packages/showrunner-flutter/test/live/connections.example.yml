@@ -609,7 +609,7 @@ scenarios:
     enabled: false
     plugin: "twitch"
     action: "chat"
-    config: {"message":""}
+    config: {"account":"broadcaster","message":""}
   - name: "Twitch: Make Announcement"
     enabled: false
     plugin: "twitch"

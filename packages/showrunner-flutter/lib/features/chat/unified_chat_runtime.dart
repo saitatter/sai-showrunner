@@ -8,6 +8,7 @@ import '../../services/plugin_event_hub.dart';
 import '../../services/showrunner_data_service.dart';
 import '../../services/http_provider_transports.dart';
 import 'chat_message.dart';
+import 'chat_delivery.dart';
 import 'chat_completion.dart';
 import 'chat_preferences.dart';
 import 'configured_chat_action.dart';
@@ -629,7 +630,60 @@ final class UnifiedChatRuntime extends ChangeNotifier {
     if (!_closed) notifyListeners();
   }
 
-  Future<void> send(ChatPlatform platform, String text) async {
+  Future<ChatDeliveryResult> sendMany(
+    Map<ChatPlatform, ChatSendAccount> targets,
+    String text,
+  ) async {
+    if (_closed) throw StateError('Chat is closed.');
+    if (targets.isEmpty) {
+      throw const FormatException('Select a chat destination.');
+    }
+    final selected = Map<ChatPlatform, ChatSendAccount>.of(targets);
+    // Validate every destination before the first side effect. Shortcuts execute
+    // on one explicit platform; they are not broadcast as if they were text.
+    if (text.trimLeft().startsWith('/') && selected.length > 1) {
+      throw const FormatException(
+        'Run chat shortcuts on one platform at a time.',
+      );
+    }
+    for (final entry in selected.entries) {
+      _validateSend(entry.key, text.trim(), entry.value);
+    }
+    final results = await Future.wait(
+      selected.entries.map((entry) async {
+        try {
+          await send(entry.key, text, account: entry.value);
+          return MapEntry(entry.key, true);
+        } catch (_) {
+          return MapEntry(entry.key, false);
+        }
+      }),
+    );
+    return ChatDeliveryResult(Map.fromEntries(results));
+  }
+
+  void _validateSend(
+    ChatPlatform platform,
+    String message,
+    ChatSendAccount account,
+  ) {
+    if (account == ChatSendAccount.bot && platform != ChatPlatform.twitch) {
+      throw const FormatException(
+        'A separate bot account is available for Twitch only.',
+      );
+    }
+    if (message.isEmpty) throw const FormatException('Enter a chat message.');
+    if (message.length > (platform == ChatPlatform.twitch ? 500 : 200)) {
+      throw const FormatException('Message exceeds the platform limit.');
+    }
+  }
+
+  Future<void> send(
+    ChatPlatform platform,
+    String text, {
+    ChatSendAccount account = ChatSendAccount.broadcaster,
+  }) async {
+    if (_closed) throw StateError('Chat is closed.');
     final message = text.trim();
     if (message.startsWith('/action:')) {
       final token = message.split(RegExp(r'\s')).first;
@@ -639,10 +693,7 @@ final class UnifiedChatRuntime extends ChangeNotifier {
         input: message.substring(token.length).trimLeft(),
       );
     }
-    if (message.isEmpty) throw const FormatException('Enter a chat message.');
-    if (message.length > (platform == ChatPlatform.twitch ? 500 : 200)) {
-      throw const FormatException('Message exceeds the platform limit.');
-    }
+    _validateSend(platform, message, account);
     await refreshIdentities();
     final registry = await registryFuture;
     final twitch = platform == ChatPlatform.twitch
@@ -653,12 +704,14 @@ final class UnifiedChatRuntime extends ChangeNotifier {
             'broadcasterId': twitch['broadcasterId'],
             // The configured registry authenticates using the channel account.
             'moderatorId': twitch['broadcasterId'],
+            'account': account.name,
             'message': message,
           }
         : {'liveChatId': _liveChatId, 'message': message};
     if (platform == ChatPlatform.youtube && _liveChatId.isEmpty) {
       throw StateError('Connect a YouTube live chat first.');
     }
+    if (_closed) throw StateError('Chat is closed.');
     // Never echo locally: provider delivery owns history, avoiding duplicates and false success.
     await registry.invokeActionKey(
       ActionKey(

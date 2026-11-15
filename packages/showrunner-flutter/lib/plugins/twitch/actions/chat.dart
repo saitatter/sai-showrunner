@@ -8,16 +8,15 @@ List<DartActionContract> _twitchChatActions(TwitchTransport transport) => [
     configSchema: _chatSchema,
     configCodec: twitchChatConfigCodec,
     invoke: (config, context) async {
-      final response = await transport
-          .request('POST', '/helix/chat/messages', {}, {
-            'broadcaster_id': _idValue(
-              config.broadcasterId,
-              context,
-              'broadcasterId',
-            ),
-            'sender_id': _idValue(config.moderatorId, context, 'moderatorId'),
-            'message': config.message,
-          });
+      final response = await transport.sendChat(config.account, {
+        'broadcaster_id': _idValue(
+          config.broadcasterId,
+          context,
+          'broadcasterId',
+        ),
+        'sender_id': _idValue(config.moderatorId, context, 'moderatorId'),
+        'message': config.message,
+      });
       final data = response['data'];
       if (data is List && data.isNotEmpty && data.first is Map) {
         final result = data.first as Map;

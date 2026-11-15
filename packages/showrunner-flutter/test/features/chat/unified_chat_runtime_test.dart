@@ -5,6 +5,7 @@ import 'package:showrunner_flutter/features/chat/chat_command.dart';
 import 'package:showrunner_flutter/features/chat/chat_preferences.dart';
 import 'package:showrunner_flutter/features/chat/configured_chat_action.dart';
 import 'package:showrunner_flutter/features/chat/chat_message.dart';
+import 'package:showrunner_flutter/features/chat/chat_delivery.dart';
 import 'package:showrunner_flutter/features/chat/command_manager.dart';
 import 'package:showrunner_flutter/features/chat/unified_chat_runtime.dart';
 import 'package:showrunner_flutter/persistence/secret_settings_store.dart';
@@ -24,8 +25,10 @@ void main() {
   late List<Map<String, dynamic>> calls;
   late List<Map<String, dynamic>> actionCalls;
   String? activeYouTubeChat;
+  bool rejectYouTube = false;
   setUp(() async {
     activeYouTubeChat = null;
+    rejectYouTube = false;
     root = await Directory.systemTemp.createTemp('showrunner-chat-runtime-');
     data = ShowRunnerDataService(
       root,
@@ -74,6 +77,7 @@ void main() {
               'query': query,
               'body': body,
             });
+            if (rejectYouTube) throw StateError('private provider error');
             return {};
           }),
         ),
@@ -605,6 +609,60 @@ void main() {
       );
     },
   );
+  test(
+    'multi-send reports partial delivery and retries only failed platforms',
+    () async {
+      rejectYouTube = true;
+      final result = await runtime.sendMany({
+        ChatPlatform.twitch: ChatSendAccount.broadcaster,
+        ChatPlatform.youtube: ChatSendAccount.broadcaster,
+      }, 'Hello both');
+      expect(result.succeeded, isFalse);
+      expect(result.delivered, {
+        ChatPlatform.twitch: true,
+        ChatPlatform.youtube: false,
+      });
+      expect(result.failed, {ChatPlatform.youtube});
+      expect(calls, hasLength(2));
+      expect(runtime.messages, isEmpty);
+      rejectYouTube = false;
+      final retry = await runtime.sendMany({
+        for (final platform in result.failed)
+          platform: ChatSendAccount.broadcaster,
+      }, 'Hello both');
+      expect(retry.succeeded, isTrue);
+      expect(calls, hasLength(3));
+      expect(
+        calls.where((c) => c['path'] == '/helix/chat/messages'),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'all multi-send destinations validate before any provider write',
+    () async {
+      final targets = {
+        ChatPlatform.twitch: ChatSendAccount.broadcaster,
+        ChatPlatform.youtube: ChatSendAccount.broadcaster,
+      };
+      await expectLater(
+        runtime.sendMany(targets, 'x' * 201),
+        throwsFormatException,
+      );
+      await expectLater(
+        runtime.sendMany(targets, '/action:shortcut'),
+        throwsFormatException,
+      );
+      await expectLater(runtime.sendMany({}, 'text'), throwsFormatException);
+      await expectLater(
+        runtime.sendMany({ChatPlatform.youtube: ChatSendAccount.bot}, 'text'),
+        throwsFormatException,
+      );
+      expect(calls, isEmpty);
+    },
+  );
+
   test(
     'routes sends to exactly one provider and does not fabricate history',
     () async {

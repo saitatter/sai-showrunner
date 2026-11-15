@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Send unified chat messages to Twitch and YouTube together, choose the authenticated Twitch broadcaster or bot, and retry only failed destinations while retaining the draft in both desktop chat and the OBS dock.
 - Add dedicated Twitch channel tag reads/replacement, temporary clip download URLs and Guest Star session, invitation and slot actions.
 - Complete Twitch poll and prediction lifecycle nodes, chat pin/unpin, VIP/moderator role actions, warnings and AutoMod decisions, with progress and moderation triggers carrying their event details.
 - Store Viewer Data in indexed SQLite tables with transactional updates, provider-qualified identities, safe one-time import of existing files, consistent online backups and portable import/export. Keep viewer values out of SQL profiling traces in development builds.

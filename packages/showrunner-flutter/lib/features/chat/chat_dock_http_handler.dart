@@ -74,6 +74,16 @@ final class ChatDockHttpHandler {
           throw const ChatDockProtocolException('invalid_json');
         }
         final command = ChatDockRequest.parse(path, payload);
+        if (command is ChatDockSendMany) {
+          final result = await command.execute(runtime);
+          return await _respond(request, HttpStatus.ok, {
+            'ok': result.succeeded,
+            'delivered': {
+              for (final entry in result.delivered.entries)
+                entry.key.name: entry.value,
+            },
+          });
+        }
         await command.execute(runtime);
         return await _respond(request, HttpStatus.ok, {'ok': true});
       }

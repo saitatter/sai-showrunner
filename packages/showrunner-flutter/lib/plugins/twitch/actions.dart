@@ -27,12 +27,14 @@ typedef TwitchRequest =
     );
 
 final class TwitchTransport {
-  const TwitchTransport(this.request);
+  const TwitchTransport(this.request, {this.chatSender});
 
   factory TwitchTransport.withDefaults(
     TwitchRequest request, {
     String? broadcasterId,
     String? moderatorId,
+    Future<RuntimeMap> Function(TwitchChatAccount account, RuntimeMap body)?
+    chatSender,
   }) {
     RuntimeMap resolve(
       RuntimeMap fields, {
@@ -62,10 +64,22 @@ final class TwitchTransport {
           autoMod: path == '/helix/moderation/automod/message',
         ),
       ),
+      chatSender: chatSender,
     );
   }
 
   final TwitchRequest request;
+  final Future<RuntimeMap> Function(TwitchChatAccount account, RuntimeMap body)?
+  chatSender;
+
+  Future<RuntimeMap> sendChat(TwitchChatAccount account, RuntimeMap body) {
+    final sender = chatSender;
+    if (sender != null) return sender(account, body);
+    if (account == TwitchChatAccount.bot) {
+      throw StateError('Connect a Twitch bot account before sending as bot.');
+    }
+    return request('POST', '/helix/chat/messages', {}, body);
+  }
 }
 
 DartDataInputSchema _twitchObject(
@@ -143,6 +157,13 @@ final _predictionSchema = _twitchObject('Twitch prediction', [
 
 final _chatSchema = _twitchObject('Twitch chat message', [
   ..._identities,
+  DartDataInputSchema(
+    label: 'Send as',
+    key: 'account',
+    kind: DartDataInputKind.enumeration,
+    options: ['broadcaster', 'bot'],
+    defaultValue: 'broadcaster',
+  ),
   _twitchText('Message', 'message', required: true, multiline: true),
 ]);
 

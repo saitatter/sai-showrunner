@@ -16,6 +16,7 @@ const history = element<HTMLElement>("messages")
 const status = element<HTMLElement>("status")
 const input = element<HTMLInputElement>("message")
 const platform = element<HTMLSelectElement>("platform")
+const account = element<HTMLSelectElement>("account")
 const filter = element<HTMLSelectElement>("filter")
 const form = element<HTMLFormElement>("composer")
 const token = location.hash.slice(1)
@@ -105,7 +106,7 @@ function render() {
         catch (error) { status.textContent = String(error) } finally { actions.disabled = false }
         return
       }
-      if (action === "reply") { platform.value = message.platform; input.value = `@${message.viewerName} `; input.focus(); return }
+      if (action === "reply") { platform.value = message.platform; account.hidden = platform.value === "youtube"; input.value = `@${message.viewerName} `; input.focus(); return }
       if (action === "user") { userIdentity = userKey(message); render(); return }
       if (action === "copy") {
         try { await navigator.clipboard.writeText(message.message); status.textContent = "Message copied." }
@@ -149,7 +150,7 @@ function suggest(reset = true) {
   }
 }
 input.addEventListener("input", () => suggest())
-platform.addEventListener("change", () => { suggest(); render() })
+platform.addEventListener("change", () => { account.hidden = platform.value === "youtube"; suggest(); render() })
 input.addEventListener("keydown", event => {
   if (!candidates.length) return
   if (event.key === "Tab" || event.key === "Enter") { event.preventDefault(); insertCompletion(selectedCompletion) }
@@ -166,7 +167,24 @@ form.addEventListener("submit", async event => {
       case "/clear": await request("/api/clear", {}); messages = []; signature = ""; render(); status.textContent = "Local history cleared."; break
       case "/pause": pausedIdentities = new Set(messages.map(m => m.identity)); pausedEventIds = new Set(events.map(e => e.eventId)); render(); status.textContent = "View paused. Use /resume to show incoming messages."; break
       case "/resume": pausedIdentities = undefined; pausedEventIds = undefined; render(); status.textContent = "View resumed."; break
-      default: await request("/api/send", { platform: platform.value, message: sentText }); status.textContent = "Message sent."
+      default: {
+        if (platform.value === "all") {
+          const result = await request("/api/send-many", {
+            targets: {twitch: account.value, youtube: "broadcaster"}, message: sentText,
+          }) as {ok: boolean; delivered: Record<string, boolean>}
+          status.textContent = Object.entries(result.delivered).map(([name, ok]) => `${name}: ${ok ? "sent" : "failed"}`).join("; ")
+          if (!result.ok) {
+            const failed = Object.entries(result.delivered).filter(([, ok]) => !ok).map(([name]) => name)
+            if (failed.length === 1) { platform.value = failed[0]!; account.hidden = platform.value === "youtube" }
+            status.textContent += ". Retry sends only to failed destinations."
+            return
+          }
+        } else {
+          await request("/api/send", { platform: platform.value, message: sentText,
+            account: platform.value === "twitch" ? account.value : "broadcaster" })
+          status.textContent = "Message sent."
+        }
+      }
     }
     if (input.value === sentText) input.value = ""
     suggest()

@@ -1,7 +1,7 @@
 # Chat and managed commands
 
-These features are on the development branch after v2.0.0. Twitch and YouTube
-are included; Kick is a separate future integration.
+Twitch and YouTube are included. Unreleased additions below are validated with
+isolated fixtures; Kick is being developed as a separate provider.
 
 ## Commands
 
@@ -152,6 +152,26 @@ This policy does not disable separately configured raw provider graph triggers.
 Regex failures are visible; affected messages stay hidden and the explicit block
 policy controls dispatch. Unsupported saved preferences are preserved and editing
 is refused until the file is repaired. Preferences live in `settings/chat.yaml`.
+
+## Multi-platform sends and sender accounts
+
+Select the Twitch/YouTube destination chips in desktop Chat, or **Twitch + YouTube**
+in the OBS dock. Select **Twitch: broadcaster** or **Twitch: bot** independently.
+YouTube uses its configured authorized account; it has no second bot account slot.
+The Twitch bot uses its separately encrypted `TwitchAccount/bot` credential and
+identity, never a different sender ID on the broadcaster token. A missing/expired
+bot grant fails explicitly, without falling back to the broadcaster. Sign in the
+bot in Twitch settings and grant `user:write:chat`; implicit tokens need reauthorization
+when expired. Moderation continues to use the channel's authenticated actor.
+
+Every target's message limit is checked before sending (500 Twitch, 200 YouTube).
+Destination requests run concurrently. Each reports its own result; a partial
+failure retains the text and selects only failed destinations for retry. Known
+successful targets are not resent. Delivery owns history; no local message echo
+is fabricated. A lost network response can leave delivery uncertain; this is not
+an exactly-once messaging protocol. Slash shortcuts execute on one platform at a
+time, and local `/clear`, `/pause`, `/resume` never become provider messages.
+The dock retains authentication and the same bounded, typed request validation.
 
 ## Twitch lifecycle and moderation nodes
 

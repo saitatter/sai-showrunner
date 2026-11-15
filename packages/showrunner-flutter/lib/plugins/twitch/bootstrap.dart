@@ -9,6 +9,7 @@ import '../registry/plugin_registry.dart';
 import '../stream_plans/manifest.dart';
 import 'account_runtime.dart';
 import 'actions.dart';
+import 'chat_account_router.dart';
 
 Future<void> registerConfiguredTwitch(
   DartPluginRegistry registry, {
@@ -36,17 +37,36 @@ Future<void> registerConfiguredTwitch(
           },
         )
       : null;
+  Future<RuntimeMap> channelRequest(
+    String method,
+    String path,
+    RuntimeMap query,
+    RuntimeMap body,
+  ) async {
+    if (twitchTransport == null) {
+      return _unconfiguredTwitch(method, path, query, body);
+    }
+    return twitchTransport.request(method, path, query, body);
+  }
+
+  final chatRouter = TwitchChatAccountRouter(
+    broadcasterId: twitch['broadcasterId']?.toString() ?? '',
+    channelRequest: channelRequest,
+    loadBot: () =>
+        TwitchAccountAuthService(dataService: dataService).loadAccount('bot'),
+    botRequest: (token) => JsonHttpTransport(
+      operationScope: scope,
+      baseUrl: 'https://api.twitch.tv',
+      accessToken: token,
+      headers: {'Client-Id': ?twitchClientId},
+    ).request,
+  );
   final configuredTwitchTransport = TwitchTransport.withDefaults(
-    (method, path, query, body) async {
-      if (twitchTransport == null) {
-        return _unconfiguredTwitch(method, path, query, body);
-      }
-      return twitchTransport.request(method, path, query, body);
-    },
+    channelRequest,
+    chatSender: chatRouter.send,
     broadcasterId: twitch['broadcasterId']?.toString(),
-    moderatorId:
-        twitch['moderatorId']?.toString() ??
-        twitch['broadcasterId']?.toString(),
+    // The transport uses the channel token; moderator IDs must match its actor.
+    moderatorId: twitch['broadcasterId']?.toString(),
   );
   registry.register(
     createTwitchPlugin(

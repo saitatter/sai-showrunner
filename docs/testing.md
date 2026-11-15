@@ -658,6 +658,32 @@ captures independently passed with 0 differing pixels in both regions. The full
 probe skipped. These results cover the pinned capture contract and SDK, rather
 than establishing universal pixel equivalence across machines.
 
+### Twitch lifecycle and unified chat delivery
+
+The unreleased Twitch nodes use isolated request fixtures in
+`test/plugins/twitch/lifecycle_actions_test.dart` and `channel_tools_test.dart`:
+explicit transition IDs/statuses, paging, repeated query IDs, actor defaults,
+input rejection, warning/AutoMod payloads, tags, clips and Guest Star sessions.
+`chat_account_router_test.dart` verifies separate bot/channel grants, prevents
+caller-supplied sender IDs from changing the actor and rejects unavailable bots.
+The real loopback HTTP fixture checks repeated query encoding without live calls.
+
+`test/features/chat/chat_delivery_view_test.dart` proves partial-send draft
+retention and failed-target-only retry through the desktop composer. Runtime and
+dock HTTP fixtures cover validation before writes and safe per-platform results.
+`tools/overlay_registry/browser-smoke.mjs` exercises the real Chromium dock,
+bot selection, partial delivery, retry and a 360px-wide composer. Source payloads
+and credentials remain excluded from dock projections.
+
+The capture contract is Windows 11, Flutter 3.47.7 / Dart 3.13.5, native
+1440x900/DPR 1 and Chromium 157 at 360x760. The intended change adds destination
+chips and a Twitch sender selector to the composer; narrow dock controls wrap.
+The captured native chat and dock layouts were inspected for clipping and draft
+visibility. Existing reviewed Flutter baselines and frozen Electron references
+remain unchanged. The native overlay restore check separately exposed a startup
+wait race; full native verification must pass before these changes are pushed.
+These fixtures do not certify live moderation permissions or Twitch eligibility.
+
 ## Browser shaders and audio
 
 Export fixtures from the Flutter shader tests with SHOWRUNNER_EXPORT_SHADER_FIXTURES=1,

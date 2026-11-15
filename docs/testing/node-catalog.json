@@ -3268,6 +3268,15 @@
                 "type": "text"
               },
               {
+                "key": "account",
+                "label": "Send as",
+                "type": "enumeration",
+                "options": [
+                  "broadcaster",
+                  "bot"
+                ]
+              },
+              {
                 "key": "message",
                 "label": "Message",
                 "type": "multilineText",
@@ -7284,10 +7293,10 @@
             "name": "QA resource",
             "activationAutomation": {
               "schemaVersion": 1,
-              "id": "bc5e2d6520681b8d58c9ae0233517c1f",
+              "id": "79bd3eee10d29029de65967b848b0e89",
               "graph": {
                 "schemaVersion": 1,
-                "id": "bc5e2d6520681b8d58c9ae0233517c1f",
+                "id": "79bd3eee10d29029de65967b848b0e89",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
@@ -7308,10 +7317,10 @@
             },
             "deactivationAutomation": {
               "schemaVersion": 1,
-              "id": "d48010dadc64dd560c402efd5c0ca039",
+              "id": "0fad1bd872604983872492702dbd9d3f",
               "graph": {
                 "schemaVersion": 1,
-                "id": "d48010dadc64dd560c402efd5c0ca039",
+                "id": "0fad1bd872604983872492702dbd9d3f",
                 "spaces": {
                   "space:main": {
                     "id": "space:main",
