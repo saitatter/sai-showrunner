@@ -7,8 +7,8 @@ const dist = join(root, 'packages/showrunner-obs-overlay/dist/obs-overlay');
 if (!existsSync(join(dist, 'overlay.html'))) throw new Error('Build the overlay before running the browser smoke test.');
 const dockToken = 'isolated-browser-smoke-token';
 const dockMessages = [
-  {identity:'twitch:channel:1', platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', parts:[{text:'Hello '},{text:'from',imageUrl:'https://static-cdn.jtvnw.net/probe.png'},{text:' '},{text:'Twitch',imageUrl:'https://static-cdn.jtvnw.net/missing.png'}], isOwner:false, deleted:false},
-  {identity:'youtube:live:2', platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', parts:[{text:'<script>window.chatXss=true</script>',imageUrl:'javascript:window.chatXss=true'}], isOwner:false, deleted:false},
+  {identity:'twitch:channel:1', quickActions:[{id:'pinMessage',label:'Pin message'},{id:'warnUser',label:'Warn user'}], platform:'twitch', viewerId:'same-id', viewerName:'Twitch Viewer', message:'Hello from Twitch', parts:[{text:'Hello '},{text:'from',imageUrl:'https://static-cdn.jtvnw.net/probe.png'},{text:' '},{text:'Twitch',imageUrl:'https://static-cdn.jtvnw.net/missing.png'}], isOwner:false, deleted:false},
+  {identity:'youtube:live:2', quickActions:[{id:'deleteMessage',label:'Delete message'}], platform:'youtube', viewerId:'same-id', viewerName:'<b>YouTube Viewer</b>', message:'<script>window.chatXss=true</script>', parts:[{text:'<script>window.chatXss=true</script>',imageUrl:'javascript:window.chatXss=true'}], isOwner:false, deleted:false},
 ];
 let dockPreferences = {version:1,fontSize:14,font:'system',timestamps:false,newestFirst:false,alternatingRows:false,platformIcons:true,roleBadges:true,animatedEmotes:true,hideCommands:false,preventIgnoredCommands:false,ignoredUsers:[],highlightedUsers:[],highlightedRoles:[],highlightTerms:[],ignoreRules:[]};
 const dockRequests = [];
@@ -133,7 +133,7 @@ try {
   if (!(await evaluate(`document.querySelector('#message').value === '!hi '`))) throw new Error('Dock keyboard command completion failed.');
   await evaluate(`document.querySelector('#message').value='/pause'; document.querySelector('#composer').requestSubmit()`);
   await pause(50);
-  dockMessages.push({identity:'twitch:channel:late',platform:'twitch',viewerId:'late',viewerName:'Late',message:'Incoming during pause',isOwner:false,deleted:false});
+  dockMessages.push({identity:'twitch:channel:late',quickActions:[{id:'pinMessage',label:'Pin message'}],platform:'twitch',viewerId:'late',viewerName:'Late',message:'Incoming during pause',isOwner:false,deleted:false});
   await pause(1100);
   if (await evaluate(`document.querySelector('#messages').textContent.includes('Incoming during pause')`)) throw new Error('Paused dock rendered new arrivals.');
   await evaluate(`document.querySelector('#message').value='/resume'; document.querySelector('#composer').requestSubmit()`);
@@ -154,6 +154,12 @@ try {
   await evaluate(`document.querySelector('article button').click()`);
   for (let attempt=0; !dockRequests.some(r=>r.id==='event'); attempt++) { if(attempt>100) throw new Error('Event chat action failed.'); await pause(50); }
   if (dockRequests.find(r=>r.id==='event').eventId !== 'follow-1') throw new Error('Event action used wrong context.');
+  await evaluate(`document.querySelector('#view').value='messages'; document.querySelector('#view').dispatchEvent(new Event('change')); window.confirm=()=>true; window.prompt=()=> 'Respect the rules'; const moderation=[...document.querySelectorAll('article select')].find(s=>s.querySelector('option[value="warnUser"]')); moderation.value='warnUser'; moderation.dispatchEvent(new Event('change'))`);
+  for (let attempt=0; !dockRequests.some(r=>r.path==='/api/action' && r.action==='warnUser'); attempt++) {
+    if(attempt>100) throw new Error('Native warning shortcut did not dispatch from the dock.'); await pause(50);
+  }
+  const warning = dockRequests.find(r=>r.path==='/api/action' && r.action==='warnUser');
+  if (warning.reason !== 'Respect the rules' || warning.identity !== 'twitch:channel:1') throw new Error('Warning lost its target or required reason.');
   const previousSends = dockRequests.length;
   await evaluate(`document.querySelector('#platform').value='all'; document.querySelector('#account').value='bot'; document.querySelector('#message').value='Multi-platform probe'; document.querySelector('#composer').requestSubmit()`);
   for (let attempt=0; !(await evaluate(`!document.querySelector('#composer button').disabled && document.querySelector('#status').textContent.includes('youtube: failed')`)); attempt++) {

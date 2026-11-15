@@ -257,6 +257,11 @@ void main() {
         ),
         (
           '/api/action',
+          <String, dynamic>{'identity': 'one', 'action': 'warnUser'},
+          'invalid_reason',
+        ),
+        (
+          '/api/action',
           <String, dynamic>{'identity': 'one', 'action': 'unsupported'},
           'invalid_action',
         ),

@@ -21,7 +21,7 @@ sealed class ChatDockRequest {
       '/api/send' => {'platform', 'message', 'account'},
       '/api/send-many' => {'targets', 'message'},
       '/api/configured-action' => {'id', 'platform', 'identity', 'eventId'},
-      '/api/action' => {'identity', 'action'},
+      '/api/action' => {'identity', 'action', 'reason'},
       '/api/clear' => <String>{},
       '/api/preferences' => null,
       _ => throw const ChatDockProtocolException('not_found', 404),
@@ -96,7 +96,12 @@ sealed class ChatDockRequest {
         if (action == null) {
           throw const ChatDockProtocolException('invalid_action');
         }
-        return ChatDockAction(text('identity'), action);
+        final reason = optional('reason') ?? '';
+        if (reason.length > 500 ||
+            (action == ChatQuickAction.warnUser && reason.trim().isEmpty)) {
+          throw const ChatDockProtocolException('invalid_reason');
+        }
+        return ChatDockAction(text('identity'), action, reason: reason);
       case '/api/clear':
         return const ChatDockClear();
       case '/api/preferences':
@@ -158,9 +163,10 @@ final class ChatDockConfiguredAction extends ChatDockRequest {
 }
 
 final class ChatDockAction extends ChatDockRequest {
-  const ChatDockAction(this.identity, this.action);
+  const ChatDockAction(this.identity, this.action, {this.reason = ''});
   final String identity;
   final ChatQuickAction action;
+  final String reason;
   @override
   Future<void> execute(UnifiedChatRuntime runtime) async {
     final target = runtime.messages
@@ -169,7 +175,7 @@ final class ChatDockAction extends ChatDockRequest {
     if (target == null) {
       throw const ChatDockProtocolException('target_not_found', 404);
     }
-    await runtime.quickAction(target, action);
+    await runtime.quickAction(target, action, reason: reason);
   }
 }
 
@@ -216,6 +222,10 @@ Map<String, dynamic> chatDockSnapshot(UnifiedChatRuntime runtime) => {
           'identity': m.identity,
           ...m.context,
           'deleted': m.deleted,
+          'quickActions': [
+            for (final action in runtime.quickActionsFor(m))
+              {'id': action.name, 'label': action.label},
+          ],
           'parts': runtime
               .messageParts(m)
               .map(

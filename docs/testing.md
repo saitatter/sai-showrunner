@@ -680,8 +680,9 @@ The capture contract is Windows 11, Flutter 3.47.7 / Dart 3.13.5, native
 chips and a Twitch sender selector to the composer; narrow dock controls wrap.
 The captured native chat and dock layouts were inspected for clipping and draft
 visibility. Existing reviewed Flutter baselines and frozen Electron references
-remain unchanged. The native overlay restore check separately exposed a startup
-wait race; full native verification must pass before these changes are pushed.
+remain unchanged. The native gate passes 102 scenarios with one existing opt-in skip after the
+overlay restore check awaits its editor. Both reviewed inspector regions have
+zero differing pixels.
 These fixtures do not certify live moderation permissions or Twitch eligibility.
 
 ## Browser shaders and audio

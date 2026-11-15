@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../plugins/runtime/provider_event_workers.dart';
 import 'chat_message.dart';
 import 'chat_delivery.dart';
+import 'chat_moderation_dialog.dart';
 import 'chat_completion.dart';
 import 'chat_preferences_dialog.dart';
 import 'chat_actions_dialog.dart';
@@ -189,25 +190,12 @@ class _ChatWorkspaceState extends State<ChatWorkspace> {
   Future<void> _moderate(ChatMessage message, ChatQuickAction action) async {
     final owner = _owner;
     final runtime = widget.runtime;
-    final accepted = await showDialog<bool>(
+    final reason = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${action.name} on ${message.platform.name}?'),
-        content: Text('${message.userName}: ${message.text}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+      builder: (_) => ChatModerationDialog(message: message, action: action),
     );
-    if (accepted == true && _isCurrent(owner)) {
-      await _run(() => runtime.quickAction(message, action));
+    if (reason != null && _isCurrent(owner)) {
+      await _run(() => runtime.quickAction(message, action, reason: reason));
     }
   }
 

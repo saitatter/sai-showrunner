@@ -1,6 +1,6 @@
 import "./chat-dock.css"
 
-type Message = { identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean; parts?: {text:string; imageUrl?:string}[]; highlighted?: boolean; time?: string; isModerator?: boolean }
+type Message = { quickActions: {id:string;label:string}[]; identity: string; platform: string; viewerName: string; message: string; isOwner: boolean; deleted: boolean; parts?: {text:string; imageUrl?:string}[]; highlighted?: boolean; time?: string; isModerator?: boolean }
 type FeedEvent = { eventId: string; eventType: string; platform: string; viewerId: string; viewerName: string; message: string; time: string }
 type ConfiguredAction = { id: string; label: string; scope: string; platforms: string[]; icon: string; color: string }
 let configuredActions: ConfiguredAction[] = []
@@ -92,7 +92,7 @@ function render() {
     } else text.textContent = message.message
     const actions = document.createElement("select")
     actions.setAttribute("aria-label", "Message actions")
-    for (const [value, label] of [["", "Actions"], ["reply", "Reply"], ["copy", "Copy message"], ["user", "Show messages from user"], ...(!message.deleted ? [["deleteMessage", "Delete message"]] : []), ...(!message.isOwner ? [["timeout", "Timeout 60s"], ["ban", "Ban user"], ...(message.platform === "twitch" ? [["unban", "Unban user"]] : [])] : [])]) {
+    for (const [value, label] of [["", "Actions"], ["reply", "Reply"], ["copy", "Copy message"], ["user", "Show messages from user"], ...message.quickActions.map(a => [a.id, a.label])]) {
       const option = document.createElement("option"); option.value = value; option.textContent = label; actions.append(option)
     }
     for (const action of configuredActions.filter(a => ["message", "user"].includes(a.scope) && a.platforms.includes(message.platform) && !message.deleted)) {
@@ -114,7 +114,9 @@ function render() {
         return
       }
       if (!action || !confirm(`${actions.querySelector(`option[value="${action}"]`)?.textContent}: ${message.viewerName}?`)) return
-      try { await request("/api/action", { identity: message.identity, action }); status.textContent = "Action sent." } catch (error) { status.textContent = String(error) }
+      const reason = action === "warnUser" ? prompt("Warning reason (up to 500 characters)") : undefined
+      if (action === "warnUser" && (!reason?.trim() || reason.length > 500)) return
+      try { await request("/api/action", { identity: message.identity, action, ...(reason ? {reason:reason.trim()} : {}) }); status.textContent = "Action sent." } catch (error) { status.textContent = String(error) }
     })
     row.append(title, actions, text); history.append(row)
   }

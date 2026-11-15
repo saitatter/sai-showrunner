@@ -153,6 +153,18 @@ Regex failures are visible; affected messages stay hidden and the explicit block
 policy controls dispatch. Unsupported saved preferences are preserved and editing
 is refused until the file is repaired. Preferences live in `settings/chat.yaml`.
 
+## Native moderation shortcuts
+
+The message menu in desktop chat and the OBS dock adds Twitch Pin/Unpin, Warn,
+Add/Remove VIP and Add/Remove Moderator alongside delete/timeout/ban/unban.
+Role choices reflect badges on the received message; Twitch still authorizes
+and validates the current role on each request. Warning confirmation requires a
+non-empty reason (up to 500 characters). Platform-specific shortcuts are omitted
+from YouTube menus; its existing delete/timeout/ban paths remain available.
+Broadcaster messages may be pinned/deleted, but the owner is excluded from
+user sanctions and role changes. AutoMod held text and warning reasons remain
+on private automation events, outside public history and event-feed projections.
+
 ## Multi-platform sends and sender accounts
 
 Select the Twitch/YouTube destination chips in desktop Chat, or **Twitch + YouTube**

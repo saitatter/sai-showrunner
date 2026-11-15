@@ -216,28 +216,12 @@ class ChatTimeline extends StatelessWidget {
                                 ],
                               ),
                             ),
-                      if (!busy && !message.deleted && message.id.isNotEmpty)
-                        const PopupMenuItem(
-                          value: 'deleteMessage',
-                          child: Text('Delete message'),
-                        ),
-                      if (!busy &&
-                          !message.isBroadcaster &&
-                          message.userId.isNotEmpty) ...[
-                        const PopupMenuItem(
-                          value: 'timeout',
-                          child: Text('Timeout for 60 seconds'),
-                        ),
-                        const PopupMenuItem(
-                          value: 'ban',
-                          child: Text('Ban user'),
-                        ),
-                        if (message.platform == ChatPlatform.twitch)
-                          const PopupMenuItem(
-                            value: 'unban',
-                            child: Text('Unban user'),
+                      if (!busy)
+                        for (final action in runtime.quickActionsFor(message))
+                          PopupMenuItem(
+                            value: action.name,
+                            child: Text(action.label),
                           ),
-                      ],
                     ],
                   ),
                 );

@@ -685,6 +685,71 @@ void main() {
     },
   );
   test(
+    'Twitch native shortcuts use message/user IDs and explicit warning reasons',
+    () async {
+      final message = ChatMessage.fromTwitch(twitch('moderation-target'))!;
+      for (final item in [
+        (ChatQuickAction.pinMessage, '/helix/chat/pins', 'PUT'),
+        (ChatQuickAction.unpinMessage, '/helix/chat/pins', 'DELETE'),
+        (ChatQuickAction.addVip, '/helix/channels/vips', 'POST'),
+        (ChatQuickAction.removeVip, '/helix/channels/vips', 'DELETE'),
+        (ChatQuickAction.addModerator, '/helix/moderation/moderators', 'POST'),
+        (
+          ChatQuickAction.removeModerator,
+          '/helix/moderation/moderators',
+          'DELETE',
+        ),
+        (ChatQuickAction.warnUser, '/helix/moderation/warnings', 'POST'),
+      ]) {
+        await runtime.quickAction(
+          message,
+          item.$1,
+          reason: 'Respect the rules',
+        );
+        expect(calls.last['path'], item.$2);
+        expect(calls.last['method'], item.$3);
+        expect(calls.last['query'], containsPair('broadcaster_id', 'channel'));
+      }
+      expect(calls.last['body'], {
+        'data': {'user_id': message.userId, 'reason': 'Respect the rules'},
+      });
+      expect(calls.where((c) => c['path'] == '/helix/chat/messages'), isEmpty);
+      final youtubeMessage = ChatMessage.fromYouTube(youtube('yt'))!;
+      expect(
+        runtime.quickActionsFor(youtubeMessage),
+        isNot(contains(ChatQuickAction.pinMessage)),
+      );
+      await expectLater(
+        runtime.quickAction(youtubeMessage, ChatQuickAction.addVip),
+        throwsStateError,
+      );
+      expect(calls, hasLength(7));
+      await expectLater(
+        runtime.quickAction(message, ChatQuickAction.warnUser),
+        throwsArgumentError,
+      );
+      expect(calls, hasLength(7));
+    },
+  );
+
+  test(
+    'AutoMod and warning details never enter public chat or the event feed',
+    () async {
+      hub.emit('autoModMessageHeld', {
+        'viewerId': 'private',
+        'message': 'private held text',
+      });
+      hub.emit('warningSent', {
+        'viewerId': 'private',
+        'reason': 'private reason',
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(runtime.messages, isEmpty);
+      expect(runtime.events, isEmpty);
+    },
+  );
+
+  test(
     'uses provider message/user IDs for moderation and only marks a successful delete',
     () async {
       final message = ChatMessage.fromTwitch(twitch('message-123'))!;
