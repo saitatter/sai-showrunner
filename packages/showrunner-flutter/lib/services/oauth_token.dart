@@ -111,16 +111,23 @@ final class OAuthAuthorizationFlow {
       port: server.port,
       path: callbackPath,
     );
-    final request = requestBuilder(redirectUri);
     try {
+      final request = requestBuilder(redirectUri);
       final callback = _readCallback(
         server,
         request.state,
         callbackPath,
         timeout,
       );
-      await openAuthorizationUrl(request.authorizationUrl);
-      final result = await callback;
+      // Observe both futures immediately: cancelling the listener while the
+      // browser opener is pending must not leak a callback error to the zone.
+      final results = await Future.wait<OAuthCallbackResult?>([
+        callback,
+        Future<void>.sync(
+          () => openAuthorizationUrl(request.authorizationUrl),
+        ).then<OAuthCallbackResult?>((_) => null),
+      ], eagerError: true);
+      final result = results.first!;
       return await tokenClient.exchangeCode(
         tokenEndpoint: tokenEndpoint,
         clientId: clientId,
